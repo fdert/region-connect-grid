@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "../DashboardLayout";
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Store, Phone, MapPin, Clock, DollarSign, Loader2, Save } from "lucide-react";
+import { Store, Phone, MapPin, Clock, DollarSign, Loader2, Save, Image, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 interface StoreForm {
@@ -20,6 +20,8 @@ interface StoreForm {
   delivery_fee: number;
   min_order_amount: number;
   is_active: boolean;
+  logo_url: string;
+  cover_url: string;
 }
 
 const MerchantSettings = () => {
@@ -33,7 +35,16 @@ const MerchantSettings = () => {
     delivery_fee: 0,
     min_order_amount: 0,
     is_active: false,
+    logo_url: "",
+    cover_url: "",
   });
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string>("");
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string>("");
+  const [isUploading, setIsUploading] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   // Get current user's store
   const { data: store, isLoading } = useQuery({
@@ -65,14 +76,79 @@ const MerchantSettings = () => {
         delivery_fee: store.delivery_fee || 0,
         min_order_amount: store.min_order_amount || 0,
         is_active: store.is_active || false,
+        logo_url: store.logo_url || "",
+        cover_url: store.cover_url || "",
       });
+      setLogoPreview(store.logo_url || "");
+      setCoverPreview(store.cover_url || "");
     }
   }, [store]);
+
+  // Upload image to storage
+  const uploadImage = async (file: File, folder: string): Promise<string> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${folder}/${Date.now()}.${fileExt}`;
+    
+    const { error: uploadError } = await supabase.storage
+      .from('store-assets')
+      .upload(fileName, file);
+
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage
+      .from('store-assets')
+      .getPublicUrl(fileName);
+
+    return data.publicUrl;
+  };
+
+  // Handle logo change
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setLogoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Handle cover change
+  const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setCoverFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCoverPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Update store mutation
   const updateMutation = useMutation({
     mutationFn: async (data: StoreForm) => {
       if (!store?.id) throw new Error("No store found");
+      
+      setIsUploading(true);
+      let logoUrl = data.logo_url;
+      let coverUrl = data.cover_url;
+
+      try {
+        // Upload logo if selected
+        if (logoFile) {
+          logoUrl = await uploadImage(logoFile, `logos/${store.merchant_id}`);
+        }
+        // Upload cover if selected
+        if (coverFile) {
+          coverUrl = await uploadImage(coverFile, `covers/${store.merchant_id}`);
+        }
+      } finally {
+        setIsUploading(false);
+      }
       
       const { error } = await supabase
         .from("stores")
@@ -85,6 +161,8 @@ const MerchantSettings = () => {
           delivery_fee: data.delivery_fee,
           min_order_amount: data.min_order_amount,
           is_active: data.is_active,
+          logo_url: logoUrl || null,
+          cover_url: coverUrl || null,
         })
         .eq("id", store.id);
       
@@ -92,6 +170,8 @@ const MerchantSettings = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["merchant-store-settings"] });
+      setLogoFile(null);
+      setCoverFile(null);
       toast.success("تم حفظ الإعدادات بنجاح");
     },
     onError: () => {
@@ -170,6 +250,100 @@ const MerchantSettings = () => {
                   placeholder="وصف مختصر عن متجرك"
                   rows={3}
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Store Images */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Image className="w-5 h-5" />
+                صور المتجر
+              </CardTitle>
+              <CardDescription>شعار المتجر وصورة الخلفية</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Logo */}
+              <div>
+                <Label>شعار المتجر</Label>
+                <div className="mt-2">
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoChange}
+                    className="hidden"
+                  />
+                  {logoPreview ? (
+                    <div className="relative w-32 h-32">
+                      <img 
+                        src={logoPreview} 
+                        alt="Logo Preview" 
+                        className="w-full h-full object-cover rounded-xl border"
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="absolute bottom-1 left-1"
+                        onClick={() => logoInputRef.current?.click()}
+                      >
+                        تغيير
+                      </Button>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => logoInputRef.current?.click()}
+                      className="w-32 h-32 border-2 border-dashed border-muted-foreground/25 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 transition-colors"
+                    >
+                      <Upload className="w-6 h-6 text-muted-foreground mb-1" />
+                      <span className="text-xs text-muted-foreground">رفع شعار</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Cover */}
+              <div>
+                <Label>صورة الخلفية (الغلاف)</Label>
+                <div className="mt-2">
+                  <input
+                    ref={coverInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleCoverChange}
+                    className="hidden"
+                  />
+                  {coverPreview ? (
+                    <div className="relative">
+                      <img 
+                        src={coverPreview} 
+                        alt="Cover Preview" 
+                        className="w-full h-40 object-cover rounded-xl border"
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="absolute bottom-2 left-2"
+                        onClick={() => coverInputRef.current?.click()}
+                      >
+                        <Image className="w-4 h-4 ml-1" />
+                        تغيير
+                      </Button>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => coverInputRef.current?.click()}
+                      className="w-full h-40 border-2 border-dashed border-muted-foreground/25 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 transition-colors"
+                    >
+                      <Upload className="w-8 h-8 text-muted-foreground mb-2" />
+                      <span className="text-sm text-muted-foreground">اضغط لرفع صورة الخلفية</span>
+                      <span className="text-xs text-muted-foreground mt-1">يُفضل أبعاد 1200×400</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -295,13 +469,13 @@ const MerchantSettings = () => {
           </Card>
 
           {/* Save Button */}
-          <Button type="submit" size="lg" disabled={updateMutation.isPending} className="w-full sm:w-auto gap-2">
-            {updateMutation.isPending ? (
+          <Button type="submit" size="lg" disabled={updateMutation.isPending || isUploading} className="w-full sm:w-auto gap-2">
+            {(updateMutation.isPending || isUploading) ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <Save className="w-4 h-4" />
             )}
-            حفظ الإعدادات
+            {isUploading ? "جاري رفع الصور..." : "حفظ الإعدادات"}
           </Button>
         </form>
       </div>
