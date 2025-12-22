@@ -34,18 +34,27 @@ const BannerSlider = () => {
 
   const fetchBanners = async () => {
     try {
-      const now = new Date().toISOString();
       const { data, error } = await supabase
         .from("banners")
         .select("*")
         .eq("is_active", true)
-        .eq("position", "home_top")
-        .or(`starts_at.is.null,starts_at.lte.${now}`)
-        .or(`ends_at.is.null,ends_at.gte.${now}`)
         .order("sort_order", { ascending: true });
 
       if (error) throw error;
-      setBanners(data || []);
+      
+      // Filter by date on client side for simplicity
+      const now = new Date();
+      const validBanners = (data || []).filter(banner => {
+        const startsAt = banner.starts_at ? new Date(banner.starts_at) : null;
+        const endsAt = banner.ends_at ? new Date(banner.ends_at) : null;
+        
+        const startValid = !startsAt || startsAt <= now;
+        const endValid = !endsAt || endsAt >= now;
+        
+        return startValid && endValid;
+      });
+      
+      setBanners(validBanners);
     } catch (error) {
       console.error("Error fetching banners:", error);
     } finally {
