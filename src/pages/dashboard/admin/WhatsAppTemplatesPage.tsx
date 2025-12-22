@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,9 +8,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Edit2, MessageSquare, Copy } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Trash2, Edit2, MessageSquare, Copy, Info, Variable } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface WhatsAppTemplate {
   id: string;
@@ -20,15 +22,145 @@ interface WhatsAppTemplate {
   is_active: boolean;
 }
 
+// Template types based on webhook events
+const templateTypes = [
+  { 
+    value: "order_created", 
+    label: "إنشاء طلب جديد", 
+    event: "order.created",
+    description: "يُرسل عند إنشاء طلب جديد"
+  },
+  { 
+    value: "order_status_changed", 
+    label: "تغيير حالة الطلب", 
+    event: "order.status_changed",
+    description: "يُرسل عند تغيير حالة الطلب"
+  },
+  { 
+    value: "order_delivered", 
+    label: "تم التوصيل", 
+    event: "order.delivered",
+    description: "يُرسل عند اكتمال توصيل الطلب"
+  },
+  { 
+    value: "courier_assigned", 
+    label: "تعيين مندوب", 
+    event: "courier.assigned",
+    description: "يُرسل عند تعيين مندوب للطلب"
+  },
+  { 
+    value: "support_ticket_created", 
+    label: "تذكرة دعم جديدة", 
+    event: "support.ticket_created",
+    description: "يُرسل عند إنشاء تذكرة دعم"
+  },
+  { 
+    value: "support_ticket_updated", 
+    label: "تحديث تذكرة دعم", 
+    event: "support.ticket_updated",
+    description: "يُرسل عند تحديث تذكرة الدعم"
+  },
+  { 
+    value: "welcome_message", 
+    label: "رسالة ترحيب", 
+    event: "user.registered",
+    description: "يُرسل عند تسجيل مستخدم جديد"
+  },
+  { 
+    value: "custom", 
+    label: "مخصص", 
+    event: "custom",
+    description: "قالب مخصص لأي استخدام"
+  },
+];
+
+// Available variables per template type
+const variablesByType: Record<string, { name: string; description: string }[]> = {
+  order_created: [
+    { name: "customer_name", description: "اسم العميل" },
+    { name: "customer_phone", description: "رقم هاتف العميل" },
+    { name: "order_number", description: "رقم الطلب" },
+    { name: "order_total", description: "المبلغ الإجمالي" },
+    { name: "order_subtotal", description: "المبلغ قبل التوصيل" },
+    { name: "delivery_fee", description: "رسوم التوصيل" },
+    { name: "delivery_address", description: "عنوان التوصيل" },
+    { name: "store_name", description: "اسم المتجر" },
+    { name: "store_phone", description: "رقم المتجر" },
+    { name: "items_count", description: "عدد المنتجات" },
+    { name: "items_list", description: "قائمة المنتجات" },
+    { name: "payment_method", description: "طريقة الدفع" },
+    { name: "order_date", description: "تاريخ الطلب" },
+  ],
+  order_status_changed: [
+    { name: "customer_name", description: "اسم العميل" },
+    { name: "order_number", description: "رقم الطلب" },
+    { name: "old_status", description: "الحالة السابقة" },
+    { name: "new_status", description: "الحالة الجديدة" },
+    { name: "status_message", description: "رسالة الحالة" },
+    { name: "store_name", description: "اسم المتجر" },
+    { name: "estimated_time", description: "الوقت المتوقع" },
+  ],
+  order_delivered: [
+    { name: "customer_name", description: "اسم العميل" },
+    { name: "order_number", description: "رقم الطلب" },
+    { name: "order_total", description: "المبلغ الإجمالي" },
+    { name: "store_name", description: "اسم المتجر" },
+    { name: "courier_name", description: "اسم المندوب" },
+    { name: "delivery_time", description: "وقت التوصيل" },
+    { name: "rating_link", description: "رابط التقييم" },
+  ],
+  courier_assigned: [
+    { name: "customer_name", description: "اسم العميل" },
+    { name: "order_number", description: "رقم الطلب" },
+    { name: "courier_name", description: "اسم المندوب" },
+    { name: "courier_phone", description: "رقم المندوب" },
+    { name: "estimated_time", description: "الوقت المتوقع" },
+    { name: "store_name", description: "اسم المتجر" },
+    { name: "tracking_link", description: "رابط التتبع" },
+  ],
+  support_ticket_created: [
+    { name: "customer_name", description: "اسم العميل" },
+    { name: "ticket_number", description: "رقم التذكرة" },
+    { name: "ticket_subject", description: "موضوع التذكرة" },
+    { name: "ticket_message", description: "نص الرسالة" },
+    { name: "order_number", description: "رقم الطلب (إن وجد)" },
+    { name: "support_link", description: "رابط متابعة التذكرة" },
+  ],
+  support_ticket_updated: [
+    { name: "customer_name", description: "اسم العميل" },
+    { name: "ticket_number", description: "رقم التذكرة" },
+    { name: "ticket_status", description: "حالة التذكرة" },
+    { name: "reply_message", description: "نص الرد" },
+    { name: "admin_name", description: "اسم الموظف" },
+    { name: "support_link", description: "رابط متابعة التذكرة" },
+  ],
+  welcome_message: [
+    { name: "customer_name", description: "اسم العميل" },
+    { name: "customer_phone", description: "رقم الهاتف" },
+    { name: "app_name", description: "اسم التطبيق" },
+    { name: "promo_code", description: "كود خصم ترحيبي" },
+  ],
+  custom: [
+    { name: "customer_name", description: "اسم العميل" },
+    { name: "customer_phone", description: "رقم الهاتف" },
+    { name: "order_number", description: "رقم الطلب" },
+    { name: "store_name", description: "اسم المتجر" },
+    { name: "custom_1", description: "متغير مخصص 1" },
+    { name: "custom_2", description: "متغير مخصص 2" },
+    { name: "custom_3", description: "متغير مخصص 3" },
+  ],
+};
+
 const WhatsAppTemplatesPage = () => {
   const [templates, setTemplates] = useState<WhatsAppTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<WhatsAppTemplate | null>(null);
+  const [selectedType, setSelectedType] = useState<string>("order_created");
   const [formData, setFormData] = useState({
     name: "",
     template: "",
-    variables: "",
+    variables: [] as string[],
     is_active: true
   });
   const { toast } = useToast();
@@ -57,12 +189,10 @@ const WhatsAppTemplatesPage = () => {
     e.preventDefault();
     
     try {
-      const variables = formData.variables.split(",").map(v => v.trim()).filter(Boolean);
-      
       const payload = {
         name: formData.name,
         template: formData.template,
-        variables,
+        variables: formData.variables,
         is_active: formData.is_active
       };
 
@@ -96,15 +226,19 @@ const WhatsAppTemplatesPage = () => {
 
   const resetForm = () => {
     setEditingTemplate(null);
-    setFormData({ name: "", template: "", variables: "", is_active: true });
+    setSelectedType("order_created");
+    setFormData({ name: "order_created", template: "", variables: [], is_active: true });
   };
 
   const handleEdit = (template: WhatsAppTemplate) => {
     setEditingTemplate(template);
+    // Try to find matching type
+    const matchedType = templateTypes.find(t => t.value === template.name);
+    setSelectedType(matchedType ? matchedType.value : "custom");
     setFormData({
       name: template.name,
       template: template.template,
-      variables: template.variables?.join(", ") || "",
+      variables: template.variables || [],
       is_active: template.is_active
     });
     setIsDialogOpen(true);
@@ -129,82 +263,162 @@ const WhatsAppTemplatesPage = () => {
     toast({ title: "تم نسخ القالب" });
   };
 
+  const insertVariable = (varName: string) => {
+    const variable = `{{${varName}}}`;
+    setFormData(prev => ({
+      ...prev,
+      template: prev.template + variable,
+      variables: prev.variables.includes(varName) ? prev.variables : [...prev.variables, varName]
+    }));
+  };
+
+  const handleTypeChange = (type: string) => {
+    setSelectedType(type);
+    setFormData(prev => ({
+      ...prev,
+      name: type,
+      variables: []
+    }));
+  };
+
+  const getTemplateTypeLabel = (name: string) => {
+    return templateTypes.find(t => t.value === name)?.label || name;
+  };
+
+  const availableVariables = variablesByType[selectedType] || variablesByType.custom;
+
   return (
     <AdminLayout title="قوالب رسائل واتساب">
-      <div className="flex justify-between items-center mb-6">
-        <p className="text-muted-foreground">
-          إدارة قوالب الرسائل المرسلة عبر واتساب
-        </p>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2" onClick={resetForm}>
-              <Plus className="w-4 h-4" />
-              إضافة قالب
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>{editingTemplate ? "تعديل القالب" : "إضافة قالب جديد"}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label>اسم القالب *</Label>
-                <Input
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="order_created"
-                  dir="ltr"
-                  required
-                />
-                <p className="text-xs text-muted-foreground">
-                  يستخدم لتحديد القالب برمجياً (بدون مسافات)
-                </p>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>نص الرسالة *</Label>
-                <Textarea
-                  value={formData.template}
-                  onChange={(e) => setFormData({ ...formData, template: e.target.value })}
-                  placeholder="مرحباً {{customer_name}}!&#10;&#10;تم استلام طلبك رقم {{order_number}}"
-                  className="min-h-[150px]"
-                  required
-                />
-                <p className="text-xs text-muted-foreground">
-                  استخدم {"{{variable}}"} للمتغيرات
-                </p>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>المتغيرات</Label>
-                <Input
-                  value={formData.variables}
-                  onChange={(e) => setFormData({ ...formData, variables: e.target.value })}
-                  placeholder="customer_name, order_number, total"
-                  dir="ltr"
-                />
-                <p className="text-xs text-muted-foreground">
-                  افصل بين المتغيرات بفاصلة
-                </p>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <Label>تفعيل القالب</Label>
-                <Switch
-                  checked={formData.is_active}
-                  onCheckedChange={(v) => setFormData({ ...formData, is_active: v })}
-                />
-              </div>
-              
-              <Button type="submit" className="w-full">
-                {editingTemplate ? "حفظ التعديلات" : "إضافة القالب"}
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
+      {/* Header */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MessageSquare className="w-5 h-5" />
+            إدارة قوالب الرسائل
+          </CardTitle>
+          <CardDescription>
+            أنشئ قوالب رسائل واتساب مرتبطة بأحداث النظام المختلفة
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex justify-between items-center">
+            <p className="text-sm text-muted-foreground">
+              عدد القوالب: {templates.length} | المفعلة: {templates.filter(t => t.is_active).length}
+            </p>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2" onClick={resetForm}>
+                  <Plus className="w-4 h-4" />
+                  إضافة قالب
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>{editingTemplate ? "تعديل القالب" : "إضافة قالب جديد"}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {/* Template Type Selection */}
+                  <div className="space-y-2">
+                    <Label>نوع القالب *</Label>
+                    <Select value={selectedType} onValueChange={handleTypeChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="اختر نوع القالب" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {templateTypes.map(type => (
+                          <SelectItem key={type.value} value={type.value}>
+                            <div className="flex flex-col">
+                              <span>{type.label}</span>
+                              <span className="text-xs text-muted-foreground">{type.description}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      الحدث المرتبط: <code className="bg-muted px-1 rounded">{templateTypes.find(t => t.value === selectedType)?.event}</code>
+                    </p>
+                  </div>
 
-      {/* Templates List */}
+                  {/* Available Variables */}
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <Variable className="w-4 h-4" />
+                      المتغيرات المتاحة
+                    </Label>
+                    <div className="flex flex-wrap gap-2 p-3 bg-muted rounded-lg max-h-36 overflow-y-auto">
+                      <TooltipProvider>
+                        {availableVariables.map(variable => (
+                          <Tooltip key={variable.name}>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                onClick={() => insertVariable(variable.name)}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-background border rounded-md text-xs font-mono hover:bg-primary hover:text-primary-foreground transition-colors"
+                              >
+                                <Plus className="w-3 h-3" />
+                                {`{{${variable.name}}}`}
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{variable.description}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        ))}
+                      </TooltipProvider>
+                    </div>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Info className="w-3 h-3" />
+                      انقر على المتغير لإضافته للرسالة
+                    </p>
+                  </div>
+                  
+                  {/* Message Template */}
+                  <div className="space-y-2">
+                    <Label>نص الرسالة *</Label>
+                    <Textarea
+                      value={formData.template}
+                      onChange={(e) => setFormData({ ...formData, template: e.target.value })}
+                      placeholder={`مرحباً {{customer_name}}!\n\nتم استلام طلبك رقم {{order_number}} بنجاح.\n\nالمبلغ الإجمالي: {{order_total}} ر.س`}
+                      className="min-h-[180px] font-mono text-sm"
+                      dir="rtl"
+                      required
+                    />
+                  </div>
+
+                  {/* Selected Variables */}
+                  {formData.variables.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>المتغيرات المستخدمة</Label>
+                      <div className="flex flex-wrap gap-1">
+                        {formData.variables.map(v => (
+                          <Badge key={v} variant="secondary" className="font-mono text-xs">
+                            {`{{${v}}}`}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                    <Label>تفعيل القالب</Label>
+                    <Switch
+                      checked={formData.is_active}
+                      onCheckedChange={(v) => setFormData({ ...formData, is_active: v })}
+                    />
+                  </div>
+                  
+                  <Button type="submit" className="w-full">
+                    {editingTemplate ? "حفظ التعديلات" : "إضافة القالب"}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Templates Grid */}
       <div className="grid md:grid-cols-2 gap-4">
         {templates.map((template) => (
           <Card key={template.id}>
@@ -212,7 +426,10 @@ const WhatsAppTemplatesPage = () => {
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2">
                   <MessageSquare className="w-5 h-5 text-primary" />
-                  <CardTitle className="text-base">{template.name}</CardTitle>
+                  <div>
+                    <CardTitle className="text-base">{getTemplateTypeLabel(template.name)}</CardTitle>
+                    <p className="text-xs text-muted-foreground font-mono">{template.name}</p>
+                  </div>
                 </div>
                 <Badge variant={template.is_active ? "default" : "secondary"}>
                   {template.is_active ? "مفعل" : "معطل"}
@@ -220,7 +437,7 @@ const WhatsAppTemplatesPage = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <pre className="bg-muted p-3 rounded-lg text-sm whitespace-pre-wrap mb-3 max-h-32 overflow-y-auto">
+              <pre className="bg-muted p-3 rounded-lg text-sm whitespace-pre-wrap mb-3 max-h-32 overflow-y-auto" dir="rtl">
                 {template.template}
               </pre>
               
@@ -256,7 +473,11 @@ const WhatsAppTemplatesPage = () => {
           <Card className="md:col-span-2">
             <CardContent className="py-12 text-center">
               <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">لا توجد قوالب</p>
+              <p className="text-muted-foreground mb-4">لا توجد قوالب</p>
+              <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
+                <Plus className="w-4 h-4" />
+                إضافة أول قالب
+              </Button>
             </CardContent>
           </Card>
         )}
