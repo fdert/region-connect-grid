@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Store, Phone, MapPin, DollarSign, Loader2, ArrowLeft } from "lucide-react";
+import { Store, Phone, MapPin, DollarSign, Loader2, ArrowLeft, Image, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 
@@ -19,6 +19,8 @@ interface StoreForm {
   city: string;
   delivery_fee: number;
   min_order_amount: number;
+  logo_url: string;
+  cover_url: string;
 }
 
 const CreateStore = () => {
@@ -31,7 +33,16 @@ const CreateStore = () => {
     city: "",
     delivery_fee: 0,
     min_order_amount: 0,
+    logo_url: "",
+    cover_url: "",
   });
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string>("");
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string>("");
+  const [isUploading, setIsUploading] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   // Check if user already has a store
   const { data: existingStore, isLoading: checkingStore } = useQuery({
@@ -50,11 +61,72 @@ const CreateStore = () => {
     },
   });
 
+  // Upload image to storage
+  const uploadImage = async (file: File, folder: string): Promise<string> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${folder}/${Date.now()}.${fileExt}`;
+    
+    const { error: uploadError } = await supabase.storage
+      .from('store-assets')
+      .upload(fileName, file);
+
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage
+      .from('store-assets')
+      .getPublicUrl(fileName);
+
+    return data.publicUrl;
+  };
+
+  // Handle logo change
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setLogoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Handle cover change
+  const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setCoverFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCoverPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   // Create store mutation
   const createMutation = useMutation({
     mutationFn: async (data: StoreForm) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
+      
+      setIsUploading(true);
+      let logoUrl = data.logo_url;
+      let coverUrl = data.cover_url;
+
+      try {
+        // Upload logo if selected
+        if (logoFile) {
+          logoUrl = await uploadImage(logoFile, `logos/${user.id}`);
+        }
+        // Upload cover if selected
+        if (coverFile) {
+          coverUrl = await uploadImage(coverFile, `covers/${user.id}`);
+        }
+      } finally {
+        setIsUploading(false);
+      }
       
       const { error } = await supabase
         .from("stores")
@@ -67,6 +139,8 @@ const CreateStore = () => {
           city: data.city,
           delivery_fee: data.delivery_fee,
           min_order_amount: data.min_order_amount,
+          logo_url: logoUrl || null,
+          cover_url: coverUrl || null,
           is_active: false,
           is_approved: false,
         });
@@ -165,6 +239,100 @@ const CreateStore = () => {
             </CardContent>
           </Card>
 
+          {/* Store Images */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Image className="w-5 h-5" />
+                صور المتجر
+              </CardTitle>
+              <CardDescription>شعار المتجر وصورة الخلفية</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Logo */}
+              <div>
+                <Label>شعار المتجر</Label>
+                <div className="mt-2">
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoChange}
+                    className="hidden"
+                  />
+                  {logoPreview ? (
+                    <div className="relative w-32 h-32">
+                      <img 
+                        src={logoPreview} 
+                        alt="Logo Preview" 
+                        className="w-full h-full object-cover rounded-xl border"
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="absolute bottom-1 left-1"
+                        onClick={() => logoInputRef.current?.click()}
+                      >
+                        تغيير
+                      </Button>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => logoInputRef.current?.click()}
+                      className="w-32 h-32 border-2 border-dashed border-muted-foreground/25 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 transition-colors"
+                    >
+                      <Upload className="w-6 h-6 text-muted-foreground mb-1" />
+                      <span className="text-xs text-muted-foreground">رفع شعار</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Cover */}
+              <div>
+                <Label>صورة الخلفية (الغلاف)</Label>
+                <div className="mt-2">
+                  <input
+                    ref={coverInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleCoverChange}
+                    className="hidden"
+                  />
+                  {coverPreview ? (
+                    <div className="relative">
+                      <img 
+                        src={coverPreview} 
+                        alt="Cover Preview" 
+                        className="w-full h-40 object-cover rounded-xl border"
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="absolute bottom-2 left-2"
+                        onClick={() => coverInputRef.current?.click()}
+                      >
+                        <Image className="w-4 h-4 ml-1" />
+                        تغيير
+                      </Button>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => coverInputRef.current?.click()}
+                      className="w-full h-40 border-2 border-dashed border-muted-foreground/25 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 transition-colors"
+                    >
+                      <Upload className="w-8 h-8 text-muted-foreground mb-2" />
+                      <span className="text-sm text-muted-foreground">اضغط لرفع صورة الخلفية</span>
+                      <span className="text-xs text-muted-foreground mt-1">يُفضل أبعاد 1200×400</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Contact Info */}
           <Card>
             <CardHeader>
@@ -251,15 +419,15 @@ const CreateStore = () => {
           <Button 
             type="submit" 
             size="lg" 
-            disabled={createMutation.isPending} 
+            disabled={createMutation.isPending || isUploading} 
             className="w-full gap-2"
           >
-            {createMutation.isPending ? (
+            {(createMutation.isPending || isUploading) ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <Store className="w-4 h-4" />
             )}
-            إنشاء المتجر
+            {isUploading ? "جاري رفع الصور..." : "إنشاء المتجر"}
           </Button>
         </form>
       </div>
