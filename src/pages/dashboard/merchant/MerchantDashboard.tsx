@@ -6,70 +6,44 @@ import {
   Package, 
   DollarSign,
   TrendingUp,
-  TrendingDown,
   ArrowLeft,
   ShoppingBag,
   Star,
   Eye,
   Loader2,
-  Store
+  Store,
+  Clock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Database } from "@/integrations/supabase/types";
 
-const stats = [
-  {
-    label: "طلبات اليوم",
-    value: "24",
-    change: "+5",
-    trend: "up",
-    icon: Package,
-    color: "from-primary to-emerald-600",
-  },
-  {
-    label: "إجمالي المبيعات",
-    value: "8,450 ر.س",
-    change: "+12%",
-    trend: "up",
-    icon: DollarSign,
-    color: "from-blue-500 to-cyan-500",
-  },
-  {
-    label: "المنتجات",
-    value: "156",
-    change: "+3",
-    trend: "up",
-    icon: ShoppingBag,
-    color: "from-orange-500 to-amber-500",
-  },
-  {
-    label: "التقييم",
-    value: "4.8",
-    change: "+0.1",
-    trend: "up",
-    icon: Star,
-    color: "from-purple-500 to-violet-500",
-  },
-];
+type OrderStatus = Database["public"]["Enums"]["order_status"];
 
-const recentOrders = [
-  { id: "ORD-001", customer: "أحمد محمد", items: 3, status: "جديد", amount: "250 ر.س", time: "منذ 5 دقائق" },
-  { id: "ORD-002", customer: "سارة علي", items: 1, status: "قيد التحضير", amount: "85 ر.س", time: "منذ 15 دقيقة" },
-  { id: "ORD-003", customer: "محمد خالد", items: 5, status: "جاهز للتوصيل", amount: "1,500 ر.س", time: "منذ 30 دقيقة" },
-  { id: "ORD-004", customer: "نورة سعد", items: 2, status: "تم التوصيل", amount: "320 ر.س", time: "منذ ساعة" },
-];
+const statusLabels: Record<OrderStatus, string> = {
+  new: "جديد",
+  accepted_by_merchant: "مقبول",
+  preparing: "قيد التحضير",
+  ready: "جاهز للتسليم",
+  assigned_to_courier: "تم تعيين مندوب",
+  picked_up: "تم الاستلام",
+  on_the_way: "في الطريق",
+  delivered: "تم التوصيل",
+  cancelled: "ملغي",
+  failed: "فشل",
+};
 
-const topProducts = [
-  { name: "قميص رجالي كلاسيك", sales: 45, revenue: "2,250 ر.س" },
-  { name: "فستان سهرة أنيق", sales: 32, revenue: "4,800 ر.س" },
-  { name: "حذاء رياضي", sales: 28, revenue: "2,800 ر.س" },
-];
-
-const statusColors: Record<string, string> = {
-  "جديد": "bg-info",
-  "قيد التحضير": "bg-warning",
-  "جاهز للتوصيل": "bg-primary",
-  "تم التوصيل": "bg-success",
+const statusColors: Record<OrderStatus, string> = {
+  new: "bg-blue-500",
+  accepted_by_merchant: "bg-cyan-500",
+  preparing: "bg-yellow-500",
+  ready: "bg-green-500",
+  assigned_to_courier: "bg-purple-500",
+  picked_up: "bg-indigo-500",
+  on_the_way: "bg-orange-500",
+  delivered: "bg-emerald-500",
+  cancelled: "bg-red-500",
+  failed: "bg-gray-500",
 };
 
 const MerchantDashboard = () => {
@@ -95,6 +69,112 @@ const MerchantDashboard = () => {
       return data;
     },
   });
+
+  // Get orders for the store
+  const { data: orders } = useQuery({
+    queryKey: ["merchant-dashboard-orders", store?.id],
+    queryFn: async () => {
+      if (!store?.id) return [];
+      
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("store_id", store.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!store?.id,
+  });
+
+  // Get products for the store
+  const { data: products } = useQuery({
+    queryKey: ["merchant-dashboard-products", store?.id],
+    queryFn: async () => {
+      if (!store?.id) return [];
+      
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .eq("store_id", store.id);
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!store?.id,
+  });
+
+  // Calculate statistics
+  const today = new Date().toISOString().split("T")[0];
+  const todayOrders = orders?.filter(o => o.created_at?.startsWith(today)) || [];
+  const totalSales = orders?.reduce((sum, o) => sum + o.subtotal, 0) || 0;
+  const totalProducts = products?.length || 0;
+  const storeRating = store?.rating || 0;
+
+  // Get recent orders (last 5)
+  const recentOrders = orders?.slice(0, 5) || [];
+
+  // Calculate top products from order items
+  const productSales: Record<string, { name: string; count: number; revenue: number }> = {};
+  orders?.forEach(order => {
+    const items = order.items as any[];
+    items?.forEach(item => {
+      const name = item.name || "منتج";
+      if (!productSales[name]) {
+        productSales[name] = { name, count: 0, revenue: 0 };
+      }
+      productSales[name].count += item.quantity || 1;
+      productSales[name].revenue += (item.price || 0) * (item.quantity || 1);
+    });
+  });
+
+  const topProducts = Object.values(productSales)
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 5);
+
+  // Format time ago
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return "الآن";
+    if (diffMins < 60) return `منذ ${diffMins} دقيقة`;
+    if (diffHours < 24) return `منذ ${diffHours} ساعة`;
+    return `منذ ${diffDays} يوم`;
+  };
+
+  // Stats data
+  const stats = [
+    {
+      label: "طلبات اليوم",
+      value: todayOrders.length.toString(),
+      icon: Package,
+      color: "from-primary to-emerald-600",
+    },
+    {
+      label: "إجمالي المبيعات",
+      value: `${totalSales.toFixed(0)} ر.س`,
+      icon: DollarSign,
+      color: "from-blue-500 to-cyan-500",
+    },
+    {
+      label: "المنتجات",
+      value: totalProducts.toString(),
+      icon: ShoppingBag,
+      color: "from-orange-500 to-amber-500",
+    },
+    {
+      label: "التقييم",
+      value: storeRating.toFixed(1),
+      icon: Star,
+      color: "from-purple-500 to-violet-500",
+    },
+  ];
 
   // Show loading state
   if (isLoading) {
@@ -140,6 +220,12 @@ const MerchantDashboard = () => {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold mb-2">مرحباً، {store.name}</h1>
             <p className="text-muted-foreground">إليك نظرة عامة على أداء متجرك اليوم</p>
+            {!store.is_approved && (
+              <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-100 text-yellow-800 text-sm">
+                <Clock className="w-4 h-4" />
+                في انتظار موافقة الإدارة
+              </div>
+            )}
           </div>
           <Link to={`/store/${store.id}`}>
             <Button variant="outline" className="gap-2">
@@ -160,11 +246,8 @@ const MerchantDashboard = () => {
                 <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center`}>
                   <stat.icon className="w-6 h-6 text-primary-foreground" />
                 </div>
-                <div className={`flex items-center gap-1 text-sm font-medium ${
-                  stat.trend === "up" ? "text-success" : "text-destructive"
-                }`}>
-                  {stat.trend === "up" ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                  {stat.change}
+                <div className="flex items-center gap-1 text-sm font-medium text-success">
+                  <TrendingUp className="w-4 h-4" />
                 </div>
               </div>
               <div className="text-2xl font-bold mb-1">{stat.value}</div>
@@ -186,24 +269,36 @@ const MerchantDashboard = () => {
               </Link>
             </div>
             <div className="divide-y divide-border">
-              {recentOrders.map((order) => (
-                <div key={order.id} className="p-4 hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-3 mb-1">
-                        <span className="font-semibold">{order.id}</span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs text-primary-foreground ${statusColors[order.status]}`}>
-                          {order.status}
-                        </span>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {order.customer} • {order.items} منتجات • {order.time}
+              {recentOrders.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>لا توجد طلبات حتى الآن</p>
+                </div>
+              ) : (
+                recentOrders.map((order) => {
+                  const items = order.items as any[];
+                  const itemCount = items?.reduce((sum, i) => sum + (i.quantity || 1), 0) || 0;
+                  
+                  return (
+                    <div key={order.id} className="p-4 hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center gap-3 mb-1">
+                            <span className="font-semibold">{order.order_number}</span>
+                            <span className={`px-2 py-0.5 rounded-full text-xs text-white ${statusColors[order.status as OrderStatus]}`}>
+                              {statusLabels[order.status as OrderStatus]}
+                            </span>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {order.customer_phone || "عميل"} • {itemCount} منتجات • {formatTimeAgo(order.created_at!)}
+                          </div>
+                        </div>
+                        <div className="text-left font-semibold">{order.total} ر.س</div>
                       </div>
                     </div>
-                    <div className="text-left font-semibold">{order.amount}</div>
-                  </div>
-                </div>
-              ))}
+                  );
+                })
+              )}
             </div>
           </div>
 
@@ -213,20 +308,27 @@ const MerchantDashboard = () => {
               <h2 className="font-bold text-lg">الأكثر مبيعاً</h2>
             </div>
             <div className="divide-y divide-border">
-              {topProducts.map((product, index) => (
-                <div key={index} className="p-4 hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-sm font-bold flex items-center justify-center">
-                      {index + 1}
-                    </span>
-                    <span className="font-medium truncate">{product.name}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <span>{product.sales} مبيعات</span>
-                    <span className="font-semibold text-foreground">{product.revenue}</span>
-                  </div>
+              {topProducts.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <ShoppingBag className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>لا توجد مبيعات بعد</p>
                 </div>
-              ))}
+              ) : (
+                topProducts.map((product, index) => (
+                  <div key={index} className="p-4 hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-sm font-bold flex items-center justify-center">
+                        {index + 1}
+                      </span>
+                      <span className="font-medium truncate">{product.name}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <span>{product.count} مبيعات</span>
+                      <span className="font-semibold text-foreground">{product.revenue.toFixed(0)} ر.س</span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
