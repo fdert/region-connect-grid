@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,9 @@ import {
   ShoppingBag
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import { z } from "zod";
 
 type UserRole = "customer" | "merchant" | "courier";
 
@@ -42,6 +44,17 @@ const roleOptions: { value: UserRole; label: string; icon: typeof User; descript
   },
 ];
 
+const registerSchema = z.object({
+  name: z.string().min(2, "الاسم يجب أن يكون حرفين على الأقل").max(100),
+  email: z.string().email("البريد الإلكتروني غير صالح"),
+  phone: z.string().min(10, "رقم الجوال غير صالح").max(15),
+  password: z.string().min(6, "كلمة المرور يجب أن تكون 6 أحرف على الأقل"),
+  confirmPassword: z.string()
+}).refine(data => data.password === data.confirmPassword, {
+  message: "كلمتا المرور غير متطابقتين",
+  path: ["confirmPassword"]
+});
+
 const Register = () => {
   const [searchParams] = useSearchParams();
   const initialRole = (searchParams.get("role") as UserRole) || "customer";
@@ -56,33 +69,67 @@ const Register = () => {
     password: "",
     confirmPassword: "",
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
   
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { signUp, user } = useAuth();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate("/");
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrors({});
     
-    if (formData.password !== formData.confirmPassword) {
-      toast({
-        title: "خطأ",
-        description: "كلمتا المرور غير متطابقتين",
-        variant: "destructive",
+    // Validate
+    const result = registerSchema.safeParse(formData);
+    if (!result.success) {
+      const fieldErrors: Record<string, string> = {};
+      result.error.errors.forEach(err => {
+        const field = err.path[0] as string;
+        fieldErrors[field] = err.message;
       });
+      setErrors(fieldErrors);
       return;
     }
 
     setIsLoading(true);
 
-    // Simulate registration
-    setTimeout(() => {
-      setIsLoading(false);
+    const { error } = await signUp(
+      formData.email,
+      formData.password,
+      formData.name,
+      formData.phone,
+      selectedRole
+    );
+
+    setIsLoading(false);
+
+    if (error) {
+      let message = "حدث خطأ أثناء إنشاء الحساب";
+      if (error.message.includes("User already registered")) {
+        message = "هذا البريد الإلكتروني مسجل بالفعل";
+      }
+      
       toast({
-        title: "تم إنشاء الحساب بنجاح",
-        description: "مرحباً بك في سوقنا!",
+        title: "خطأ",
+        description: message,
+        variant: "destructive",
       });
-      navigate("/auth/login");
-    }, 1500);
+      return;
+    }
+
+    toast({
+      title: "تم إنشاء الحساب بنجاح",
+      description: "مرحباً بك في سوقنا!",
+    });
+    
+    navigate("/");
   };
 
   return (
@@ -150,13 +197,14 @@ const Register = () => {
                   id="name"
                   type="text"
                   placeholder="أدخل اسمك الكامل"
-                  className="h-12 pr-12"
+                  className={`h-12 pr-12 ${errors.name ? 'border-destructive' : ''}`}
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
                 />
                 <User className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               </div>
+              {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
             </div>
 
             {/* Email */}
@@ -167,7 +215,7 @@ const Register = () => {
                   id="email"
                   type="email"
                   placeholder="example@email.com"
-                  className="h-12 pr-12"
+                  className={`h-12 pr-12 ${errors.email ? 'border-destructive' : ''}`}
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
@@ -175,6 +223,7 @@ const Register = () => {
                 />
                 <Mail className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               </div>
+              {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
             </div>
 
             {/* Phone */}
@@ -185,7 +234,7 @@ const Register = () => {
                   id="phone"
                   type="tel"
                   placeholder="05xxxxxxxx"
-                  className="h-12 pr-12"
+                  className={`h-12 pr-12 ${errors.phone ? 'border-destructive' : ''}`}
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   required
@@ -193,6 +242,7 @@ const Register = () => {
                 />
                 <Phone className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               </div>
+              {errors.phone && <p className="text-sm text-destructive">{errors.phone}</p>}
             </div>
 
             {/* Password */}
@@ -203,7 +253,7 @@ const Register = () => {
                   id="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
-                  className="h-12 pr-12 pl-12"
+                  className={`h-12 pr-12 pl-12 ${errors.password ? 'border-destructive' : ''}`}
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   required
@@ -218,6 +268,7 @@ const Register = () => {
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+              {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
             </div>
 
             {/* Confirm Password */}
@@ -228,7 +279,7 @@ const Register = () => {
                   id="confirmPassword"
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
-                  className="h-12 pr-12"
+                  className={`h-12 pr-12 ${errors.confirmPassword ? 'border-destructive' : ''}`}
                   value={formData.confirmPassword}
                   onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                   required
@@ -236,6 +287,7 @@ const Register = () => {
                 />
                 <Lock className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               </div>
+              {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
             </div>
 
             {/* Terms */}
