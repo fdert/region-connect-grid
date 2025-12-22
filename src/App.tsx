@@ -38,6 +38,7 @@ import MerchantProducts from "./pages/dashboard/merchant/MerchantProducts";
 import MerchantReports from "./pages/dashboard/merchant/MerchantReports";
 import MerchantSettings from "./pages/dashboard/merchant/MerchantSettings";
 import MerchantSupport from "./pages/dashboard/merchant/MerchantSupport";
+import CreateStore from "./pages/dashboard/merchant/CreateStore";
 
 // Other Dashboard Pages
 import CourierDashboard from "./pages/dashboard/courier/CourierDashboard";
@@ -84,6 +85,7 @@ const App = () => (
               
               {/* Merchant Dashboard */}
               <Route path="/merchant" element={<MerchantDashboard />} />
+              <Route path="/merchant/create-store" element={<CreateStore />} />
               <Route path="/merchant/orders" element={<MerchantOrders />} />
               <Route path="/merchant/products" element={<MerchantProducts />} />
               <Route path="/merchant/reports" element={<MerchantReports />} />

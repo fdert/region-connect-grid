@@ -1,3 +1,6 @@
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate, Link } from "react-router-dom";
 import DashboardLayout from "../DashboardLayout";
 import { 
   Package, 
@@ -7,10 +10,12 @@ import {
   ArrowLeft,
   ShoppingBag,
   Star,
-  Eye
+  Eye,
+  Loader2,
+  Store
 } from "lucide-react";
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 
 const stats = [
   {
@@ -68,16 +73,75 @@ const statusColors: Record<string, string> = {
 };
 
 const MerchantDashboard = () => {
+  const navigate = useNavigate();
+
+  // Check if merchant has a store
+  const { data: store, isLoading } = useQuery({
+    queryKey: ["merchant-store-check"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate("/auth/login");
+        return null;
+      }
+      
+      const { data, error } = await supabase
+        .from("stores")
+        .select("*")
+        .eq("merchant_id", user.id)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <DashboardLayout role="merchant">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Show create store prompt if no store exists
+  if (!store) {
+    return (
+      <DashboardLayout role="merchant">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Card className="max-w-md w-full">
+            <CardContent className="p-8 text-center">
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Store className="w-8 h-8 text-primary" />
+              </div>
+              <h2 className="text-xl font-bold mb-2">مرحباً بك!</h2>
+              <p className="text-muted-foreground mb-6">
+                لم تقم بإنشاء متجرك بعد. أنشئ متجرك الآن وابدأ البيع على سوقنا.
+              </p>
+              <Button onClick={() => navigate("/merchant/create-store")} className="gap-2">
+                <Store className="w-4 h-4" />
+                إنشاء متجر جديد
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout role="merchant">
       <div className="space-y-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold mb-2">مرحباً، متجر الأناقة</h1>
+            <h1 className="text-2xl md:text-3xl font-bold mb-2">مرحباً، {store.name}</h1>
             <p className="text-muted-foreground">إليك نظرة عامة على أداء متجرك اليوم</p>
           </div>
-          <Link to="/stores/1">
+          <Link to={`/store/${store.id}`}>
             <Button variant="outline" className="gap-2">
               <Eye className="w-4 h-4" />
               معاينة المتجر
