@@ -1,5 +1,6 @@
 import MainLayout from "@/components/layout/MainLayout";
 import HeroSection from "@/components/home/HeroSection";
+import BannerSlider from "@/components/home/BannerSlider";
 import CategoriesSection from "@/components/home/CategoriesSection";
 import FeaturedStores from "@/components/home/FeaturedStores";
 import FeaturesSection from "@/components/home/FeaturesSection";
@@ -9,6 +10,7 @@ const Index = () => {
   return (
     <MainLayout>
       <HeroSection />
+      <BannerSlider />
       <CategoriesSection />
       <FeaturedStores />
       <FeaturesSection />
