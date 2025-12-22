@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { 
   Search, 
-  SlidersHorizontal, 
   Star, 
   MapPin, 
   Clock,
@@ -119,74 +118,78 @@ const Stores = () => {
 
   return (
     <MainLayout>
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6 sm:py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2">
             جميع <span className="text-gradient">المتاجر</span>
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground text-sm sm:text-base">
             اكتشف مجموعة متنوعة من المتاجر المميزة
           </p>
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col md:flex-row gap-4 mb-8">
+        <div className="flex flex-col gap-4 mb-6 sm:mb-8">
           {/* Search */}
-          <div className="relative flex-1 max-w-md">
+          <div className="relative w-full sm:max-w-md">
             <Input
               type="text"
               placeholder="ابحث عن متجر..."
-              className="h-12 pr-12"
+              className="h-11 sm:h-12 pr-12"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
             <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           </div>
 
-          {/* Category Filter */}
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {categories.map((category) => (
-              <Button
-                key={category}
-                variant={selectedCategory === category ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedCategory(category)}
-                className="whitespace-nowrap"
-              >
-                {category}
-              </Button>
-            ))}
-          </div>
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+            {/* Category Filter */}
+            <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+              {categories.map((category) => (
+                <Button
+                  key={category}
+                  variant={selectedCategory === category ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedCategory(category)}
+                  className="whitespace-nowrap text-xs sm:text-sm flex-shrink-0"
+                >
+                  {category}
+                </Button>
+              ))}
+            </div>
 
-          {/* View Toggle */}
-          <div className="flex gap-2">
-            <Button
-              variant={viewMode === "grid" ? "default" : "outline"}
-              size="icon"
-              onClick={() => setViewMode("grid")}
-            >
-              <Grid3X3 className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={viewMode === "list" ? "default" : "outline"}
-              size="icon"
-              onClick={() => setViewMode("list")}
-            >
-              <List className="w-4 h-4" />
-            </Button>
+            {/* View Toggle */}
+            <div className="flex gap-2 self-end sm:self-auto">
+              <Button
+                variant={viewMode === "grid" ? "default" : "outline"}
+                size="icon"
+                onClick={() => setViewMode("grid")}
+                className="h-9 w-9 sm:h-10 sm:w-10"
+              >
+                <Grid3X3 className="w-4 h-4" />
+              </Button>
+              <Button
+                variant={viewMode === "list" ? "default" : "outline"}
+                size="icon"
+                onClick={() => setViewMode("list")}
+                className="h-9 w-9 sm:h-10 sm:w-10"
+              >
+                <List className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </div>
 
         {/* Results Count */}
-        <p className="text-sm text-muted-foreground mb-6">
+        <p className="text-xs sm:text-sm text-muted-foreground mb-4 sm:mb-6">
           عرض {filteredStores.length} متجر
         </p>
 
         {/* Stores Grid/List */}
         <div className={viewMode === "grid" 
-          ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" 
-          : "flex flex-col gap-4"
+          ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6" 
+          : "flex flex-col gap-3 sm:gap-4"
         }>
           {filteredStores.map((store, index) => (
             <Link
@@ -195,57 +198,57 @@ const Stores = () => {
               className="group opacity-0 animate-slide-up"
               style={{ animationDelay: `${index * 0.05}s`, animationFillMode: "forwards" }}
             >
-              <div className={`bg-card rounded-2xl overflow-hidden border border-border/50 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 ${
+              <div className={`bg-card rounded-xl sm:rounded-2xl overflow-hidden border border-border/50 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 ${
                 viewMode === "list" ? "flex" : ""
               }`}>
                 {/* Image */}
                 <div className={`relative overflow-hidden ${
-                  viewMode === "list" ? "w-48 h-36" : "h-48"
+                  viewMode === "list" ? "w-32 h-28 sm:w-48 sm:h-36 flex-shrink-0" : "h-40 sm:h-48"
                 }`}>
                   <img
                     src={store.image}
                     alt={store.name}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   />
-                  <div className="absolute top-3 right-3">
+                  <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
                     <Badge 
                       variant={store.isOpen ? "default" : "secondary"}
-                      className={store.isOpen ? "bg-success" : ""}
+                      className={`text-xs ${store.isOpen ? "bg-success" : ""}`}
                     >
                       {store.isOpen ? "مفتوح" : "مغلق"}
                     </Badge>
                   </div>
                   {store.isVerified && (
-                    <div className="absolute top-3 left-3 w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-                      <BadgeCheck className="w-5 h-5 text-primary-foreground" />
+                    <div className="absolute top-2 left-2 sm:top-3 sm:left-3 w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-primary flex items-center justify-center">
+                      <BadgeCheck className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
                     </div>
                   )}
                 </div>
 
                 {/* Content */}
-                <div className={`p-5 ${viewMode === "list" ? "flex-1" : ""}`}>
+                <div className={`p-3 sm:p-4 md:p-5 ${viewMode === "list" ? "flex-1 min-w-0" : ""}`}>
                   <span className="text-xs text-primary font-medium">{store.category}</span>
-                  <h3 className="font-bold text-lg mt-1 mb-2 group-hover:text-primary transition-colors">
+                  <h3 className="font-bold text-base sm:text-lg mt-1 mb-2 group-hover:text-primary transition-colors truncate">
                     {store.name}
                   </h3>
 
-                  <div className="flex items-center gap-2 mb-3">
+                  <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-2 sm:mb-3">
                     <div className="flex items-center gap-1">
-                      <Star className="w-4 h-4 text-accent fill-accent" />
-                      <span className="font-semibold text-sm">{store.rating}</span>
+                      <Star className="w-3 h-3 sm:w-4 sm:h-4 text-accent fill-accent" />
+                      <span className="font-semibold text-xs sm:text-sm">{store.rating}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground">({store.reviews} تقييم)</span>
-                    <span className="text-xs text-muted-foreground">• {store.products} منتج</span>
+                    <span className="text-xs text-muted-foreground">({store.reviews})</span>
+                    <span className="text-xs text-muted-foreground hidden sm:inline">• {store.products} منتج</span>
                   </div>
 
-                  <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+                  <div className="flex flex-col gap-1 sm:gap-2 text-xs sm:text-sm text-muted-foreground">
                     <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4" />
+                      <MapPin className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                       <span className="truncate">{store.location}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4" />
-                      <span>التوصيل: {store.deliveryTime}</span>
+                      <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                      <span className="truncate">التوصيل: {store.deliveryTime}</span>
                     </div>
                   </div>
                 </div>
@@ -256,12 +259,12 @@ const Stores = () => {
 
         {/* Empty State */}
         {filteredStores.length === 0 && (
-          <div className="text-center py-16">
-            <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-              <Search className="w-10 h-10 text-muted-foreground" />
+          <div className="text-center py-12 sm:py-16">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+              <Search className="w-8 h-8 sm:w-10 sm:h-10 text-muted-foreground" />
             </div>
-            <h3 className="text-xl font-bold mb-2">لا توجد نتائج</h3>
-            <p className="text-muted-foreground">
+            <h3 className="text-lg sm:text-xl font-bold mb-2">لا توجد نتائج</h3>
+            <p className="text-muted-foreground text-sm sm:text-base">
               جرب البحث بكلمات مختلفة أو تصفح التصنيفات
             </p>
           </div>

@@ -81,19 +81,19 @@ const categories = [
 
 const CategoriesSection = () => {
   return (
-    <section className="py-16 md:py-24">
+    <section className="py-10 sm:py-16 md:py-24">
       <div className="container mx-auto px-4">
         {/* Header */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-12">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 sm:mb-12 gap-4">
           <div>
-            <h2 className="text-3xl md:text-4xl font-bold mb-3">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-3">
               تصفح حسب <span className="text-gradient">التصنيف</span>
             </h2>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-sm sm:text-base">
               اكتشف مجموعة واسعة من التصنيفات المتنوعة
             </p>
           </div>
-          <Link to="/categories" className="hidden md:block">
+          <Link to="/categories" className="hidden sm:block">
             <Button variant="outline" className="gap-2">
               عرض الكل
               <ArrowLeft className="w-4 h-4" />
@@ -102,7 +102,7 @@ const CategoriesSection = () => {
         </div>
 
         {/* Categories Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           {categories.map((category, index) => (
             <Link
               key={category.id}
@@ -110,23 +110,23 @@ const CategoriesSection = () => {
               className="group opacity-0 animate-slide-up"
               style={{ animationDelay: `${index * 0.1}s`, animationFillMode: "forwards" }}
             >
-              <div className={`relative p-6 rounded-2xl ${category.bgColor} border border-border/50 overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1`}>
+              <div className={`relative p-4 sm:p-6 rounded-xl sm:rounded-2xl ${category.bgColor} border border-border/50 overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1`}>
                 {/* Icon */}
-                <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${category.color} flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                  <category.icon className="w-7 h-7 text-primary-foreground" />
+                <div className={`w-10 h-10 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl bg-gradient-to-br ${category.color} flex items-center justify-center mb-3 sm:mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                  <category.icon className="w-5 h-5 sm:w-7 sm:h-7 text-primary-foreground" />
                 </div>
 
                 {/* Content */}
-                <h3 className="font-bold text-lg mb-1 group-hover:text-primary transition-colors">
+                <h3 className="font-bold text-sm sm:text-lg mb-0.5 sm:mb-1 group-hover:text-primary transition-colors line-clamp-1">
                   {category.name}
                 </h3>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   {category.count} متجر
                 </p>
 
                 {/* Arrow */}
-                <div className="absolute left-4 bottom-4 w-8 h-8 rounded-full bg-foreground/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0">
-                  <ArrowLeft className="w-4 h-4 text-muted-foreground" />
+                <div className="absolute left-3 sm:left-4 bottom-3 sm:bottom-4 w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-foreground/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0">
+                  <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
                 </div>
               </div>
             </Link>
@@ -134,7 +134,7 @@ const CategoriesSection = () => {
         </div>
 
         {/* Mobile View All */}
-        <div className="mt-8 text-center md:hidden">
+        <div className="mt-6 sm:mt-8 text-center sm:hidden">
           <Link to="/categories">
             <Button variant="outline" className="gap-2">
               عرض جميع التصنيفات
