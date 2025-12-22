@@ -13,6 +13,9 @@ import Stores from "./pages/Stores";
 import StoreDetails from "./pages/StoreDetails";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
+import Categories from "./pages/Categories";
+import Offers from "./pages/Offers";
+import About from "./pages/About";
 import AdminDashboard from "./pages/dashboard/admin/AdminDashboard";
 import MerchantDashboard from "./pages/dashboard/merchant/MerchantDashboard";
 import CourierDashboard from "./pages/dashboard/courier/CourierDashboard";
@@ -35,6 +38,9 @@ const App = () => (
               <Route path="/store/:id" element={<StoreDetails />} />
               <Route path="/cart" element={<Cart />} />
               <Route path="/checkout" element={<Checkout />} />
+              <Route path="/categories" element={<Categories />} />
+              <Route path="/offers" element={<Offers />} />
+              <Route path="/about" element={<About />} />
               
               {/* Auth Routes */}
               <Route path="/auth/login" element={<Login />} />
