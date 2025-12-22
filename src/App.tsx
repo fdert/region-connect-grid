@@ -16,7 +16,22 @@ import Checkout from "./pages/Checkout";
 import Categories from "./pages/Categories";
 import Offers from "./pages/Offers";
 import About from "./pages/About";
+
+// Admin Dashboard Pages
 import AdminDashboard from "./pages/dashboard/admin/AdminDashboard";
+import BannersPage from "./pages/dashboard/admin/BannersPage";
+import ThemePage from "./pages/dashboard/admin/ThemePage";
+import WebhooksPage from "./pages/dashboard/admin/WebhooksPage";
+import WhatsAppTemplatesPage from "./pages/dashboard/admin/WhatsAppTemplatesPage";
+import SupportPage from "./pages/dashboard/admin/SupportPage";
+import RewardsPage from "./pages/dashboard/admin/RewardsPage";
+import UsersPage from "./pages/dashboard/admin/UsersPage";
+import StoresManagementPage from "./pages/dashboard/admin/StoresManagementPage";
+import OrdersManagementPage from "./pages/dashboard/admin/OrdersManagementPage";
+import WalletsPage from "./pages/dashboard/admin/WalletsPage";
+import CategoriesPage from "./pages/dashboard/admin/CategoriesPage";
+
+// Other Dashboard Pages
 import MerchantDashboard from "./pages/dashboard/merchant/MerchantDashboard";
 import CourierDashboard from "./pages/dashboard/courier/CourierDashboard";
 import CustomerDashboard from "./pages/dashboard/customer/CustomerDashboard";
@@ -48,6 +63,17 @@ const App = () => (
               
               {/* Admin Dashboard */}
               <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/banners" element={<BannersPage />} />
+              <Route path="/admin/theme" element={<ThemePage />} />
+              <Route path="/admin/webhooks" element={<WebhooksPage />} />
+              <Route path="/admin/whatsapp" element={<WhatsAppTemplatesPage />} />
+              <Route path="/admin/support" element={<SupportPage />} />
+              <Route path="/admin/rewards" element={<RewardsPage />} />
+              <Route path="/admin/users" element={<UsersPage />} />
+              <Route path="/admin/stores" element={<StoresManagementPage />} />
+              <Route path="/admin/orders" element={<OrdersManagementPage />} />
+              <Route path="/admin/wallets" element={<WalletsPage />} />
+              <Route path="/admin/categories" element={<CategoriesPage />} />
               
               {/* Merchant Dashboard */}
               <Route path="/merchant" element={<MerchantDashboard />} />
