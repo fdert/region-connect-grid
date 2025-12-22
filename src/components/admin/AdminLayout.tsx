@@ -37,12 +37,12 @@ const menuItems = [
   { icon: Image, label: "البنرات", href: "/admin/banners" },
   { icon: Palette, label: "المظهر والألوان", href: "/admin/theme" },
   { icon: Webhook, label: "Webhooks", href: "/admin/webhooks" },
-  { icon: MessageSquare, label: "قوالب الواتساب", href: "/admin/whatsapp-templates" },
+  { icon: MessageSquare, label: "قوالب الواتساب", href: "/admin/whatsapp" },
   { icon: Star, label: "التقييمات", href: "/admin/reviews" },
   { icon: Headphones, label: "الدعم الفني", href: "/admin/support" },
   { icon: Wallet, label: "المحافظ", href: "/admin/wallets" },
   { icon: Gift, label: "النقاط والهدايا", href: "/admin/rewards" },
-  { icon: Settings, label: "الإعدادات", href: "/admin/settings" },
+  { icon: Settings, label: "التصنيفات", href: "/admin/categories" },
 ];
 
 const AdminLayout = ({ children, title }: AdminLayoutProps) => {
