@@ -12,14 +12,18 @@ interface Banner {
   is_active: boolean;
 }
 
-const BannerSlider = () => {
+interface BannerSliderProps {
+  position?: string;
+}
+
+const BannerSlider = ({ position = "home_top" }: BannerSliderProps) => {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     fetchBanners();
-  }, []);
+  }, [position]);
 
   // Auto-slide every 5 seconds
   useEffect(() => {
@@ -38,6 +42,7 @@ const BannerSlider = () => {
         .from("banners")
         .select("*")
         .eq("is_active", true)
+        .eq("position", position)
         .order("sort_order", { ascending: true });
 
       if (error) throw error;
