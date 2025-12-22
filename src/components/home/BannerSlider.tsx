@@ -120,18 +120,6 @@ const BannerSlider = () => {
                   className="w-full h-full object-cover"
                   loading={index === 0 ? "eager" : "lazy"}
                 />
-                
-                {/* Overlay Gradient */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-                
-                {/* Banner Title */}
-                {banner.title && (
-                  <div className="absolute bottom-4 right-4 md:bottom-8 md:right-8">
-                    <h3 className="text-white text-lg md:text-2xl lg:text-3xl font-bold drop-shadow-lg">
-                      {banner.title}
-                    </h3>
-                  </div>
-                )}
               </div>
             ))}
 
