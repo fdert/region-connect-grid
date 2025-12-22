@@ -10,9 +10,11 @@ const Index = () => {
   return (
     <MainLayout>
       <HeroSection />
-      <BannerSlider />
+      <BannerSlider position="home_top" />
       <CategoriesSection />
+      <BannerSlider position="home_middle" />
       <FeaturedStores />
+      <BannerSlider position="home_bottom" />
       <FeaturesSection />
       <CTASection />
     </MainLayout>
