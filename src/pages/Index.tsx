@@ -5,6 +5,9 @@ import CategoriesSection from "@/components/home/CategoriesSection";
 import FeaturedStores from "@/components/home/FeaturedStores";
 import FeaturesSection from "@/components/home/FeaturesSection";
 import CTASection from "@/components/home/CTASection";
+import SpecialOffersSection from "@/components/home/SpecialOffersSection";
+import MostOrderedSection from "@/components/home/MostOrderedSection";
+import NewArrivalsSection from "@/components/home/NewArrivalsSection";
 
 const Index = () => {
   return (
@@ -12,8 +15,11 @@ const Index = () => {
       <HeroSection />
       <BannerSlider position="home_top" />
       <CategoriesSection />
+      <SpecialOffersSection />
       <BannerSlider position="home_middle" />
+      <MostOrderedSection />
       <FeaturedStores />
+      <NewArrivalsSection />
       <BannerSlider position="home_bottom" />
       <FeaturesSection />
       <CTASection />
