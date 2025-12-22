@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "../DashboardLayout";
@@ -31,8 +31,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Plus, Package, Edit, Trash2, Loader2 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Search, Plus, Package, Edit, Trash2, Loader2, Upload, Download, Image, MoreVertical, FileSpreadsheet, ClipboardPaste } from "lucide-react";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
 
 interface ProductForm {
   name: string;
@@ -42,12 +49,21 @@ interface ProductForm {
   stock: number;
   category_id: string;
   is_active: boolean;
+  image_url: string;
 }
 
 const MerchantProducts = () => {
   const [search, setSearch] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [pasteData, setPasteData] = useState("");
+  const [importMode, setImportMode] = useState<"file" | "paste">("file");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const excelInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<ProductForm>({
     name: "",
     description: "",
@@ -56,6 +72,7 @@ const MerchantProducts = () => {
     stock: 0,
     category_id: "",
     is_active: true,
+    image_url: "",
   });
   const queryClient = useQueryClient();
 
@@ -110,9 +127,39 @@ const MerchantProducts = () => {
     },
   });
 
+  // Upload image to storage
+  const uploadImage = async (file: File): Promise<string> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${store?.id}/${Date.now()}.${fileExt}`;
+    
+    const { error: uploadError } = await supabase.storage
+      .from('product-images')
+      .upload(fileName, file);
+
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage
+      .from('product-images')
+      .getPublicUrl(fileName);
+
+    return data.publicUrl;
+  };
+
   // Create/Update product
   const saveMutation = useMutation({
     mutationFn: async (data: ProductForm & { id?: string }) => {
+      let imageUrl = data.image_url;
+
+      // Upload new image if selected
+      if (imageFile) {
+        setIsUploading(true);
+        try {
+          imageUrl = await uploadImage(imageFile);
+        } finally {
+          setIsUploading(false);
+        }
+      }
+
       if (data.id) {
         const { error } = await supabase
           .from("products")
@@ -124,6 +171,7 @@ const MerchantProducts = () => {
             stock: data.stock,
             category_id: data.category_id || null,
             is_active: data.is_active,
+            images: imageUrl ? [imageUrl] : [],
           })
           .eq("id", data.id);
         
@@ -142,6 +190,7 @@ const MerchantProducts = () => {
             stock: data.stock,
             category_id: data.category_id || null,
             is_active: data.is_active,
+            images: imageUrl ? [imageUrl] : [],
           });
         
         if (error) throw error;
@@ -192,9 +241,76 @@ const MerchantProducts = () => {
     },
   });
 
+  // Import products mutation
+  const importMutation = useMutation({
+    mutationFn: async (productsData: any[]) => {
+      if (!store?.id) throw new Error("No store found");
+
+      for (const product of productsData) {
+        // Check if product exists by name
+        const { data: existing } = await supabase
+          .from("products")
+          .select("id")
+          .eq("store_id", store.id)
+          .eq("name", product.name)
+          .maybeSingle();
+
+        if (existing) {
+          // Update existing product
+          await supabase
+            .from("products")
+            .update({
+              description: product.description || null,
+              price: product.price || 0,
+              compare_price: product.compare_price || null,
+              stock: product.stock || 0,
+              is_active: product.is_active !== false,
+            })
+            .eq("id", existing.id);
+        } else {
+          // Insert new product
+          await supabase
+            .from("products")
+            .insert({
+              store_id: store.id,
+              name: product.name,
+              description: product.description || null,
+              price: product.price || 0,
+              compare_price: product.compare_price || null,
+              stock: product.stock || 0,
+              is_active: product.is_active !== false,
+            });
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["merchant-products"] });
+      toast.success("تم استيراد المنتجات بنجاح");
+      setIsImportDialogOpen(false);
+      setPasteData("");
+    },
+    onError: (error: any) => {
+      console.error("Import error:", error);
+      toast.error("حدث خطأ أثناء استيراد المنتجات");
+    },
+  });
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleOpenDialog = (product?: any) => {
     if (product) {
       setEditingProduct(product);
+      const images = product.images as string[] || [];
       setForm({
         name: product.name,
         description: product.description || "",
@@ -203,7 +319,9 @@ const MerchantProducts = () => {
         stock: product.stock || 0,
         category_id: product.category_id || "",
         is_active: product.is_active,
+        image_url: images[0] || "",
       });
+      setImagePreview(images[0] || "");
     } else {
       setEditingProduct(null);
       setForm({
@@ -214,14 +332,19 @@ const MerchantProducts = () => {
         stock: 0,
         category_id: "",
         is_active: true,
+        image_url: "",
       });
+      setImagePreview("");
     }
+    setImageFile(null);
     setIsDialogOpen(true);
   };
 
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
     setEditingProduct(null);
+    setImageFile(null);
+    setImagePreview("");
   };
 
   const handleSubmit = () => {
@@ -230,6 +353,132 @@ const MerchantProducts = () => {
       return;
     }
     saveMutation.mutate({ ...form, id: editingProduct?.id });
+  };
+
+  // Export products to Excel
+  const handleExport = () => {
+    if (!products || products.length === 0) {
+      toast.error("لا توجد منتجات للتصدير");
+      return;
+    }
+
+    const exportData = products.map(p => ({
+      "اسم المنتج": p.name,
+      "الوصف": p.description || "",
+      "السعر": p.price,
+      "السعر قبل الخصم": p.compare_price || "",
+      "المخزون": p.stock || 0,
+      "نشط": p.is_active ? "نعم" : "لا",
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "المنتجات");
+    XLSX.writeFile(wb, `منتجات_${store?.name || "المتجر"}.xlsx`);
+    toast.success("تم تصدير المنتجات بنجاح");
+  };
+
+  // Download template
+  const handleDownloadTemplate = () => {
+    const templateData = [
+      {
+        "اسم المنتج": "منتج تجريبي",
+        "الوصف": "وصف المنتج",
+        "السعر": 100,
+        "السعر قبل الخصم": 150,
+        "المخزون": 50,
+        "نشط": "نعم",
+      },
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "المنتجات");
+    XLSX.writeFile(wb, "قالب_المنتجات.xlsx");
+  };
+
+  // Handle Excel file import
+  const handleExcelImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = new Uint8Array(event.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+        const productsData = jsonData.map((row: any) => ({
+          name: row["اسم المنتج"] || row["name"] || "",
+          description: row["الوصف"] || row["description"] || "",
+          price: parseFloat(row["السعر"] || row["price"]) || 0,
+          compare_price: parseFloat(row["السعر قبل الخصم"] || row["compare_price"]) || null,
+          stock: parseInt(row["المخزون"] || row["stock"]) || 0,
+          is_active: (row["نشط"] || row["is_active"]) === "نعم" || row["is_active"] === true,
+        })).filter(p => p.name);
+
+        if (productsData.length === 0) {
+          toast.error("لم يتم العثور على منتجات صالحة في الملف");
+          return;
+        }
+
+        importMutation.mutate(productsData);
+      } catch (error) {
+        console.error("Excel parse error:", error);
+        toast.error("حدث خطأ أثناء قراءة الملف");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    
+    // Reset file input
+    if (excelInputRef.current) {
+      excelInputRef.current.value = "";
+    }
+  };
+
+  // Handle paste import
+  const handlePasteImport = () => {
+    if (!pasteData.trim()) {
+      toast.error("يرجى لصق البيانات أولاً");
+      return;
+    }
+
+    try {
+      const lines = pasteData.trim().split("\n");
+      const headers = lines[0].split("\t");
+      
+      const productsData = lines.slice(1).map(line => {
+        const values = line.split("\t");
+        const product: any = {};
+        
+        headers.forEach((header, index) => {
+          const h = header.trim();
+          const v = values[index]?.trim() || "";
+          
+          if (h === "اسم المنتج" || h === "name") product.name = v;
+          else if (h === "الوصف" || h === "description") product.description = v;
+          else if (h === "السعر" || h === "price") product.price = parseFloat(v) || 0;
+          else if (h === "السعر قبل الخصم" || h === "compare_price") product.compare_price = parseFloat(v) || null;
+          else if (h === "المخزون" || h === "stock") product.stock = parseInt(v) || 0;
+          else if (h === "نشط" || h === "is_active") product.is_active = v === "نعم" || v === "true";
+        });
+        
+        return product;
+      }).filter(p => p.name);
+
+      if (productsData.length === 0) {
+        toast.error("لم يتم العثور على منتجات صالحة");
+        return;
+      }
+
+      importMutation.mutate(productsData);
+    } catch (error) {
+      console.error("Paste parse error:", error);
+      toast.error("حدث خطأ أثناء معالجة البيانات");
+    }
   };
 
   const filteredProducts = products?.filter(product =>
@@ -251,10 +500,34 @@ const MerchantProducts = () => {
             <h1 className="text-2xl font-bold">إدارة المنتجات</h1>
             <p className="text-muted-foreground">إضافة وتعديل منتجات متجرك</p>
           </div>
-          <Button onClick={() => handleOpenDialog()} className="gap-2">
-            <Plus className="w-4 h-4" />
-            إضافة منتج
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <MoreVertical className="w-4 h-4" />
+                  المزيد
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setIsImportDialogOpen(true)}>
+                  <Upload className="w-4 h-4 ml-2" />
+                  استيراد منتجات
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExport}>
+                  <Download className="w-4 h-4 ml-2" />
+                  تصدير المنتجات
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleDownloadTemplate}>
+                  <FileSpreadsheet className="w-4 h-4 ml-2" />
+                  تحميل القالب
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button onClick={() => handleOpenDialog()} className="gap-2">
+              <Plus className="w-4 h-4" />
+              إضافة منتج
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -337,70 +610,81 @@ const MerchantProducts = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredProducts.map((product) => (
-                      <TableRow key={product.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                              <Package className="w-5 h-5 text-muted-foreground" />
+                    {filteredProducts.map((product) => {
+                      const images = product.images as string[] || [];
+                      return (
+                        <TableRow key={product.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              {images[0] ? (
+                                <img 
+                                  src={images[0]} 
+                                  alt={product.name}
+                                  className="w-10 h-10 rounded-lg object-cover"
+                                />
+                              ) : (
+                                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                                  <Package className="w-5 h-5 text-muted-foreground" />
+                                </div>
+                              )}
+                              <div>
+                                <p className="font-medium">{product.name}</p>
+                                <p className="text-sm text-muted-foreground line-clamp-1">
+                                  {product.description || "-"}
+                                </p>
+                              </div>
                             </div>
+                          </TableCell>
+                          <TableCell>{(product.categories as any)?.name_ar || "-"}</TableCell>
+                          <TableCell>
                             <div>
-                              <p className="font-medium">{product.name}</p>
-                              <p className="text-sm text-muted-foreground line-clamp-1">
-                                {product.description || "-"}
-                              </p>
+                              <span className="font-medium">{product.price} ر.س</span>
+                              {product.compare_price && product.compare_price > product.price && (
+                                <span className="text-sm text-muted-foreground line-through mr-2">
+                                  {product.compare_price} ر.س
+                                </span>
+                              )}
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>{(product.categories as any)?.name_ar || "-"}</TableCell>
-                        <TableCell>
-                          <div>
-                            <span className="font-medium">{product.price} ر.س</span>
-                            {product.compare_price && product.compare_price > product.price && (
-                              <span className="text-sm text-muted-foreground line-through mr-2">
-                                {product.compare_price} ر.س
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={product.stock > 0 ? "default" : "destructive"}>
-                            {product.stock || 0}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Switch
-                            checked={product.is_active}
-                            onCheckedChange={(checked) =>
-                              toggleActiveMutation.mutate({ id: product.id, is_active: checked })
-                            }
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleOpenDialog(product)}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => {
-                                if (confirm("هل أنت متأكد من حذف هذا المنتج؟")) {
-                                  deleteMutation.mutate(product.id);
-                                }
-                              }}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={product.stock > 0 ? "default" : "destructive"}>
+                              {product.stock || 0}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Switch
+                              checked={product.is_active}
+                              onCheckedChange={(checked) =>
+                                toggleActiveMutation.mutate({ id: product.id, is_active: checked })
+                              }
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleOpenDialog(product)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => {
+                                  if (confirm("هل أنت متأكد من حذف هذا المنتج؟")) {
+                                    deleteMutation.mutate(product.id);
+                                  }
+                                }}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -410,11 +694,52 @@ const MerchantProducts = () => {
 
         {/* Product Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingProduct ? "تعديل المنتج" : "إضافة منتج جديد"}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
+              {/* Image Upload */}
+              <div>
+                <Label>صورة المنتج</Label>
+                <div className="mt-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                  />
+                  {imagePreview ? (
+                    <div className="relative">
+                      <img 
+                        src={imagePreview} 
+                        alt="Preview" 
+                        className="w-full h-48 object-cover rounded-lg"
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="absolute bottom-2 left-2"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Image className="w-4 h-4 ml-1" />
+                        تغيير
+                      </Button>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                    >
+                      <Image className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
+                      <p className="text-sm text-muted-foreground">اضغط لرفع صورة</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div>
                 <Label>اسم المنتج *</Label>
                 <Input
@@ -488,11 +813,99 @@ const MerchantProducts = () => {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={handleCloseDialog}>إلغاء</Button>
-              <Button onClick={handleSubmit} disabled={saveMutation.isPending}>
-                {saveMutation.isPending && <Loader2 className="w-4 h-4 animate-spin ml-2" />}
+              <Button onClick={handleSubmit} disabled={saveMutation.isPending || isUploading}>
+                {(saveMutation.isPending || isUploading) && <Loader2 className="w-4 h-4 animate-spin ml-2" />}
                 {editingProduct ? "حفظ التغييرات" : "إضافة المنتج"}
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Import Dialog */}
+        <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>استيراد المنتجات</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {/* Import Mode Tabs */}
+              <div className="flex gap-2">
+                <Button
+                  variant={importMode === "file" ? "default" : "outline"}
+                  onClick={() => setImportMode("file")}
+                  className="flex-1 gap-2"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  ملف Excel
+                </Button>
+                <Button
+                  variant={importMode === "paste" ? "default" : "outline"}
+                  onClick={() => setImportMode("paste")}
+                  className="flex-1 gap-2"
+                >
+                  <ClipboardPaste className="w-4 h-4" />
+                  نسخ ولصق
+                </Button>
+              </div>
+
+              {importMode === "file" ? (
+                <div>
+                  <input
+                    ref={excelInputRef}
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    onChange={handleExcelImport}
+                    className="hidden"
+                  />
+                  <div
+                    onClick={() => excelInputRef.current?.click()}
+                    className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                  >
+                    <Upload className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
+                    <p className="font-medium mb-1">اضغط لاختيار ملف Excel</p>
+                    <p className="text-sm text-muted-foreground">
+                      يدعم ملفات .xlsx و .xls و .csv
+                    </p>
+                  </div>
+                  <Button
+                    variant="link"
+                    onClick={handleDownloadTemplate}
+                    className="mt-2 text-sm"
+                  >
+                    <Download className="w-4 h-4 ml-1" />
+                    تحميل قالب Excel
+                  </Button>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    انسخ البيانات من Excel والصقها هنا (مع العناوين)
+                  </p>
+                  <Textarea
+                    value={pasteData}
+                    onChange={(e) => setPasteData(e.target.value)}
+                    placeholder="اسم المنتج&#9;الوصف&#9;السعر&#9;المخزون&#10;منتج 1&#9;وصف المنتج&#9;100&#9;50"
+                    rows={8}
+                    dir="ltr"
+                  />
+                  <Button
+                    onClick={handlePasteImport}
+                    disabled={importMutation.isPending || !pasteData.trim()}
+                    className="w-full mt-4"
+                  >
+                    {importMutation.isPending && <Loader2 className="w-4 h-4 animate-spin ml-2" />}
+                    استيراد المنتجات
+                  </Button>
+                </div>
+              )}
+
+              <div className="bg-muted p-3 rounded-lg text-sm">
+                <p className="font-medium mb-1">ملاحظة:</p>
+                <p className="text-muted-foreground">
+                  إذا كان المنتج موجوداً بنفس الاسم، سيتم تحديثه بدلاً من إنشاء منتج جديد.
+                </p>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
