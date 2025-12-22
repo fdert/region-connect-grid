@@ -21,7 +21,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { z } from "zod";
 
-type UserRole = "customer" | "merchant" | "courier";
+type UserRole = "customer" | "merchant" | "courier" | "admin";
 
 const roleOptions: { value: UserRole; label: string; icon: typeof User; description: string }[] = [
   { 
@@ -41,6 +41,12 @@ const roleOptions: { value: UserRole; label: string; icon: typeof User; descript
     label: "مندوب توصيل", 
     icon: Truck,
     description: "انضم لفريق التوصيل"
+  },
+  { 
+    value: "admin", 
+    label: "مدير", 
+    icon: User,
+    description: "إدارة المنصة بالكامل"
   },
 ];
 
@@ -156,7 +162,7 @@ const Register = () => {
           {/* Role Selection */}
           <div className="mb-6">
             <Label className="mb-3 block">نوع الحساب</Label>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {roleOptions.map((role) => (
                 <button
                   key={role.value}
