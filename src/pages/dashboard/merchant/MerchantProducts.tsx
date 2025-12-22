@@ -62,6 +62,7 @@ const MerchantProducts = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [pasteData, setPasteData] = useState("");
   const [importMode, setImportMode] = useState<"file" | "paste">("file");
+  const [imageInputMode, setImageInputMode] = useState<"upload" | "url">("upload");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const excelInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<ProductForm>({
@@ -265,6 +266,7 @@ const MerchantProducts = () => {
               compare_price: product.compare_price || null,
               stock: product.stock || 0,
               is_active: product.is_active !== false,
+              images: product.image_url ? [product.image_url] : undefined,
             })
             .eq("id", existing.id);
         } else {
@@ -279,6 +281,7 @@ const MerchantProducts = () => {
               compare_price: product.compare_price || null,
               stock: product.stock || 0,
               is_active: product.is_active !== false,
+              images: product.image_url ? [product.image_url] : [],
             });
         }
       }
@@ -337,6 +340,7 @@ const MerchantProducts = () => {
       setImagePreview("");
     }
     setImageFile(null);
+    setImageInputMode("upload");
     setIsDialogOpen(true);
   };
 
@@ -362,14 +366,18 @@ const MerchantProducts = () => {
       return;
     }
 
-    const exportData = products.map(p => ({
-      "اسم المنتج": p.name,
-      "الوصف": p.description || "",
-      "السعر": p.price,
-      "السعر قبل الخصم": p.compare_price || "",
-      "المخزون": p.stock || 0,
-      "نشط": p.is_active ? "نعم" : "لا",
-    }));
+    const exportData = products.map(p => {
+      const images = p.images as string[] || [];
+      return {
+        "اسم المنتج": p.name,
+        "الوصف": p.description || "",
+        "السعر": p.price,
+        "السعر قبل الخصم": p.compare_price || "",
+        "المخزون": p.stock || 0,
+        "نشط": p.is_active ? "نعم" : "لا",
+        "رابط الصورة": images[0] || "",
+      };
+    });
 
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
@@ -388,6 +396,7 @@ const MerchantProducts = () => {
         "السعر قبل الخصم": 150,
         "المخزون": 50,
         "نشط": "نعم",
+        "رابط الصورة": "https://example.com/image.jpg",
       },
     ];
 
@@ -418,6 +427,7 @@ const MerchantProducts = () => {
           compare_price: parseFloat(row["السعر قبل الخصم"] || row["compare_price"]) || null,
           stock: parseInt(row["المخزون"] || row["stock"]) || 0,
           is_active: (row["نشط"] || row["is_active"]) === "نعم" || row["is_active"] === true,
+          image_url: row["رابط الصورة"] || row["image_url"] || "",
         })).filter(p => p.name);
 
         if (productsData.length === 0) {
@@ -464,6 +474,7 @@ const MerchantProducts = () => {
           else if (h === "السعر قبل الخصم" || h === "compare_price") product.compare_price = parseFloat(v) || null;
           else if (h === "المخزون" || h === "stock") product.stock = parseInt(v) || 0;
           else if (h === "نشط" || h === "is_active") product.is_active = v === "نعم" || v === "true";
+          else if (h === "رابط الصورة" || h === "image_url") product.image_url = v;
         });
         
         return product;
@@ -699,45 +710,111 @@ const MerchantProducts = () => {
               <DialogTitle>{editingProduct ? "تعديل المنتج" : "إضافة منتج جديد"}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              {/* Image Upload */}
+              {/* Image Upload/URL */}
               <div>
                 <Label>صورة المنتج</Label>
-                <div className="mt-2">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="hidden"
-                  />
-                  {imagePreview ? (
-                    <div className="relative">
+                <div className="flex gap-2 mt-2 mb-3">
+                  <Button
+                    type="button"
+                    variant={imageInputMode === "upload" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setImageInputMode("upload")}
+                    className="flex-1"
+                  >
+                    <Upload className="w-4 h-4 ml-1" />
+                    رفع صورة
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={imageInputMode === "url" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setImageInputMode("url")}
+                    className="flex-1"
+                  >
+                    <Image className="w-4 h-4 ml-1" />
+                    رابط صورة
+                  </Button>
+                </div>
+
+                {imageInputMode === "upload" ? (
+                  <div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="hidden"
+                    />
+                    {imagePreview && !form.image_url.startsWith("http") ? (
+                      <div className="relative">
+                        <img 
+                          src={imagePreview} 
+                          alt="Preview" 
+                          className="w-full h-48 object-cover rounded-lg"
+                        />
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          className="absolute bottom-2 left-2"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          <Image className="w-4 h-4 ml-1" />
+                          تغيير
+                        </Button>
+                      </div>
+                    ) : imagePreview ? (
+                      <div className="relative">
+                        <img 
+                          src={imagePreview} 
+                          alt="Preview" 
+                          className="w-full h-48 object-cover rounded-lg"
+                        />
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          className="absolute bottom-2 left-2"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          <Image className="w-4 h-4 ml-1" />
+                          تغيير
+                        </Button>
+                      </div>
+                    ) : (
+                      <div
+                        onClick={() => fileInputRef.current?.click()}
+                        className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                      >
+                        <Image className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
+                        <p className="text-sm text-muted-foreground">اضغط لرفع صورة</p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Input
+                      value={form.image_url}
+                      onChange={(e) => {
+                        setForm({ ...form, image_url: e.target.value });
+                        setImagePreview(e.target.value);
+                        setImageFile(null);
+                      }}
+                      placeholder="https://example.com/image.jpg"
+                      dir="ltr"
+                    />
+                    {form.image_url && (
                       <img 
-                        src={imagePreview} 
+                        src={form.image_url} 
                         alt="Preview" 
                         className="w-full h-48 object-cover rounded-lg"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
                       />
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="absolute bottom-2 left-2"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        <Image className="w-4 h-4 ml-1" />
-                        تغيير
-                      </Button>
-                    </div>
-                  ) : (
-                    <div
-                      onClick={() => fileInputRef.current?.click()}
-                      className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
-                    >
-                      <Image className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
-                      <p className="text-sm text-muted-foreground">اضغط لرفع صورة</p>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div>
