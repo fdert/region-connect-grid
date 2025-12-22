@@ -31,8 +31,15 @@ import OrdersManagementPage from "./pages/dashboard/admin/OrdersManagementPage";
 import WalletsPage from "./pages/dashboard/admin/WalletsPage";
 import CategoriesPage from "./pages/dashboard/admin/CategoriesPage";
 
-// Other Dashboard Pages
+// Merchant Dashboard Pages
 import MerchantDashboard from "./pages/dashboard/merchant/MerchantDashboard";
+import MerchantOrders from "./pages/dashboard/merchant/MerchantOrders";
+import MerchantProducts from "./pages/dashboard/merchant/MerchantProducts";
+import MerchantReports from "./pages/dashboard/merchant/MerchantReports";
+import MerchantSettings from "./pages/dashboard/merchant/MerchantSettings";
+import MerchantSupport from "./pages/dashboard/merchant/MerchantSupport";
+
+// Other Dashboard Pages
 import CourierDashboard from "./pages/dashboard/courier/CourierDashboard";
 import CustomerDashboard from "./pages/dashboard/customer/CustomerDashboard";
 
@@ -77,6 +84,11 @@ const App = () => (
               
               {/* Merchant Dashboard */}
               <Route path="/merchant" element={<MerchantDashboard />} />
+              <Route path="/merchant/orders" element={<MerchantOrders />} />
+              <Route path="/merchant/products" element={<MerchantProducts />} />
+              <Route path="/merchant/reports" element={<MerchantReports />} />
+              <Route path="/merchant/settings" element={<MerchantSettings />} />
+              <Route path="/merchant/support" element={<MerchantSupport />} />
               
               {/* Courier Dashboard */}
               <Route path="/courier" element={<CourierDashboard />} />
