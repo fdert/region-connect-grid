@@ -98,28 +98,31 @@ const Checkout = () => {
         const storeSubtotal = storeItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
         const storeCommission = storeSubtotal * 0.05;
 
+        const orderData = {
+          order_number: `ORD-${Date.now()}`, // Will be overwritten by trigger
+          customer_id: user.id,
+          store_id: storeId,
+          items: storeItems.map(item => ({
+            product_id: item.product_id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            image: item.image
+          })),
+          subtotal: storeSubtotal,
+          delivery_fee: deliveryFee,
+          platform_commission: storeCommission,
+          total: storeSubtotal + deliveryFee,
+          delivery_address: formData.address,
+          delivery_notes: formData.notes,
+          customer_phone: formData.phone,
+          payment_method: paymentMethod
+        };
+
         const { data: order, error } = await supabase
           .from("orders")
-          .insert([{
-            customer_id: user.id,
-            store_id: storeId,
-            items: storeItems.map(item => ({
-              product_id: item.product_id,
-              name: item.name,
-              price: item.price,
-              quantity: item.quantity,
-              image: item.image
-            })) as any,
-            subtotal: storeSubtotal,
-            delivery_fee: deliveryFee,
-            platform_commission: storeCommission,
-            total: storeSubtotal + deliveryFee,
-            delivery_address: formData.address,
-            delivery_notes: formData.notes,
-            customer_phone: formData.phone,
-            payment_method: paymentMethod
-          }])
-          .select("order_number")
+          .insert(orderData as any)
+          .select("id, order_number")
           .single();
 
         if (error) throw error;
@@ -128,11 +131,11 @@ const Checkout = () => {
 
         // Add timeline entry
         await supabase.from("order_timeline").insert({
-          order_id: order.order_number,
-          status: "new",
+          order_id: order.id,
+          status: "new" as const,
           note: "تم إنشاء الطلب",
           created_by: user.id
-        });
+        } as any);
       }
 
       // Clear cart
