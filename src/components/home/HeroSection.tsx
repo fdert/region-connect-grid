@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 
 const HeroSection = () => {
   return (
-    <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
+    <section className="relative min-h-[70vh] sm:min-h-[80vh] md:min-h-[90vh] flex items-center justify-center overflow-hidden px-4">
       {/* Background Pattern */}
       <div className="absolute inset-0 gradient-hero opacity-95" />
       
@@ -29,32 +29,39 @@ const HeroSection = () => {
           </div>
 
           {/* Heading */}
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-primary-foreground mb-6 leading-tight animate-slide-up">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black text-primary-foreground mb-4 sm:mb-6 leading-tight animate-slide-up">
             اكتشف أفضل المتاجر
             <br />
             <span className="text-accent">في مكان واحد</span>
           </h1>
 
           {/* Subheading */}
-          <p className="text-lg md:text-xl text-primary-foreground/80 mb-10 max-w-2xl mx-auto animate-slide-up stagger-1">
+          <p className="text-base sm:text-lg md:text-xl text-primary-foreground/80 mb-6 sm:mb-10 max-w-2xl mx-auto animate-slide-up stagger-1 px-2">
             تسوّق من مئات المتاجر المحلية والعالمية، واستمتع بتجربة تسوق سهلة وآمنة مع خدمة توصيل سريعة لباب منزلك.
           </p>
 
           {/* Search Bar */}
-          <div className="max-w-2xl mx-auto mb-10 animate-slide-up stagger-2">
+          <div className="max-w-2xl mx-auto mb-6 sm:mb-10 animate-slide-up stagger-2 w-full">
             <div className="relative">
               <input
                 type="text"
                 placeholder="ابحث عن منتج، متجر، أو خدمة..."
-                className="w-full h-14 md:h-16 px-6 pr-14 rounded-2xl bg-background/95 backdrop-blur-xl border-2 border-transparent focus:border-accent shadow-xl focus:shadow-2xl outline-none transition-all text-foreground placeholder:text-muted-foreground"
+                className="w-full h-12 sm:h-14 md:h-16 px-4 sm:px-6 pr-12 sm:pr-14 rounded-xl sm:rounded-2xl bg-background/95 backdrop-blur-xl border-2 border-transparent focus:border-accent shadow-xl focus:shadow-2xl outline-none transition-all text-foreground placeholder:text-muted-foreground text-sm sm:text-base"
               />
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 gradient-primary rounded-xl flex items-center justify-center">
-                <Search className="w-5 h-5 text-primary-foreground" />
+              <div className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 gradient-primary rounded-lg sm:rounded-xl flex items-center justify-center">
+                <Search className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
               </div>
               <Button 
                 variant="accent" 
+                size="sm"
+                className="absolute left-2 top-1/2 -translate-y-1/2 rounded-lg sm:rounded-xl text-xs sm:text-sm h-8 sm:h-10 px-3 sm:px-4 md:hidden"
+              >
+                بحث
+              </Button>
+              <Button 
+                variant="accent" 
                 size="lg"
-                className="absolute left-2 top-1/2 -translate-y-1/2 rounded-xl"
+                className="absolute left-2 top-1/2 -translate-y-1/2 rounded-xl hidden md:flex"
               >
                 بحث
                 <ArrowLeft className="w-4 h-4 mr-2" />
@@ -63,29 +70,29 @@ const HeroSection = () => {
           </div>
 
           {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-slide-up stagger-3">
-            <Link to="/stores">
-              <Button variant="hero" size="xl">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 animate-slide-up stagger-3 w-full sm:w-auto">
+            <Link to="/stores" className="w-full sm:w-auto">
+              <Button variant="hero" size="lg" className="w-full sm:w-auto">
                 تصفح المتاجر
               </Button>
             </Link>
-            <Link to="/auth/register?role=merchant">
-              <Button variant="glass" size="xl" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
+            <Link to="/auth/register?role=merchant" className="w-full sm:w-auto">
+              <Button variant="glass" size="lg" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 w-full sm:w-auto">
                 انضم كتاجر
               </Button>
             </Link>
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 md:gap-8 mt-16 animate-slide-up stagger-4">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 md:gap-8 mt-10 sm:mt-16 animate-slide-up stagger-4 w-full">
             {[
               { value: "+500", label: "متجر نشط" },
               { value: "+10K", label: "منتج متاح" },
               { value: "+50K", label: "عميل سعيد" },
             ].map((stat, i) => (
-              <div key={i} className="text-center glass-dark rounded-2xl p-4 md:p-6">
-                <div className="text-2xl md:text-4xl font-black text-accent mb-1">{stat.value}</div>
-                <div className="text-sm md:text-base text-primary-foreground/70">{stat.label}</div>
+              <div key={i} className="text-center glass-dark rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-6">
+                <div className="text-lg sm:text-2xl md:text-4xl font-black text-accent mb-0.5 sm:mb-1">{stat.value}</div>
+                <div className="text-xs sm:text-sm md:text-base text-primary-foreground/70">{stat.label}</div>
               </div>
             ))}
           </div>

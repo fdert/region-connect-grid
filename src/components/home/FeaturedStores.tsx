@@ -56,19 +56,19 @@ const stores = [
 
 const FeaturedStores = () => {
   return (
-    <section className="py-16 md:py-24 bg-muted/30">
+    <section className="py-10 sm:py-16 md:py-24 bg-muted/30">
       <div className="container mx-auto px-4">
         {/* Header */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-12">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 sm:mb-12 gap-4">
           <div>
-            <h2 className="text-3xl md:text-4xl font-bold mb-3">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-3">
               المتاجر <span className="text-gradient">المميزة</span>
             </h2>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-sm sm:text-base">
               أفضل المتاجر المختارة بعناية لتجربة تسوق مميزة
             </p>
           </div>
-          <Link to="/stores" className="hidden md:block">
+          <Link to="/stores" className="hidden sm:block">
             <Button variant="outline" className="gap-2">
               جميع المتاجر
               <ArrowLeft className="w-4 h-4" />
@@ -77,7 +77,7 @@ const FeaturedStores = () => {
         </div>
 
         {/* Stores Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {stores.map((store, index) => (
             <Link
               key={store.id}
@@ -85,9 +85,9 @@ const FeaturedStores = () => {
               className="group opacity-0 animate-slide-up"
               style={{ animationDelay: `${index * 0.1}s`, animationFillMode: "forwards" }}
             >
-              <div className="bg-card rounded-2xl overflow-hidden border border-border/50 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
+              <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden border border-border/50 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
                 {/* Image */}
-                <div className="relative h-48 overflow-hidden">
+                <div className="relative h-40 sm:h-48 overflow-hidden">
                   <img
                     src={store.image}
                     alt={store.name}
@@ -111,7 +111,7 @@ const FeaturedStores = () => {
                 </div>
 
                 {/* Content */}
-                <div className="p-5">
+                <div className="p-4 sm:p-5">
                   {/* Category */}
                   <span className="text-xs text-primary font-medium">{store.category}</span>
                   
@@ -147,7 +147,7 @@ const FeaturedStores = () => {
         </div>
 
         {/* Mobile View All */}
-        <div className="mt-8 text-center md:hidden">
+        <div className="mt-6 sm:mt-8 text-center sm:hidden">
           <Link to="/stores">
             <Button variant="outline" className="gap-2">
               عرض جميع المتاجر
