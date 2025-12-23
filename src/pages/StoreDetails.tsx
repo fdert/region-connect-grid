@@ -19,6 +19,7 @@ import {
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import StoreCategoriesSlider from "@/components/store/StoreCategoriesSlider";
 
 interface Store {
   id: string;
@@ -256,6 +257,11 @@ const StoreDetails = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Categories Slider */}
+      <div className="container mx-auto px-4 pt-6">
+        <StoreCategoriesSlider storeId={store.id} />
       </div>
 
       {/* Products */}
