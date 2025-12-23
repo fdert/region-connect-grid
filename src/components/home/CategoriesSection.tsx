@@ -145,30 +145,32 @@ const CategoriesSection = () => {
                     to={`/categories/${category.id}`}
                     className="block group"
                   >
-                    <div className={`relative aspect-[4/5] rounded-xl sm:rounded-2xl overflow-hidden ${bgColor} transition-all duration-300 hover:shadow-xl hover:-translate-y-1`}>
-                      {/* Category Image */}
-                      {category.image_url ? (
-                        <img 
-                          src={category.image_url} 
-                          alt={category.name_ar}
-                          className="w-full h-full object-contain p-4 group-hover:scale-110 transition-transform duration-300"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Tag className="w-12 h-12 sm:w-16 sm:h-16 text-white/70" />
-                        </div>
-                      )}
+                    <div className={`relative h-28 sm:h-32 rounded-xl sm:rounded-2xl overflow-hidden ${bgColor} transition-all duration-300 hover:shadow-xl hover:-translate-y-1`}>
+                      {/* Category Image or Icon */}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        {category.image_url ? (
+                          <img 
+                            src={category.image_url} 
+                            alt={category.name_ar}
+                            className="w-full h-full object-contain p-3 group-hover:scale-110 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
+                            <Tag className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+                          </div>
+                        )}
+                      </div>
                       
                       {/* Gradient overlay for text */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
                       
-                      {/* Category Name */}
-                      <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4">
-                        <h4 className="text-white font-bold text-sm sm:text-base lg:text-lg text-center line-clamp-1 drop-shadow-lg">
+                      {/* Category Name & Count */}
+                      <div className="absolute bottom-0 left-0 right-0 p-2.5 sm:p-3">
+                        <h4 className="text-white font-bold text-xs sm:text-sm text-center line-clamp-1 drop-shadow-lg">
                           {category.name_ar}
                         </h4>
                         {productCount > 0 && (
-                          <p className="text-white/80 text-xs text-center mt-1">
+                          <p className="text-white/80 text-[10px] sm:text-xs text-center mt-0.5">
                             {productCount} منتج
                           </p>
                         )}
