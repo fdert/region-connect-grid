@@ -10,7 +10,6 @@ import {
   Minus,
   ChevronLeft,
   Heart,
-  Share2,
   Truck,
   Store,
   ArrowRight
@@ -18,6 +17,7 @@ import {
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useScreenshotProtection } from "@/hooks/useScreenshotProtection";
 
 interface Product {
   id: string;
@@ -46,6 +46,9 @@ const ProductDetails = () => {
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
   const { addItem } = useCart();
+  
+  // حماية من تصوير الشاشة
+  useScreenshotProtection();
 
   useEffect(() => {
     if (id) {
@@ -304,9 +307,6 @@ const ProductDetails = () => {
             <div className="flex gap-3">
               <Button variant="outline" size="icon" className="h-12 w-12">
                 <Heart className="w-5 h-5" />
-              </Button>
-              <Button variant="outline" size="icon" className="h-12 w-12">
-                <Share2 className="w-5 h-5" />
               </Button>
             </div>
           </div>

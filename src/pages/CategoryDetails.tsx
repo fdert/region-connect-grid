@@ -14,6 +14,7 @@ import {
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useScreenshotProtection } from "@/hooks/useScreenshotProtection";
 
 interface Category {
   id: string;
@@ -43,6 +44,9 @@ const CategoryDetails = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const { addItem } = useCart();
+  
+  // حماية من تصوير الشاشة
+  useScreenshotProtection();
 
   useEffect(() => {
     if (id) {

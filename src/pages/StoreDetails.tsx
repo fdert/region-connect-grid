@@ -13,13 +13,13 @@ import {
   Minus,
   ChevronLeft,
   Heart,
-  Share2,
   Truck
 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import StoreCategoriesSlider from "@/components/store/StoreCategoriesSlider";
+import { useScreenshotProtection } from "@/hooks/useScreenshotProtection";
 
 interface Store {
   id: string;
@@ -57,6 +57,9 @@ const StoreDetails = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const { addItem } = useCart();
+  
+  // حماية من تصوير الشاشة
+  useScreenshotProtection();
 
   useEffect(() => {
     if (id) {
@@ -237,9 +240,6 @@ const StoreDetails = () => {
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="icon">
                     <Heart className="w-4 h-4" />
-                  </Button>
-                  <Button variant="outline" size="icon">
-                    <Share2 className="w-4 h-4" />
                   </Button>
                 </div>
               </div>

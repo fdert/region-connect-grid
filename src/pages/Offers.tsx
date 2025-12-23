@@ -16,6 +16,7 @@ import { useCart } from "@/contexts/CartContext";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Json } from "@/integrations/supabase/types";
+import { useScreenshotProtection } from "@/hooks/useScreenshotProtection";
 
 interface Product {
   id: string;
@@ -47,6 +48,9 @@ const Offers = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { addItem } = useCart();
+  
+  // حماية من تصوير الشاشة
+  useScreenshotProtection();
 
   useEffect(() => {
     fetchData();
