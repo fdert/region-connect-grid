@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Tag, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
+import Autoplay from "embla-carousel-autoplay";
 
 interface Category {
   id: string;
@@ -37,6 +38,10 @@ const CategoriesSection = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [storeCounts, setStoreCounts] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
+  
+  const autoplayPlugin = useRef(
+    Autoplay({ delay: 3000, stopOnInteraction: false, stopOnMouseEnter: true })
+  );
 
   useEffect(() => {
     fetchCategories();
@@ -124,7 +129,9 @@ const CategoriesSection = () => {
           opts={{
             align: "start",
             direction: "rtl",
+            loop: true,
           }}
+          plugins={[autoplayPlugin.current]}
           className="w-full"
         >
           <CarouselContent className="-mr-4">
