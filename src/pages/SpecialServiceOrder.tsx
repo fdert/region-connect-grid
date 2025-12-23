@@ -67,6 +67,7 @@ const SpecialServiceOrder = () => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [calculatedDistance, setCalculatedDistance] = useState<number | null>(null);
   const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
+  const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
 
   const [formData, setFormData] = useState({
     // Sender info
@@ -126,8 +127,36 @@ const SpecialServiceOrder = () => {
     }
   };
 
-  // Calculate distance between two points using Haversine formula
-  const calculateDistance = (
+  // Calculate road distance using OSRM (Open Source Routing Machine) - FREE API
+  const calculateRoadDistance = async (
+    lat1: number,
+    lng1: number,
+    lat2: number,
+    lng2: number
+  ): Promise<number> => {
+    try {
+      // OSRM expects coordinates as lng,lat (not lat,lng)
+      const url = `https://router.project-osrm.org/route/v1/driving/${lng1},${lat1};${lng2},${lat2}?overview=false`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data.code === "Ok" && data.routes && data.routes.length > 0) {
+        // OSRM returns distance in meters, convert to km
+        return data.routes[0].distance / 1000;
+      }
+      
+      // Fallback to Haversine with road factor if OSRM fails
+      return calculateHaversineDistance(lat1, lng1, lat2, lng2) * 1.3;
+    } catch (error) {
+      console.error("OSRM API error:", error);
+      // Fallback to Haversine formula with road factor (1.3x)
+      return calculateHaversineDistance(lat1, lng1, lat2, lng2) * 1.3;
+    }
+  };
+
+  // Fallback Haversine formula for straight-line distance
+  const calculateHaversineDistance = (
     lat1: number,
     lng1: number,
     lat2: number,
@@ -148,29 +177,39 @@ const SpecialServiceOrder = () => {
 
   // Calculate price based on distance
   useEffect(() => {
-    if (formData.sender_location_url && formData.recipient_location_url && service) {
-      const senderCoords = extractCoordinates(formData.sender_location_url);
-      const recipientCoords = extractCoordinates(formData.recipient_location_url);
+    const calculateDistanceAndPrice = async () => {
+      if (formData.sender_location_url && formData.recipient_location_url && service) {
+        const senderCoords = extractCoordinates(formData.sender_location_url);
+        const recipientCoords = extractCoordinates(formData.recipient_location_url);
 
-      if (senderCoords && recipientCoords) {
-        const distance = calculateDistance(
-          senderCoords.lat,
-          senderCoords.lng,
-          recipientCoords.lat,
-          recipientCoords.lng
-        );
-        setCalculatedDistance(distance);
+        if (senderCoords && recipientCoords) {
+          setIsCalculatingDistance(true);
+          
+          try {
+            const distance = await calculateRoadDistance(
+              senderCoords.lat,
+              senderCoords.lng,
+              recipientCoords.lat,
+              recipientCoords.lng
+            );
+            setCalculatedDistance(distance);
 
-        // Calculate price
-        const basePrice = service.base_price || 0;
-        const pricePerKm = service.price_per_km || 2.5;
-        const minPrice = service.min_price || 15;
+            // Calculate price
+            const basePrice = service.base_price || 0;
+            const pricePerKm = service.price_per_km || 2.5;
+            const minPrice = service.min_price || 15;
 
-        let price = basePrice + distance * pricePerKm;
-        price = Math.max(price, minPrice);
-        setCalculatedPrice(Math.round(price * 100) / 100);
+            let price = basePrice + distance * pricePerKm;
+            price = Math.max(price, minPrice);
+            setCalculatedPrice(Math.round(price * 100) / 100);
+          } finally {
+            setIsCalculatingDistance(false);
+          }
+        }
       }
-    }
+    };
+
+    calculateDistanceAndPrice();
   }, [formData.sender_location_url, formData.recipient_location_url, service]);
 
   // Generate and send verification code

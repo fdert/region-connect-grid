@@ -124,7 +124,7 @@ const MostOrderedSection = () => {
           {products.map((product, index) => (
             <Link
               key={product.id}
-              to={`/stores/${product.store_id}`}
+              to={`/products/${product.id}`}
               className="group opacity-0 animate-slide-up"
               style={{ animationDelay: `${index * 0.1}s`, animationFillMode: "forwards" }}
             >
