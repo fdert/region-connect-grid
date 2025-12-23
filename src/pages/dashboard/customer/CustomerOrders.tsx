@@ -7,7 +7,8 @@ import {
   CheckCircle,
   XCircle,
   MapPin,
-  Store
+  Store,
+  Eye
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
@@ -18,6 +19,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { Link } from "react-router-dom";
 
 const statusLabels: Record<string, string> = {
   "new": "جديد",
@@ -165,7 +167,7 @@ const CustomerOrders = () => {
             ) : (
               <div className="space-y-4">
                 {filteredOrders.map((order) => (
-                  <div key={order.id} className="bg-card rounded-2xl border border-border/50 p-6">
+                  <Link key={order.id} to={`/customer/orders/${order.id}`} className="block bg-card rounded-2xl border border-border/50 p-6 hover:shadow-lg transition-shadow">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center overflow-hidden">
@@ -210,7 +212,11 @@ const CustomerOrders = () => {
                       <span>في الطريق</span>
                       <span>تم التسليم</span>
                     </div>
-                  </div>
+                    <div className="flex items-center justify-center gap-2 mt-4 text-primary text-sm">
+                      <Eye className="w-4 h-4" />
+                      <span>عرض تفاصيل الطلب</span>
+                    </div>
+                  </Link>
                 ))}
               </div>
             )}
@@ -225,22 +231,27 @@ const CustomerOrders = () => {
             ) : (
               <div className="space-y-4">
                 {filteredOrders.map((order) => (
-                  <div key={order.id} className="bg-card rounded-2xl border border-border/50 p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center">
-                        <CheckCircle className="w-6 h-6 text-success" />
+                  <Link key={order.id} to={`/customer/orders/${order.id}`} className="block bg-card rounded-2xl border border-border/50 p-4 hover:shadow-lg transition-shadow">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center">
+                          <CheckCircle className="w-6 h-6 text-success" />
+                        </div>
+                        <div>
+                          <div className="font-bold">{order.order_number}</div>
+                          <div className="text-sm text-muted-foreground">{order.store?.name}</div>
+                          <div className="text-xs text-muted-foreground">{formatDate(order.updated_at || order.created_at || '')}</div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="font-bold">{order.order_number}</div>
-                        <div className="text-sm text-muted-foreground">{order.store?.name}</div>
-                        <div className="text-xs text-muted-foreground">{formatDate(order.updated_at || order.created_at || '')}</div>
+                      <div className="text-left flex items-center gap-4">
+                        <div>
+                          <div className="font-bold">{order.total?.toLocaleString()} ر.س</div>
+                          <div className="text-xs text-success">تم التسليم</div>
+                        </div>
+                        <Eye className="w-4 h-4 text-muted-foreground" />
                       </div>
                     </div>
-                    <div className="text-left">
-                      <div className="font-bold">{order.total?.toLocaleString()} ر.س</div>
-                      <div className="text-xs text-success">تم التسليم</div>
-                    </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
@@ -255,22 +266,27 @@ const CustomerOrders = () => {
             ) : (
               <div className="space-y-4">
                 {filteredOrders.map((order) => (
-                  <div key={order.id} className="bg-card rounded-2xl border border-border/50 p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
-                        <XCircle className="w-6 h-6 text-destructive" />
+                  <Link key={order.id} to={`/customer/orders/${order.id}`} className="block bg-card rounded-2xl border border-border/50 p-4 hover:shadow-lg transition-shadow">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                          <XCircle className="w-6 h-6 text-destructive" />
+                        </div>
+                        <div>
+                          <div className="font-bold">{order.order_number}</div>
+                          <div className="text-sm text-muted-foreground">{order.store?.name}</div>
+                          <div className="text-xs text-muted-foreground">{formatDate(order.created_at || '')}</div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="font-bold">{order.order_number}</div>
-                        <div className="text-sm text-muted-foreground">{order.store?.name}</div>
-                        <div className="text-xs text-muted-foreground">{formatDate(order.created_at || '')}</div>
+                      <div className="text-left flex items-center gap-4">
+                        <div>
+                          <div className="font-bold">{order.total?.toLocaleString()} ر.س</div>
+                          <div className="text-xs text-destructive">{statusLabels[order.status || 'cancelled']}</div>
+                        </div>
+                        <Eye className="w-4 h-4 text-muted-foreground" />
                       </div>
                     </div>
-                    <div className="text-left">
-                      <div className="font-bold">{order.total?.toLocaleString()} ر.س</div>
-                      <div className="text-xs text-destructive">{statusLabels[order.status || 'cancelled']}</div>
-                    </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}

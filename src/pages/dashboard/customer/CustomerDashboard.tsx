@@ -6,9 +6,11 @@ import {
   Star,
   ArrowLeft,
   Clock,
-  Loader2
+  Loader2,
+  Eye
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useCustomerOrderNotifications } from "@/hooks/useCustomerOrderNotifications";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/hooks/useAuth";
@@ -61,6 +63,9 @@ const getOrderProgress = (status: string): number => {
 
 const CustomerDashboard = () => {
   const { user } = useAuth();
+  
+  // تفعيل إشعارات الطلبات
+  useCustomerOrderNotifications();
 
   // Fetch wallet data
   const { data: wallet } = useQuery({
@@ -253,7 +258,7 @@ const CustomerDashboard = () => {
             </div>
             <div className="divide-y divide-border">
               {activeOrders.map((order) => (
-                <div key={order.id} className="p-6">
+                <Link key={order.id} to={`/customer/orders/${order.id}`} className="block p-6 hover:bg-muted/50 transition-colors">
                   <div className="flex items-start justify-between mb-4">
                     <div>
                       <div className="flex items-center gap-3 mb-2">
@@ -281,7 +286,11 @@ const CustomerDashboard = () => {
                     <span>في الطريق</span>
                     <span>تم التسليم</span>
                   </div>
-                </div>
+                  <div className="flex items-center justify-center gap-2 mt-4 text-primary text-sm">
+                    <Eye className="w-4 h-4" />
+                    <span>عرض تفاصيل الطلب</span>
+                  </div>
+                </Link>
               ))}
             </div>
           </div>
@@ -313,16 +322,19 @@ const CustomerDashboard = () => {
             </div>
             <div className="divide-y divide-border">
               {previousOrders.map((order) => (
-                <div key={order.id} className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                <Link key={order.id} to={`/customer/orders/${order.id}`} className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors block">
                   <div>
                     <div className="font-medium mb-1">{order.order_number}</div>
                     <div className="text-sm text-muted-foreground">{order.store?.name}</div>
                   </div>
-                  <div className="text-left">
-                    <div className="font-semibold">{order.total?.toLocaleString()} ر.س</div>
-                    <div className="text-xs text-muted-foreground">{formatDate(order.created_at || '')}</div>
+                  <div className="text-left flex items-center gap-4">
+                    <div>
+                      <div className="font-semibold">{order.total?.toLocaleString()} ر.س</div>
+                      <div className="text-xs text-muted-foreground">{formatDate(order.created_at || '')}</div>
+                    </div>
+                    <Eye className="w-4 h-4 text-muted-foreground" />
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </div>
