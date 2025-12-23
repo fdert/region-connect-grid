@@ -9,7 +9,8 @@ import {
   Navigation,
   Loader2,
   Bell,
-  Truck
+  Truck,
+  Box
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -23,6 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Database } from "@/integrations/supabase/types";
 import { useCourierNotifications } from "@/hooks/useCourierNotifications";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 
 type OrderStatus = Database['public']['Enums']['order_status'];
 
@@ -32,7 +34,11 @@ const statusLabels: Record<string, string> = {
   "on_the_way": "في الطريق",
   "delivered": "تم التسليم",
   "ready": "جاهز للاستلام",
-  "accepted_by_merchant": "تم القبول"
+  "accepted_by_merchant": "تم القبول",
+  // Special orders statuses
+  "pending": "في الانتظار",
+  "verified": "تم التحقق",
+  "accepted": "تم القبول",
 };
 
 const statusColors: Record<string, string> = {
@@ -41,7 +47,11 @@ const statusColors: Record<string, string> = {
   "picked_up": "bg-indigo-500",
   "on_the_way": "bg-primary",
   "delivered": "bg-success",
-  "accepted_by_merchant": "bg-blue-500"
+  "accepted_by_merchant": "bg-blue-500",
+  // Special orders statuses
+  "pending": "bg-yellow-500",
+  "verified": "bg-blue-500",
+  "accepted": "bg-purple-500",
 };
 
 const CourierDashboard = () => {
@@ -109,6 +119,39 @@ const CourierDashboard = () => {
     refetchInterval: 10000 // Refetch every 10 seconds
   });
 
+  // Fetch available special orders
+  const { data: availableSpecialOrders, isLoading: loadingSpecial } = useQuery({
+    queryKey: ['available-special-orders'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('special_orders')
+        .select(`*, special_services(name_ar)`)
+        .is('courier_id', null)
+        .eq('status', 'verified')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+    refetchInterval: 10000
+  });
+
+  // Fetch my special orders
+  const { data: mySpecialOrders } = useQuery({
+    queryKey: ['my-special-orders', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('special_orders')
+        .select(`*, special_services(name_ar)`)
+        .eq('courier_id', user?.id)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id
+  });
+
   // Update order status
   const updateStatusMutation = useMutation({
     mutationFn: async ({ orderId, newStatus }: { orderId: string; newStatus: OrderStatus }) => {
@@ -161,6 +204,62 @@ const CourierDashboard = () => {
       toast({
         title: "خطأ",
         description: "حدث خطأ أثناء قبول الطلب",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Accept special order mutation
+  const acceptSpecialOrderMutation = useMutation({
+    mutationFn: async (orderId: string) => {
+      const { error } = await supabase
+        .from('special_orders')
+        .update({ 
+          courier_id: user?.id,
+          status: 'accepted'
+        })
+        .eq('id', orderId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-special-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['available-special-orders'] });
+      toast({
+        title: "✅ تم قبول الطلب الخاص",
+        description: "تم تعيين الطلب لك بنجاح",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "خطأ",
+        description: "حدث خطأ أثناء قبول الطلب",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Update special order status
+  const updateSpecialOrderMutation = useMutation({
+    mutationFn: async ({ orderId, newStatus }: { orderId: string; newStatus: string }) => {
+      const { error } = await supabase
+        .from('special_orders')
+        .update({ status: newStatus })
+        .eq('id', orderId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-special-orders'] });
+      toast({
+        title: "تم التحديث",
+        description: "تم تحديث حالة الطلب بنجاح",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "خطأ",
+        description: "حدث خطأ أثناء تحديث حالة الطلب",
         variant: "destructive",
       });
     }
@@ -286,16 +385,20 @@ const CourierDashboard = () => {
           ))}
         </div>
 
-        {/* Tabs for My Orders / Available Orders */}
+        {/* Tabs for My Orders / Available Orders / Special */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsList className="grid w-full grid-cols-3 max-w-lg">
             <TabsTrigger value="my-orders" className="gap-2">
               <Package className="w-4 h-4" />
-              طلباتي ({activeOrders.length})
+              طلباتي ({activeOrders.length + (mySpecialOrders?.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length || 0)})
             </TabsTrigger>
             <TabsTrigger value="available" className="gap-2">
               <Bell className="w-4 h-4" />
-              متاحة ({availableOrders?.length || 0})
+              متاحة ({(availableOrders?.length || 0) + (availableSpecialOrders?.length || 0)})
+            </TabsTrigger>
+            <TabsTrigger value="special" className="gap-2">
+              <Box className="w-4 h-4" />
+              خاصة ({availableSpecialOrders?.length || 0})
             </TabsTrigger>
           </TabsList>
 
@@ -520,6 +623,204 @@ const CourierDashboard = () => {
                 </div>
               )}
             </div>
+          </TabsContent>
+
+          {/* Special Orders Tab */}
+          <TabsContent value="special" className="mt-6">
+            <div className="bg-card rounded-2xl border border-border/50 overflow-hidden">
+              <div className="p-6 border-b border-border flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center">
+                    <Box className="w-5 h-5 text-purple-500" />
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-lg">طلبات التوصيل الخاصة</h2>
+                    <p className="text-sm text-muted-foreground">توصيل طرود بين موقعين</p>
+                  </div>
+                </div>
+                {loadingSpecial && <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />}
+              </div>
+
+              {availableSpecialOrders && availableSpecialOrders.length === 0 ? (
+                <div className="p-8 text-center">
+                  <Box className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+                  <h3 className="font-bold text-lg mb-2">لا توجد طلبات خاصة متاحة</h3>
+                  <p className="text-muted-foreground">سيتم إشعارك عند وجود طلبات جديدة</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {availableSpecialOrders?.map((order) => (
+                    <div key={order.id} className="p-6 hover:bg-muted/30 transition-colors">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-violet-500 flex items-center justify-center">
+                            <Box className="w-6 h-6 text-white" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-bold">{order.order_number}</span>
+                              <Badge className="bg-purple-500 text-white">توصيل خاص</Badge>
+                            </div>
+                            <div className="text-sm text-muted-foreground">{order.special_services?.name_ar}</div>
+                          </div>
+                        </div>
+                        <div className="text-left">
+                          <div className="text-lg font-bold text-success">{order.total?.toLocaleString() || 0} ر.س</div>
+                          <div className="text-xs text-muted-foreground">{order.distance_km?.toFixed(1)} كم</div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 mb-4">
+                        <div className="flex items-center gap-2 text-sm">
+                          <MapPin className="w-4 h-4 text-primary" />
+                          <span className="text-muted-foreground">من:</span>
+                          <span>{order.sender_name} - {order.sender_address || 'الموقع محدد'}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Navigation className="w-4 h-4 text-success" />
+                          <span className="text-muted-foreground">إلى:</span>
+                          <span>{order.recipient_name} - {order.recipient_address || 'الموقع محدد'}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Package className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-muted-foreground">الطرد:</span>
+                          <span>{order.package_size} - {order.package_type}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Clock className="w-4 h-4 text-muted-foreground" />
+                          <span>{formatTimeAgo(order.created_at || '')}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-3">
+                        <Button 
+                          className="flex-1 gap-2"
+                          onClick={() => acceptSpecialOrderMutation.mutate(order.id)}
+                          disabled={acceptSpecialOrderMutation.isPending}
+                        >
+                          {acceptSpecialOrderMutation.isPending ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Truck className="w-4 h-4" />
+                          )}
+                          قبول الطلب
+                        </Button>
+                        {order.sender_location_url && (
+                          <Button variant="outline" size="icon" asChild>
+                            <a href={order.sender_location_url} target="_blank" rel="noopener noreferrer">
+                              <MapPin className="w-4 h-4" />
+                            </a>
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* My Active Special Orders */}
+            {mySpecialOrders && mySpecialOrders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length > 0 && (
+              <div className="bg-card rounded-2xl border border-border/50 overflow-hidden mt-6">
+                <div className="p-6 border-b border-border">
+                  <h2 className="font-bold text-lg">طلباتي الخاصة النشطة</h2>
+                </div>
+                <div className="divide-y divide-border">
+                  {mySpecialOrders
+                    .filter(o => o.status !== 'delivered' && o.status !== 'cancelled')
+                    .map((order) => (
+                      <div key={order.id} className="p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className="font-bold text-lg">{order.order_number}</span>
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium text-white ${statusColors[order.status || 'accepted']}`}>
+                                {statusLabels[order.status || 'accepted']}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                              <Clock className="w-4 h-4" />
+                              {formatTimeAgo(order.created_at || '')}
+                            </div>
+                          </div>
+                          <div className="text-left">
+                            <div className="text-lg font-bold text-primary">{order.total?.toLocaleString() || 0} ر.س</div>
+                            <div className="text-xs text-muted-foreground">{order.distance_km?.toFixed(1)} كم</div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3 mb-4">
+                          <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                              <MapPin className="w-4 h-4 text-primary" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="text-xs text-muted-foreground mb-1">الاستلام من</div>
+                              <div className="font-medium">{order.sender_name}</div>
+                              <div className="text-sm text-muted-foreground">{order.sender_phone}</div>
+                            </div>
+                            {order.sender_location_url && (
+                              <Button variant="outline" size="sm" asChild>
+                                <a href={order.sender_location_url} target="_blank" rel="noopener noreferrer">
+                                  <Navigation className="w-4 h-4" />
+                                </a>
+                              </Button>
+                            )}
+                          </div>
+                          <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                            <div className="w-8 h-8 rounded-full bg-success/10 flex items-center justify-center">
+                              <Navigation className="w-4 h-4 text-success" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="text-xs text-muted-foreground mb-1">التسليم إلى</div>
+                              <div className="font-medium">{order.recipient_name}</div>
+                              <div className="text-sm text-muted-foreground">{order.recipient_phone}</div>
+                            </div>
+                            {order.recipient_location_url && (
+                              <Button variant="outline" size="sm" asChild>
+                                <a href={order.recipient_location_url} target="_blank" rel="noopener noreferrer">
+                                  <Navigation className="w-4 h-4" />
+                                </a>
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                          {order.status === 'accepted' && (
+                            <Button 
+                              className="flex-1" 
+                              onClick={() => updateSpecialOrderMutation.mutate({ orderId: order.id, newStatus: 'picked_up' })}
+                              disabled={updateSpecialOrderMutation.isPending}
+                            >
+                              تم الاستلام
+                            </Button>
+                          )}
+                          {order.status === 'picked_up' && (
+                            <Button 
+                              className="flex-1" 
+                              onClick={() => updateSpecialOrderMutation.mutate({ orderId: order.id, newStatus: 'on_the_way' })}
+                              disabled={updateSpecialOrderMutation.isPending}
+                            >
+                              في الطريق
+                            </Button>
+                          )}
+                          {order.status === 'on_the_way' && (
+                            <Button 
+                              className="flex-1" 
+                              variant="default"
+                              onClick={() => updateSpecialOrderMutation.mutate({ orderId: order.id, newStatus: 'delivered' })}
+                              disabled={updateSpecialOrderMutation.isPending}
+                            >
+                              تم التسليم
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>
