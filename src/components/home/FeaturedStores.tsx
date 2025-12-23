@@ -20,6 +20,16 @@ interface Store {
   delivery_fee: number | null;
 }
 
+// Color palette for store backgrounds
+const colorPalette = [
+  { bg: "bg-gradient-to-br from-rose-400 to-pink-500", accent: "bg-rose-500" },
+  { bg: "bg-gradient-to-br from-violet-400 to-purple-500", accent: "bg-violet-500" },
+  { bg: "bg-gradient-to-br from-blue-400 to-indigo-500", accent: "bg-blue-500" },
+  { bg: "bg-gradient-to-br from-emerald-400 to-teal-500", accent: "bg-emerald-500" },
+  { bg: "bg-gradient-to-br from-amber-400 to-orange-500", accent: "bg-amber-500" },
+  { bg: "bg-gradient-to-br from-cyan-400 to-sky-500", accent: "bg-cyan-500" },
+];
+
 const FeaturedStores = () => {
   const [stores, setStores] = useState<Store[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -89,90 +99,89 @@ const FeaturedStores = () => {
 
         {/* Stores Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-          {stores.map((store, index) => (
-            <Link
-              key={store.id}
-              to={`/stores/${store.id}`}
-              className="group opacity-0 animate-slide-up"
-              style={{ animationDelay: `${index * 0.1}s`, animationFillMode: "forwards" }}
-            >
-              <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden border border-border/50 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
-                {/* Image */}
-                <div className="relative h-40 sm:h-48 overflow-hidden bg-muted">
-                  {store.cover_url ? (
-                    <img
-                      src={store.cover_url}
-                      alt={store.name}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                    />
-                  ) : store.logo_url ? (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <img
-                        src={store.logo_url}
-                        alt={store.name}
-                        className="w-24 h-24 object-contain"
-                      />
+          {stores.map((store, index) => {
+            const palette = colorPalette[index % colorPalette.length];
+            
+            return (
+              <Link
+                key={store.id}
+                to={`/stores/${store.id}`}
+                className="group opacity-0 animate-slide-up"
+                style={{ animationDelay: `${index * 0.1}s`, animationFillMode: "forwards" }}
+              >
+                <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden border border-border/50 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
+                  {/* Colored Background with Logo */}
+                  <div className={`relative h-44 sm:h-52 ${palette.bg} flex items-center justify-center p-6`}>
+                    {/* Status Badge */}
+                    <div className="absolute top-3 right-3">
+                      <Badge variant="default" className="bg-success text-white shadow-lg">
+                        مفتوح
+                      </Badge>
                     </div>
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20">
-                      <span className="text-4xl font-bold text-primary/40">
-                        {store.name.charAt(0)}
-                      </span>
+                    
+                    {/* Verified Badge */}
+                    <div className="absolute top-3 left-3 w-8 h-8 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
+                      <BadgeCheck className="w-5 h-5 text-white" />
                     </div>
-                  )}
-                  {/* Status Badge */}
-                  <div className="absolute top-3 right-3">
-                    <Badge variant="default" className="bg-success">
-                      مفتوح
-                    </Badge>
-                  </div>
-                  {/* Verified Badge */}
-                  <div className="absolute top-3 left-3 w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-                    <BadgeCheck className="w-5 h-5 text-primary-foreground" />
-                  </div>
-                </div>
 
-                {/* Content */}
-                <div className="p-4 sm:p-5">
-                  {/* Name */}
-                  <h3 className="font-bold text-lg mt-1 mb-2 group-hover:text-primary transition-colors">
-                    {store.name}
-                  </h3>
-
-                  {/* Rating */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="flex items-center gap-1">
-                      <Star className="w-4 h-4 text-accent fill-accent" />
-                      <span className="font-semibold text-sm">
-                        {store.rating ? Number(store.rating).toFixed(1) : "0.0"}
-                      </span>
+                    {/* White Logo Container */}
+                    <div className="w-28 h-28 sm:w-32 sm:h-32 bg-white rounded-2xl shadow-xl flex items-center justify-center overflow-hidden group-hover:scale-105 transition-transform duration-300">
+                      {store.logo_url ? (
+                        <img
+                          src={store.logo_url}
+                          alt={store.name}
+                          className="w-full h-full object-contain p-2"
+                        />
+                      ) : (
+                        <span className="text-4xl sm:text-5xl font-bold text-gray-300">
+                          {store.name.charAt(0)}
+                        </span>
+                      )}
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      ({store.total_reviews || 0} تقييم)
-                    </span>
                   </div>
 
-                  {/* Info */}
-                  <div className="flex flex-col gap-2 text-sm text-muted-foreground">
-                    {(store.city || store.address) && (
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4" />
-                        <span className="truncate">
-                          {store.city}{store.address ? `, ${store.address}` : ""}
+                  {/* Content */}
+                  <div className="p-4 sm:p-5 text-center">
+                    {/* Name */}
+                    <h3 className="font-bold text-lg sm:text-xl mb-2 group-hover:text-primary transition-colors line-clamp-1">
+                      {store.name}
+                    </h3>
+
+                    {/* Rating */}
+                    <div className="flex items-center justify-center gap-2 mb-3">
+                      <div className="flex items-center gap-1">
+                        <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                        <span className="font-semibold text-sm">
+                          {store.rating ? Number(store.rating).toFixed(1) : "0.0"}
                         </span>
                       </div>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4" />
-                      <span>
-                        التوصيل: {store.delivery_fee ? `${store.delivery_fee} ر.س` : "مجاني"}
+                      <span className="text-xs text-muted-foreground">
+                        ({store.total_reviews || 0} تقييم)
                       </span>
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex flex-col gap-1.5 text-sm text-muted-foreground">
+                      {(store.city || store.address) && (
+                        <div className="flex items-center justify-center gap-1.5">
+                          <MapPin className="w-3.5 h-3.5" />
+                          <span className="truncate text-xs">
+                            {store.city}{store.address ? `، ${store.address}` : ""}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span className="text-xs">
+                          التوصيل: {store.delivery_fee ? `${store.delivery_fee} ر.س` : "مجاني"}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
 
         {/* Mobile View All */}
