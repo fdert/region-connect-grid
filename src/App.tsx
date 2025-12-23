@@ -41,8 +41,13 @@ import MerchantSettings from "./pages/dashboard/merchant/MerchantSettings";
 import MerchantSupport from "./pages/dashboard/merchant/MerchantSupport";
 import CreateStore from "./pages/dashboard/merchant/CreateStore";
 
-// Other Dashboard Pages
+// Courier Dashboard Pages
 import CourierDashboard from "./pages/dashboard/courier/CourierDashboard";
+import CourierOrders from "./pages/dashboard/courier/CourierOrders";
+import CourierEarnings from "./pages/dashboard/courier/CourierEarnings";
+import CourierSettings from "./pages/dashboard/courier/CourierSettings";
+
+// Customer Dashboard Pages
 import CustomerDashboard from "./pages/dashboard/customer/CustomerDashboard";
 
 const queryClient = new QueryClient();
@@ -96,6 +101,11 @@ const App = () => (
               
               {/* Courier Dashboard */}
               <Route path="/courier" element={<CourierDashboard />} />
+              <Route path="/courier/orders" element={<CourierOrders />} />
+              <Route path="/courier/earnings" element={<CourierEarnings />} />
+              <Route path="/courier/settings" element={<CourierSettings />} />
+              
+              {/* Customer Dashboard */}
               
               {/* Customer Dashboard */}
               <Route path="/customer" element={<CustomerDashboard />} />
