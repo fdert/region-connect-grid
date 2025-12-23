@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,111 +10,150 @@ import {
   Clock,
   BadgeCheck,
   Grid3X3,
-  List
+  List,
+  Store as StoreIcon
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
 
-const stores = [
-  {
-    id: 1,
-    name: "متجر الأناقة",
-    category: "أزياء ومستلزمات",
-    rating: 4.9,
-    reviews: 256,
-    image: "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=400&h=300&fit=crop",
-    location: "الرياض، حي العليا",
-    isOpen: true,
-    isVerified: true,
-    deliveryTime: "30-45 دقيقة",
-    products: 150,
-  },
-  {
-    id: 2,
-    name: "مطعم الشرق",
-    category: "مطاعم ومأكولات",
-    rating: 4.8,
-    reviews: 189,
-    image: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&h=300&fit=crop",
-    location: "الرياض، حي النخيل",
-    isOpen: true,
-    isVerified: true,
-    deliveryTime: "20-35 دقيقة",
-    products: 85,
-  },
-  {
-    id: 3,
-    name: "تقنية المستقبل",
-    category: "إلكترونيات وأجهزة",
-    rating: 4.7,
-    reviews: 412,
-    image: "https://images.unsplash.com/photo-1491933382434-500287f9b54b?w=400&h=300&fit=crop",
-    location: "الرياض، حي الملقا",
-    isOpen: false,
-    isVerified: true,
-    deliveryTime: "1-2 يوم",
-    products: 320,
-  },
-  {
-    id: 4,
-    name: "بيت الديكور",
-    category: "أثاث وديكور",
-    rating: 4.6,
-    reviews: 98,
-    image: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&h=300&fit=crop",
-    location: "الرياض، حي الربيع",
-    isOpen: true,
-    isVerified: false,
-    deliveryTime: "2-3 أيام",
-    products: 210,
-  },
-  {
-    id: 5,
-    name: "عطور الخليج",
-    category: "عطور ومستحضرات",
-    rating: 4.9,
-    reviews: 567,
-    image: "https://images.unsplash.com/photo-1541643600914-78b084683601?w=400&h=300&fit=crop",
-    location: "الرياض، حي السليمانية",
-    isOpen: true,
-    isVerified: true,
-    deliveryTime: "1-2 يوم",
-    products: 180,
-  },
-  {
-    id: 6,
-    name: "مكتبة المعرفة",
-    category: "كتب ومستلزمات",
-    rating: 4.5,
-    reviews: 234,
-    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop",
-    location: "الرياض، حي الروضة",
-    isOpen: true,
-    isVerified: true,
-    deliveryTime: "2-3 أيام",
-    products: 450,
-  },
-];
+interface Store {
+  id: string;
+  name: string;
+  description: string | null;
+  logo_url: string | null;
+  cover_url: string | null;
+  rating: number | null;
+  total_reviews: number | null;
+  city: string | null;
+  address: string | null;
+  delivery_fee: number | null;
+  is_active: boolean | null;
+  is_approved: boolean | null;
+  category_name?: string;
+  products_count?: number;
+}
 
-const categories = [
-  "الكل",
-  "أزياء ومستلزمات",
-  "مطاعم ومأكولات",
-  "إلكترونيات وأجهزة",
-  "أثاث وديكور",
-  "عطور ومستحضرات",
-  "كتب ومستلزمات",
-];
+interface Category {
+  id: string;
+  name: string;
+  name_ar: string;
+}
 
 const Stores = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("الكل");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [stores, setStores] = useState<Store[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      // Fetch categories
+      const { data: categoriesData, error: categoriesError } = await supabase
+        .from('categories')
+        .select('id, name, name_ar')
+        .eq('is_active', true)
+        .is('parent_id', null)
+        .order('sort_order');
+
+      if (categoriesError) {
+        console.error('Error fetching categories:', categoriesError);
+      } else {
+        setCategories(categoriesData || []);
+      }
+
+      // Fetch stores with product counts
+      const { data: storesData, error: storesError } = await supabase
+        .from('stores')
+        .select('*')
+        .eq('is_active', true)
+        .eq('is_approved', true)
+        .order('rating', { ascending: false });
+
+      if (storesError) {
+        console.error('Error fetching stores:', storesError);
+      } else if (storesData) {
+        // Fetch product counts for each store
+        const storesWithCounts = await Promise.all(
+          storesData.map(async (store) => {
+            const { count } = await supabase
+              .from('products')
+              .select('*', { count: 'exact', head: true })
+              .eq('store_id', store.id)
+              .eq('is_active', true);
+
+            // Get primary category for the store based on products
+            const { data: productWithCategory } = await supabase
+              .from('products')
+              .select('category_id')
+              .eq('store_id', store.id)
+              .eq('is_active', true)
+              .limit(1)
+              .single();
+
+            let categoryName = '';
+            if (productWithCategory?.category_id) {
+              const { data: categoryData } = await supabase
+                .from('categories')
+                .select('name_ar')
+                .eq('id', productWithCategory.category_id)
+                .single();
+              categoryName = categoryData?.name_ar || '';
+            }
+
+            return {
+              ...store,
+              products_count: count || 0,
+              category_name: categoryName
+            };
+          })
+        );
+        setStores(storesWithCounts);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const filteredStores = stores.filter((store) => {
-    const matchesSearch = store.name.includes(searchQuery) || store.category.includes(searchQuery);
-    const matchesCategory = selectedCategory === "الكل" || store.category === selectedCategory;
+    const matchesSearch = store.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          (store.description?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                          (store.category_name?.includes(searchQuery));
+    const matchesCategory = selectedCategory === "الكل" || store.category_name === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="container mx-auto px-4 py-6 sm:py-8">
+          <div className="mb-6 sm:mb-8">
+            <Skeleton className="h-10 w-48 mb-2" />
+            <Skeleton className="h-5 w-64" />
+          </div>
+          <div className="flex gap-2 mb-6">
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} className="h-9 w-24" />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            {[...Array(6)].map((_, i) => (
+              <Skeleton key={i} className="h-72 rounded-xl" />
+            ))}
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -146,15 +185,23 @@ const Stores = () => {
           <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
             {/* Category Filter */}
             <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+              <Button
+                variant={selectedCategory === "الكل" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedCategory("الكل")}
+                className="whitespace-nowrap text-xs sm:text-sm flex-shrink-0"
+              >
+                الكل
+              </Button>
               {categories.map((category) => (
                 <Button
-                  key={category}
-                  variant={selectedCategory === category ? "default" : "outline"}
+                  key={category.id}
+                  variant={selectedCategory === category.name_ar ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setSelectedCategory(category)}
+                  onClick={() => setSelectedCategory(category.name_ar)}
                   className="whitespace-nowrap text-xs sm:text-sm flex-shrink-0"
                 >
-                  {category}
+                  {category.name_ar}
                 </Button>
               ))}
             </div>
@@ -205,20 +252,26 @@ const Stores = () => {
                 <div className={`relative overflow-hidden ${
                   viewMode === "list" ? "w-32 h-28 sm:w-48 sm:h-36 flex-shrink-0" : "h-40 sm:h-48"
                 }`}>
-                  <img
-                    src={store.image}
-                    alt={store.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  />
+                  {store.cover_url || store.logo_url ? (
+                    <img
+                      src={store.cover_url || store.logo_url || ''}
+                      alt={store.name}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-muted flex items-center justify-center">
+                      <StoreIcon className="w-12 h-12 text-muted-foreground" />
+                    </div>
+                  )}
                   <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
                     <Badge 
-                      variant={store.isOpen ? "default" : "secondary"}
-                      className={`text-xs ${store.isOpen ? "bg-success" : ""}`}
+                      variant="default"
+                      className="text-xs bg-success"
                     >
-                      {store.isOpen ? "مفتوح" : "مغلق"}
+                      مفتوح
                     </Badge>
                   </div>
-                  {store.isVerified && (
+                  {store.is_approved && (
                     <div className="absolute top-2 left-2 sm:top-3 sm:left-3 w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-primary flex items-center justify-center">
                       <BadgeCheck className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
                     </div>
@@ -227,7 +280,9 @@ const Stores = () => {
 
                 {/* Content */}
                 <div className={`p-3 sm:p-4 md:p-5 ${viewMode === "list" ? "flex-1 min-w-0" : ""}`}>
-                  <span className="text-xs text-primary font-medium">{store.category}</span>
+                  {store.category_name && (
+                    <span className="text-xs text-primary font-medium">{store.category_name}</span>
+                  )}
                   <h3 className="font-bold text-base sm:text-lg mt-1 mb-2 group-hover:text-primary transition-colors truncate">
                     {store.name}
                   </h3>
@@ -235,20 +290,22 @@ const Stores = () => {
                   <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-2 sm:mb-3">
                     <div className="flex items-center gap-1">
                       <Star className="w-3 h-3 sm:w-4 sm:h-4 text-accent fill-accent" />
-                      <span className="font-semibold text-xs sm:text-sm">{store.rating}</span>
+                      <span className="font-semibold text-xs sm:text-sm">{store.rating || 0}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground">({store.reviews})</span>
-                    <span className="text-xs text-muted-foreground hidden sm:inline">• {store.products} منتج</span>
+                    <span className="text-xs text-muted-foreground">({store.total_reviews || 0})</span>
+                    <span className="text-xs text-muted-foreground hidden sm:inline">• {store.products_count || 0} منتج</span>
                   </div>
 
                   <div className="flex flex-col gap-1 sm:gap-2 text-xs sm:text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                      <span className="truncate">{store.location}</span>
-                    </div>
+                    {store.city && (
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                        <span className="truncate">{store.city}{store.address ? `، ${store.address}` : ''}</span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-2">
                       <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                      <span className="truncate">التوصيل: {store.deliveryTime}</span>
+                      <span className="truncate">رسوم التوصيل: {store.delivery_fee || 0} ر.س</span>
                     </div>
                   </div>
                 </div>
