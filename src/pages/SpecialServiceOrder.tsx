@@ -104,13 +104,25 @@ const SpecialServiceOrder = () => {
     enabled: !!id,
   });
 
-  // Extract coordinates from Google Maps URL
-  const extractCoordinates = (url: string): { lat: number; lng: number } | null => {
+  // Extract coordinates from Google Maps URL or direct coordinates
+  const extractCoordinates = (input: string): { lat: number; lng: number } | null => {
     try {
-      if (!url) return null;
+      if (!input) return null;
+      
+      const trimmedInput = input.trim();
+      
+      // Check if it's direct coordinates format: "lat,lng" or "lat, lng"
+      const directCoordsMatch = trimmedInput.match(/^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/);
+      if (directCoordsMatch) {
+        const lat = parseFloat(directCoordsMatch[1]);
+        const lng = parseFloat(directCoordsMatch[2]);
+        if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+          return { lat, lng };
+        }
+      }
       
       // Decode URL first
-      const decodedUrl = decodeURIComponent(url);
+      const decodedUrl = decodeURIComponent(trimmedInput);
       
       // Match various Google Maps URL formats
       const patterns = [
@@ -128,8 +140,12 @@ const SpecialServiceOrder = () => {
         /\/maps\/.*\/@(-?\d+\.?\d*),(-?\d+\.?\d*)/,
         // Mobile format: goo.gl or maps.app.goo.gl with coordinates
         /ll=(-?\d+\.?\d*),(-?\d+\.?\d*)/,
-        // Direct coordinates in URL
-        /(-?\d+\.\d{4,}),(-?\d+\.\d{4,})/,
+        // Apple Maps format
+        /[?&]sll=(-?\d+\.?\d*),(-?\d+\.?\d*)/,
+        // Coordinate pairs with high precision anywhere in URL
+        /(-?\d{1,3}\.\d{5,}),\s*(-?\d{1,3}\.\d{5,})/,
+        // Less precise coordinates (at least 4 decimal places)
+        /(-?\d{1,3}\.\d{4,}),\s*(-?\d{1,3}\.\d{4,})/,
       ];
 
       for (const pattern of patterns) {
@@ -137,7 +153,7 @@ const SpecialServiceOrder = () => {
         if (match) {
           const lat = parseFloat(match[1]);
           const lng = parseFloat(match[2]);
-          // Validate coordinates
+          // Validate coordinates - Saudi Arabia roughly: lat 16-32, lng 34-56
           if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
             return { lat, lng };
           }
@@ -452,17 +468,27 @@ const SpecialServiceOrder = () => {
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <MapPin className="w-4 h-4" />
-                    رابط الموقع من خرائط جوجل *
+                    موقع الاستلام *
                   </Label>
                   <Input
                     value={formData.sender_location_url}
                     onChange={(e) => setFormData({ ...formData, sender_location_url: e.target.value })}
-                    placeholder="https://maps.google.com/..."
+                    placeholder="رابط خرائط جوجل أو إحداثيات (مثال: 24.7136, 46.6753)"
                     dir="ltr"
                   />
                   <p className="text-xs text-muted-foreground">
-                    افتح خرائط جوجل، حدد الموقع، واضغط "مشاركة" ثم انسخ الرابط
+                    يمكنك إدخال رابط خرائط جوجل أو الإحداثيات مباشرة (خط العرض, خط الطول)
                   </p>
+                  {formData.sender_location_url && extractCoordinates(formData.sender_location_url) && (
+                    <Badge variant="outline" className="text-green-600 border-green-600">
+                      ✓ تم التعرف على الموقع
+                    </Badge>
+                  )}
+                  {formData.sender_location_url && !extractCoordinates(formData.sender_location_url) && (
+                    <Badge variant="outline" className="text-red-600 border-red-600">
+                      ✗ لم يتم التعرف على الإحداثيات - جرب إدخالها مباشرة
+                    </Badge>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -575,14 +601,27 @@ const SpecialServiceOrder = () => {
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2">
                       <MapPin className="w-4 h-4" />
-                      رابط موقع التسليم *
+                      موقع التسليم *
                     </Label>
                     <Input
                       value={formData.recipient_location_url}
                       onChange={(e) => setFormData({ ...formData, recipient_location_url: e.target.value })}
-                      placeholder="https://maps.google.com/..."
+                      placeholder="رابط خرائط جوجل أو إحداثيات (مثال: 24.7136, 46.6753)"
                       dir="ltr"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      يمكنك إدخال رابط خرائط جوجل أو الإحداثيات مباشرة
+                    </p>
+                    {formData.recipient_location_url && extractCoordinates(formData.recipient_location_url) && (
+                      <Badge variant="outline" className="text-green-600 border-green-600">
+                        ✓ تم التعرف على الموقع
+                      </Badge>
+                    )}
+                    {formData.recipient_location_url && !extractCoordinates(formData.recipient_location_url) && (
+                      <Badge variant="outline" className="text-red-600 border-red-600">
+                        ✗ لم يتم التعرف على الإحداثيات - جرب إدخالها مباشرة
+                      </Badge>
+                    )}
                   </div>
 
                   <div className="space-y-2">
