@@ -23,14 +23,14 @@ const Navbar = () => {
   const getDashboardLink = () => {
     switch (role) {
       case "admin":
-        return "/dashboard/admin";
+        return "/admin";
       case "merchant":
-        return "/dashboard/merchant";
+        return "/merchant";
       case "courier":
-        return "/dashboard/courier";
+        return "/courier";
       case "customer":
       default:
-        return "/dashboard/customer";
+        return "/customer";
     }
   };
 
