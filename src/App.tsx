@@ -49,6 +49,10 @@ import CourierSettings from "./pages/dashboard/courier/CourierSettings";
 
 // Customer Dashboard Pages
 import CustomerDashboard from "./pages/dashboard/customer/CustomerDashboard";
+import CustomerOrders from "./pages/dashboard/customer/CustomerOrders";
+import CustomerWallet from "./pages/dashboard/customer/CustomerWallet";
+import CustomerSupport from "./pages/dashboard/customer/CustomerSupport";
+import CustomerSettings from "./pages/dashboard/customer/CustomerSettings";
 
 const queryClient = new QueryClient();
 
@@ -106,9 +110,11 @@ const App = () => (
               <Route path="/courier/settings" element={<CourierSettings />} />
               
               {/* Customer Dashboard */}
-              
-              {/* Customer Dashboard */}
               <Route path="/customer" element={<CustomerDashboard />} />
+              <Route path="/customer/orders" element={<CustomerOrders />} />
+              <Route path="/customer/wallet" element={<CustomerWallet />} />
+              <Route path="/customer/support" element={<CustomerSupport />} />
+              <Route path="/customer/settings" element={<CustomerSettings />} />
               
               {/* Catch All */}
               <Route path="*" element={<NotFound />} />
