@@ -34,6 +34,8 @@ const menuItems = [
   { icon: Store, label: "المتاجر", href: "/admin/stores" },
   { icon: Users, label: "المستخدمين", href: "/admin/users" },
   { icon: ShoppingCart, label: "الطلبات", href: "/admin/orders" },
+  { icon: Gift, label: "الخدمات الخاصة", href: "/admin/special-services" },
+  { icon: ShoppingCart, label: "طلبات خاصة", href: "/admin/special-orders" },
   { icon: Image, label: "البنرات", href: "/admin/banners" },
   { icon: Palette, label: "المظهر والألوان", href: "/admin/theme" },
   { icon: Webhook, label: "Webhooks", href: "/admin/webhooks" },
@@ -41,7 +43,6 @@ const menuItems = [
   { icon: Star, label: "التقييمات", href: "/admin/reviews" },
   { icon: Headphones, label: "الدعم الفني", href: "/admin/support" },
   { icon: Wallet, label: "المحافظ", href: "/admin/wallets" },
-  { icon: Gift, label: "النقاط والهدايا", href: "/admin/rewards" },
   { icon: Settings, label: "التصنيفات", href: "/admin/categories" },
 ];
 
