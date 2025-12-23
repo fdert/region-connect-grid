@@ -11,6 +11,7 @@ import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import Stores from "./pages/Stores";
 import StoreDetails from "./pages/StoreDetails";
+import ProductDetails from "./pages/ProductDetails";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import Categories from "./pages/Categories";
@@ -73,6 +74,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/stores" element={<Stores />} />
               <Route path="/stores/:id" element={<StoreDetails />} />
+              <Route path="/products/:id" element={<ProductDetails />} />
               <Route path="/cart" element={<Cart />} />
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/categories" element={<Categories />} />
