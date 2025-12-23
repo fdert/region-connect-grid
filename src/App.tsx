@@ -50,6 +50,7 @@ import CourierSettings from "./pages/dashboard/courier/CourierSettings";
 // Customer Dashboard Pages
 import CustomerDashboard from "./pages/dashboard/customer/CustomerDashboard";
 import CustomerOrders from "./pages/dashboard/customer/CustomerOrders";
+import CustomerOrderDetails from "./pages/dashboard/customer/CustomerOrderDetails";
 import CustomerWallet from "./pages/dashboard/customer/CustomerWallet";
 import CustomerSupport from "./pages/dashboard/customer/CustomerSupport";
 import CustomerSettings from "./pages/dashboard/customer/CustomerSettings";
@@ -112,6 +113,7 @@ const App = () => (
               {/* Customer Dashboard */}
               <Route path="/customer" element={<CustomerDashboard />} />
               <Route path="/customer/orders" element={<CustomerOrders />} />
+              <Route path="/customer/orders/:id" element={<CustomerOrderDetails />} />
               <Route path="/customer/wallet" element={<CustomerWallet />} />
               <Route path="/customer/support" element={<CustomerSupport />} />
               <Route path="/customer/settings" element={<CustomerSettings />} />
