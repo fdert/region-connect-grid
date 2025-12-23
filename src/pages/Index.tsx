@@ -15,10 +15,10 @@ const Index = () => {
       <HeroSection />
       <BannerSlider position="home_top" />
       <CategoriesSection />
+      <FeaturedStores />
       <SpecialOffersSection />
       <BannerSlider position="home_middle" />
       <MostOrderedSection />
-      <FeaturedStores />
       <NewArrivalsSection />
       <BannerSlider position="home_bottom" />
       <FeaturesSection />
