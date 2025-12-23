@@ -8,14 +8,31 @@ import {
   User, 
   Store, 
   Search,
-  ChevronDown
+  ChevronDown,
+  LayoutDashboard
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const location = useLocation();
+  const { user, role } = useAuth();
+
+  const getDashboardLink = () => {
+    switch (role) {
+      case "admin":
+        return "/dashboard/admin";
+      case "merchant":
+        return "/dashboard/merchant";
+      case "courier":
+        return "/dashboard/courier";
+      case "customer":
+      default:
+        return "/dashboard/customer";
+    }
+  };
 
   const navLinks = [
     { href: "/", label: "الرئيسية" },
@@ -84,16 +101,27 @@ const Navbar = () => {
 
             {/* Auth Buttons */}
             <div className="hidden md:flex items-center gap-2">
-              <Link to="/auth/login">
-                <Button variant="ghost" size="sm">
-                  تسجيل الدخول
-                </Button>
-              </Link>
-              <Link to="/auth/register">
-                <Button variant="default" size="sm">
-                  حساب جديد
-                </Button>
-              </Link>
+              {user ? (
+                <Link to={getDashboardLink()}>
+                  <Button variant="default" size="sm" className="gap-2">
+                    <LayoutDashboard className="w-4 h-4" />
+                    لوحة التحكم
+                  </Button>
+                </Link>
+              ) : (
+                <>
+                  <Link to="/auth/login">
+                    <Button variant="ghost" size="sm">
+                      تسجيل الدخول
+                    </Button>
+                  </Link>
+                  <Link to="/auth/register">
+                    <Button variant="default" size="sm">
+                      حساب جديد
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
 
             {/* Mobile Menu Toggle */}
@@ -142,16 +170,27 @@ const Navbar = () => {
                 </Link>
               ))}
               <div className="flex gap-2 mt-4">
-                <Link to="/auth/login" className="flex-1">
-                  <Button variant="outline" className="w-full">
-                    تسجيل الدخول
-                  </Button>
-                </Link>
-                <Link to="/auth/register" className="flex-1">
-                  <Button variant="default" className="w-full">
-                    حساب جديد
-                  </Button>
-                </Link>
+                {user ? (
+                  <Link to={getDashboardLink()} className="flex-1">
+                    <Button variant="default" className="w-full gap-2">
+                      <LayoutDashboard className="w-4 h-4" />
+                      لوحة التحكم
+                    </Button>
+                  </Link>
+                ) : (
+                  <>
+                    <Link to="/auth/login" className="flex-1">
+                      <Button variant="outline" className="w-full">
+                        تسجيل الدخول
+                      </Button>
+                    </Link>
+                    <Link to="/auth/register" className="flex-1">
+                      <Button variant="default" className="w-full">
+                        حساب جديد
+                      </Button>
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </div>
