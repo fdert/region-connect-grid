@@ -98,7 +98,7 @@ const FeaturedStores = () => {
         </div>
 
         {/* Stores Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           {stores.map((store, index) => {
             const palette = colorPalette[index % colorPalette.length];
             
@@ -111,29 +111,29 @@ const FeaturedStores = () => {
               >
                 <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden border border-border/50 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
                   {/* Colored Background with Logo */}
-                  <div className={`relative h-44 sm:h-52 ${palette.bg} flex items-center justify-center p-6`}>
+                  <div className={`relative aspect-[4/3] ${palette.bg} flex items-center justify-center p-4 sm:p-6`}>
                     {/* Status Badge */}
-                    <div className="absolute top-3 right-3">
-                      <Badge variant="default" className="bg-success text-white shadow-lg">
+                    <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
+                      <Badge variant="default" className="bg-success text-white shadow-lg text-xs px-2 py-0.5">
                         مفتوح
                       </Badge>
                     </div>
                     
                     {/* Verified Badge */}
-                    <div className="absolute top-3 left-3 w-8 h-8 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
-                      <BadgeCheck className="w-5 h-5 text-white" />
+                    <div className="absolute top-2 left-2 sm:top-3 sm:left-3 w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
+                      <BadgeCheck className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     </div>
 
                     {/* White Logo Container */}
-                    <div className="w-28 h-28 sm:w-32 sm:h-32 bg-white rounded-2xl shadow-xl flex items-center justify-center overflow-hidden group-hover:scale-105 transition-transform duration-300">
+                    <div className="w-16 h-16 sm:w-24 sm:h-24 lg:w-28 lg:h-28 bg-white rounded-xl sm:rounded-2xl shadow-xl flex items-center justify-center overflow-hidden group-hover:scale-105 transition-transform duration-300">
                       {store.logo_url ? (
                         <img
                           src={store.logo_url}
                           alt={store.name}
-                          className="w-full h-full object-contain p-2"
+                          className="w-full h-full object-contain p-1.5 sm:p-2"
                         />
                       ) : (
-                        <span className="text-4xl sm:text-5xl font-bold text-gray-300">
+                        <span className="text-2xl sm:text-4xl lg:text-5xl font-bold text-gray-300">
                           {store.name.charAt(0)}
                         </span>
                       )}
@@ -141,27 +141,27 @@ const FeaturedStores = () => {
                   </div>
 
                   {/* Content */}
-                  <div className="p-4 sm:p-5 text-center">
+                  <div className="p-3 sm:p-4 text-center">
                     {/* Name */}
-                    <h3 className="font-bold text-lg sm:text-xl mb-2 group-hover:text-primary transition-colors line-clamp-1">
+                    <h3 className="font-bold text-sm sm:text-base lg:text-lg mb-1.5 sm:mb-2 group-hover:text-primary transition-colors line-clamp-1">
                       {store.name}
                     </h3>
 
                     {/* Rating */}
-                    <div className="flex items-center justify-center gap-2 mb-3">
-                      <div className="flex items-center gap-1">
-                        <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
-                        <span className="font-semibold text-sm">
+                    <div className="flex items-center justify-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+                      <div className="flex items-center gap-0.5 sm:gap-1">
+                        <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 fill-amber-500" />
+                        <span className="font-semibold text-xs sm:text-sm">
                           {store.rating ? Number(store.rating).toFixed(1) : "0.0"}
                         </span>
                       </div>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-[10px] sm:text-xs text-muted-foreground">
                         ({store.total_reviews || 0} تقييم)
                       </span>
                     </div>
 
-                    {/* Info */}
-                    <div className="flex flex-col gap-1.5 text-sm text-muted-foreground">
+                    {/* Info - Hidden on mobile for cleaner look */}
+                    <div className="hidden sm:flex flex-col gap-1.5 text-sm text-muted-foreground">
                       {(store.city || store.address) && (
                         <div className="flex items-center justify-center gap-1.5">
                           <MapPin className="w-3.5 h-3.5" />

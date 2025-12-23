@@ -140,12 +140,12 @@ const CategoriesSection = () => {
               const productCount = storeCounts[category.id] || 0;
 
               return (
-                <CarouselItem key={category.id} className="basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5 pr-4">
+                <CarouselItem key={category.id} className="basis-1/2 sm:basis-1/3 lg:basis-1/4 pr-4">
                   <Link
                     to={`/categories/${category.id}`}
                     className="block group"
                   >
-                    <div className={`relative h-40 sm:h-48 rounded-xl overflow-hidden ${bgColor} transition-all duration-300 hover:shadow-xl hover:-translate-y-1`}>
+                    <div className={`relative aspect-[4/5] rounded-xl sm:rounded-2xl overflow-hidden ${bgColor} transition-all duration-300 hover:shadow-xl hover:-translate-y-1`}>
                       {/* Category Image */}
                       {category.image_url ? (
                         <img 
@@ -155,7 +155,7 @@ const CategoriesSection = () => {
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <Tag className="w-16 h-16 text-white/70" />
+                          <Tag className="w-12 h-12 sm:w-16 sm:h-16 text-white/70" />
                         </div>
                       )}
                       
@@ -163,8 +163,8 @@ const CategoriesSection = () => {
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
                       
                       {/* Category Name */}
-                      <div className="absolute bottom-0 left-0 right-0 p-4">
-                        <h4 className="text-white font-bold text-base sm:text-lg text-center line-clamp-1 drop-shadow-lg">
+                      <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4">
+                        <h4 className="text-white font-bold text-sm sm:text-base lg:text-lg text-center line-clamp-1 drop-shadow-lg">
                           {category.name_ar}
                         </h4>
                         {productCount > 0 && (
