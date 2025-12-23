@@ -705,9 +705,13 @@ const CourierDashboard = () => {
                           )}
                           قبول الطلب
                         </Button>
-                        {order.sender_location_url && (
+                        {order.sender_location_lat && order.sender_location_lng && (
                           <Button variant="outline" size="icon" asChild>
-                            <a href={order.sender_location_url} target="_blank" rel="noopener noreferrer">
+                            <a 
+                              href={`https://www.google.com/maps/dir/?api=1&destination=${order.sender_location_lat},${order.sender_location_lng}&travelmode=driving`} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                            >
                               <MapPin className="w-4 h-4" />
                             </a>
                           </Button>
@@ -759,9 +763,13 @@ const CourierDashboard = () => {
                               <div className="font-medium">{order.sender_name}</div>
                               <div className="text-sm text-muted-foreground">{order.sender_phone}</div>
                             </div>
-                            {order.sender_location_url && (
+                            {order.sender_location_lat && order.sender_location_lng && (
                               <Button variant="outline" size="sm" asChild>
-                                <a href={order.sender_location_url} target="_blank" rel="noopener noreferrer">
+                                <a 
+                                  href={`https://www.google.com/maps/dir/?api=1&destination=${order.sender_location_lat},${order.sender_location_lng}&travelmode=driving`} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                >
                                   <Navigation className="w-4 h-4" />
                                 </a>
                               </Button>
@@ -776,9 +784,13 @@ const CourierDashboard = () => {
                               <div className="font-medium">{order.recipient_name}</div>
                               <div className="text-sm text-muted-foreground">{order.recipient_phone}</div>
                             </div>
-                            {order.recipient_location_url && (
+                            {order.recipient_location_lat && order.recipient_location_lng && (
                               <Button variant="outline" size="sm" asChild>
-                                <a href={order.recipient_location_url} target="_blank" rel="noopener noreferrer">
+                                <a 
+                                  href={`https://www.google.com/maps/dir/?api=1&destination=${order.recipient_location_lat},${order.recipient_location_lng}&travelmode=driving`} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                >
                                   <Navigation className="w-4 h-4" />
                                 </a>
                               </Button>
