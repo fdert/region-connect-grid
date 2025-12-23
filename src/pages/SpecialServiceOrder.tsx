@@ -107,22 +107,45 @@ const SpecialServiceOrder = () => {
   // Extract coordinates from Google Maps URL
   const extractCoordinates = (url: string): { lat: number; lng: number } | null => {
     try {
+      if (!url) return null;
+      
+      // Decode URL first
+      const decodedUrl = decodeURIComponent(url);
+      
       // Match various Google Maps URL formats
       const patterns = [
-        /@(-?\d+\.\d+),(-?\d+\.\d+)/,
-        /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/,
-        /q=(-?\d+\.\d+),(-?\d+\.\d+)/,
-        /place\/(-?\d+\.\d+),(-?\d+\.\d+)/,
+        // Standard format: @lat,lng
+        /@(-?\d+\.?\d*),(-?\d+\.?\d*)/,
+        // Data format: !3dlat!4dlng
+        /!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)/,
+        // Query format: q=lat,lng
+        /[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/,
+        // Place format: place/lat,lng
+        /place\/(-?\d+\.?\d*),(-?\d+\.?\d*)/,
+        // Short link format: maps?q=lat,lng
+        /maps\?q=(-?\d+\.?\d*),(-?\d+\.?\d*)/,
+        // Another format: /maps/place/.../@lat,lng
+        /\/maps\/.*\/@(-?\d+\.?\d*),(-?\d+\.?\d*)/,
+        // Mobile format: goo.gl or maps.app.goo.gl with coordinates
+        /ll=(-?\d+\.?\d*),(-?\d+\.?\d*)/,
+        // Direct coordinates in URL
+        /(-?\d+\.\d{4,}),(-?\d+\.\d{4,})/,
       ];
 
       for (const pattern of patterns) {
-        const match = url.match(pattern);
+        const match = decodedUrl.match(pattern);
         if (match) {
-          return { lat: parseFloat(match[1]), lng: parseFloat(match[2]) };
+          const lat = parseFloat(match[1]);
+          const lng = parseFloat(match[2]);
+          // Validate coordinates
+          if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+            return { lat, lng };
+          }
         }
       }
       return null;
-    } catch {
+    } catch (error) {
+      console.error("Error extracting coordinates:", error);
       return null;
     }
   };
@@ -182,6 +205,11 @@ const SpecialServiceOrder = () => {
         const senderCoords = extractCoordinates(formData.sender_location_url);
         const recipientCoords = extractCoordinates(formData.recipient_location_url);
 
+        console.log("Sender URL:", formData.sender_location_url);
+        console.log("Recipient URL:", formData.recipient_location_url);
+        console.log("Sender Coords:", senderCoords);
+        console.log("Recipient Coords:", recipientCoords);
+
         if (senderCoords && recipientCoords) {
           setIsCalculatingDistance(true);
           
@@ -192,6 +220,7 @@ const SpecialServiceOrder = () => {
               recipientCoords.lat,
               recipientCoords.lng
             );
+            console.log("Calculated Distance:", distance);
             setCalculatedDistance(distance);
 
             // Calculate price
@@ -201,10 +230,18 @@ const SpecialServiceOrder = () => {
 
             let price = basePrice + distance * pricePerKm;
             price = Math.max(price, minPrice);
+            console.log("Calculated Price:", price);
             setCalculatedPrice(Math.round(price * 100) / 100);
+          } catch (error) {
+            console.error("Error calculating distance:", error);
           } finally {
             setIsCalculatingDistance(false);
           }
+        } else {
+          console.log("Could not extract coordinates from URLs");
+          // Reset values if coordinates cannot be extracted
+          setCalculatedDistance(null);
+          setCalculatedPrice(null);
         }
       }
     };
@@ -722,14 +759,28 @@ const SpecialServiceOrder = () => {
                 {/* Total */}
                 <Card className="bg-primary text-primary-foreground">
                   <CardContent className="pt-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span>المسافة</span>
-                      <span>{calculatedDistance?.toFixed(2)} كم</span>
-                    </div>
-                    <div className="flex items-center justify-between text-xl font-bold">
-                      <span>الإجمالي</span>
-                      <span>{calculatedPrice} ر.س</span>
-                    </div>
+                    {isCalculatingDistance ? (
+                      <div className="flex items-center justify-center py-4">
+                        <div className="animate-spin w-6 h-6 border-2 border-white border-t-transparent rounded-full ml-2" />
+                        <span>جاري حساب المسافة...</span>
+                      </div>
+                    ) : calculatedDistance !== null && calculatedPrice !== null ? (
+                      <>
+                        <div className="flex items-center justify-between mb-2">
+                          <span>المسافة</span>
+                          <span>{calculatedDistance.toFixed(2)} كم</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xl font-bold">
+                          <span>الإجمالي</span>
+                          <span>{calculatedPrice} ر.س</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center py-4">
+                        <p className="text-primary-foreground/80">لم يتم حساب المسافة</p>
+                        <p className="text-sm text-primary-foreground/60">تأكد من إدخال روابط الموقع بشكل صحيح</p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
