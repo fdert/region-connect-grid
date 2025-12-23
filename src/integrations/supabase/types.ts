@@ -464,6 +464,182 @@ export type Database = {
         }
         Relationships: []
       }
+      special_orders: {
+        Row: {
+          courier_id: string | null
+          created_at: string | null
+          customer_id: string
+          delivery_fee: number
+          distance_km: number | null
+          id: string
+          is_verified: boolean | null
+          notes: string | null
+          order_number: string
+          package_description: string | null
+          package_size: string
+          package_type: string
+          package_weight: number | null
+          paid: boolean | null
+          payment_method: string | null
+          recipient_address: string | null
+          recipient_location_lat: number | null
+          recipient_location_lng: number | null
+          recipient_location_url: string | null
+          recipient_name: string
+          recipient_phone: string
+          sender_address: string | null
+          sender_location_lat: number | null
+          sender_location_lng: number | null
+          sender_location_url: string | null
+          sender_name: string
+          sender_phone: string
+          service_id: string
+          status: string | null
+          total: number
+          updated_at: string | null
+          verification_code: string | null
+          verified_at: string | null
+        }
+        Insert: {
+          courier_id?: string | null
+          created_at?: string | null
+          customer_id: string
+          delivery_fee: number
+          distance_km?: number | null
+          id?: string
+          is_verified?: boolean | null
+          notes?: string | null
+          order_number: string
+          package_description?: string | null
+          package_size: string
+          package_type: string
+          package_weight?: number | null
+          paid?: boolean | null
+          payment_method?: string | null
+          recipient_address?: string | null
+          recipient_location_lat?: number | null
+          recipient_location_lng?: number | null
+          recipient_location_url?: string | null
+          recipient_name: string
+          recipient_phone: string
+          sender_address?: string | null
+          sender_location_lat?: number | null
+          sender_location_lng?: number | null
+          sender_location_url?: string | null
+          sender_name: string
+          sender_phone: string
+          service_id: string
+          status?: string | null
+          total: number
+          updated_at?: string | null
+          verification_code?: string | null
+          verified_at?: string | null
+        }
+        Update: {
+          courier_id?: string | null
+          created_at?: string | null
+          customer_id?: string
+          delivery_fee?: number
+          distance_km?: number | null
+          id?: string
+          is_verified?: boolean | null
+          notes?: string | null
+          order_number?: string
+          package_description?: string | null
+          package_size?: string
+          package_type?: string
+          package_weight?: number | null
+          paid?: boolean | null
+          payment_method?: string | null
+          recipient_address?: string | null
+          recipient_location_lat?: number | null
+          recipient_location_lng?: number | null
+          recipient_location_url?: string | null
+          recipient_name?: string
+          recipient_phone?: string
+          sender_address?: string | null
+          sender_location_lat?: number | null
+          sender_location_lng?: number | null
+          sender_location_url?: string | null
+          sender_name?: string
+          sender_phone?: string
+          service_id?: string
+          status?: string | null
+          total?: number
+          updated_at?: string | null
+          verification_code?: string | null
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "special_orders_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "special_services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      special_services: {
+        Row: {
+          base_price: number | null
+          created_at: string | null
+          description: string | null
+          description_ar: string | null
+          icon: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          max_distance_km: number | null
+          min_price: number | null
+          name: string
+          name_ar: string
+          price_per_100m: number | null
+          price_per_km: number | null
+          requires_verification: boolean | null
+          sort_order: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          base_price?: number | null
+          created_at?: string | null
+          description?: string | null
+          description_ar?: string | null
+          icon?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          max_distance_km?: number | null
+          min_price?: number | null
+          name: string
+          name_ar: string
+          price_per_100m?: number | null
+          price_per_km?: number | null
+          requires_verification?: boolean | null
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          base_price?: number | null
+          created_at?: string | null
+          description?: string | null
+          description_ar?: string | null
+          icon?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          max_distance_km?: number | null
+          min_price?: number | null
+          name?: string
+          name_ar?: string
+          price_per_100m?: number | null
+          price_per_km?: number | null
+          requires_verification?: boolean | null
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       store_reviews: {
         Row: {
           comment: string | null
