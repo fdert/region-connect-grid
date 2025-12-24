@@ -108,13 +108,21 @@ const MerchantOrders = () => {
 
   // Update order status
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ orderId, status }: { orderId: string; status: OrderStatus }) => {
+    mutationFn: async ({ orderId, status, oldStatus }: { orderId: string; status: OrderStatus; oldStatus?: string }) => {
       const { error } = await supabase
         .from("orders")
         .update({ status })
         .eq("id", orderId);
       
       if (error) throw error;
+      
+      // Send WhatsApp notification for status change
+      try {
+        const { notifyOrderStatusChange } = await import('@/lib/notifications');
+        await notifyOrderStatusChange(orderId, status, oldStatus);
+      } catch (notifyError) {
+        console.error('Failed to send notification:', notifyError);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["merchant-orders"] });

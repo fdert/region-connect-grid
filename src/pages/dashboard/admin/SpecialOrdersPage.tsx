@@ -95,12 +95,20 @@ const SpecialOrdersPage = () => {
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+    mutationFn: async ({ id, status, oldStatus }: { id: string; status: string; oldStatus?: string }) => {
       const { error } = await supabase
         .from("special_orders")
         .update({ status })
         .eq("id", id);
       if (error) throw error;
+      
+      // Send WhatsApp notification for special order status change
+      try {
+        const { notifySpecialOrderStatusChange } = await import('@/lib/notifications');
+        await notifySpecialOrderStatusChange(id, status, oldStatus);
+      } catch (notifyError) {
+        console.error('Failed to send notification:', notifyError);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["special-orders"] });

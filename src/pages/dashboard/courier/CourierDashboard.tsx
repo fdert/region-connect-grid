@@ -154,13 +154,21 @@ const CourierDashboard = () => {
 
   // Update order status
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ orderId, newStatus }: { orderId: string; newStatus: OrderStatus }) => {
+    mutationFn: async ({ orderId, newStatus, oldStatus }: { orderId: string; newStatus: OrderStatus; oldStatus?: string }) => {
       const { error } = await supabase
         .from('orders')
         .update({ status: newStatus })
         .eq('id', orderId);
       
       if (error) throw error;
+      
+      // Send WhatsApp notification for status change
+      try {
+        const { notifyOrderStatusChange } = await import('@/lib/notifications');
+        await notifyOrderStatusChange(orderId, newStatus, oldStatus);
+      } catch (notifyError) {
+        console.error('Failed to send notification:', notifyError);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['courier-orders'] });
@@ -191,6 +199,14 @@ const CourierDashboard = () => {
         .eq('id', orderId);
       
       if (error) throw error;
+      
+      // Send WhatsApp notification for courier assignment
+      try {
+        const { notifyOrderStatusChange } = await import('@/lib/notifications');
+        await notifyOrderStatusChange(orderId, 'assigned_to_courier');
+      } catch (notifyError) {
+        console.error('Failed to send notification:', notifyError);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['courier-orders'] });
@@ -221,6 +237,14 @@ const CourierDashboard = () => {
         .eq('id', orderId);
       
       if (error) throw error;
+      
+      // Send WhatsApp notification for special order acceptance
+      try {
+        const { notifySpecialOrderStatusChange } = await import('@/lib/notifications');
+        await notifySpecialOrderStatusChange(orderId, 'accepted');
+      } catch (notifyError) {
+        console.error('Failed to send notification:', notifyError);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-special-orders'] });
@@ -241,13 +265,21 @@ const CourierDashboard = () => {
 
   // Update special order status
   const updateSpecialOrderMutation = useMutation({
-    mutationFn: async ({ orderId, newStatus }: { orderId: string; newStatus: string }) => {
+    mutationFn: async ({ orderId, newStatus, oldStatus }: { orderId: string; newStatus: string; oldStatus?: string }) => {
       const { error } = await supabase
         .from('special_orders')
         .update({ status: newStatus })
         .eq('id', orderId);
       
       if (error) throw error;
+      
+      // Send WhatsApp notification for special order status change
+      try {
+        const { notifySpecialOrderStatusChange } = await import('@/lib/notifications');
+        await notifySpecialOrderStatusChange(orderId, newStatus, oldStatus);
+      } catch (notifyError) {
+        console.error('Failed to send notification:', notifyError);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-special-orders'] });
