@@ -136,6 +136,14 @@ const Checkout = () => {
           note: "تم إنشاء الطلب",
           created_by: user.id
         } as any);
+
+        // Send WhatsApp notification for new order
+        try {
+          const { notifyNewOrder } = await import('@/lib/notifications');
+          await notifyNewOrder(order.id);
+        } catch (notifyError) {
+          console.error('Failed to send new order notification:', notifyError);
+        }
       }
 
       // Clear cart
