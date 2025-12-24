@@ -18,6 +18,7 @@ import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useScreenshotProtection } from "@/hooks/useScreenshotProtection";
+import { ProtectedImage } from "@/components/ui/ProtectedImage";
 
 interface Product {
   id: string;
@@ -164,10 +165,11 @@ const ProductDetails = () => {
           <div className="space-y-4">
             <div className="aspect-square bg-muted rounded-2xl overflow-hidden relative">
               {product.images[selectedImage] ? (
-                <img 
+                <ProtectedImage 
                   src={product.images[selectedImage]} 
                   alt={product.name}
                   className="w-full h-full object-cover"
+                  watermarkText={product.stores?.name || "محمي"}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
@@ -176,13 +178,13 @@ const ProductDetails = () => {
               )}
               
               {discountPercent > 0 && (
-                <Badge className="absolute top-4 right-4 bg-destructive text-lg py-1 px-3">
+                <Badge className="absolute top-4 right-4 bg-destructive text-lg py-1 px-3 z-30">
                   خصم {discountPercent}%
                 </Badge>
               )}
               
               {product.is_service && (
-                <Badge className="absolute top-4 left-4" variant="secondary">خدمة</Badge>
+                <Badge className="absolute top-4 left-4 z-30" variant="secondary">خدمة</Badge>
               )}
             </div>
             

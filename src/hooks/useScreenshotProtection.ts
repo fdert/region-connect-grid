@@ -1,6 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export const useScreenshotProtection = () => {
+  const [isBlurred, setIsBlurred] = useState(false);
+
   useEffect(() => {
     // Prevent right-click context menu
     const handleContextMenu = (e: MouseEvent) => {
@@ -13,6 +15,8 @@ export const useScreenshotProtection = () => {
       // Prevent Print Screen
       if (e.key === "PrintScreen") {
         e.preventDefault();
+        setIsBlurred(true);
+        setTimeout(() => setIsBlurred(false), 2000);
         return false;
       }
       
@@ -59,10 +63,26 @@ export const useScreenshotProtection = () => {
       return false;
     };
 
+    // Detect visibility change (app switching)
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setIsBlurred(true);
+        setTimeout(() => setIsBlurred(false), 1500);
+      }
+    };
+
+    // Detect window blur
+    const handleBlur = () => {
+      setIsBlurred(true);
+      setTimeout(() => setIsBlurred(false), 1500);
+    };
+
     // Add event listeners
     document.addEventListener("contextmenu", handleContextMenu);
     document.addEventListener("keydown", handleKeyDown);
     document.addEventListener("dragstart", handleDragStart);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("blur", handleBlur);
 
     // Add CSS to prevent selection and copying
     document.body.style.userSelect = "none";
@@ -73,8 +93,12 @@ export const useScreenshotProtection = () => {
       document.removeEventListener("contextmenu", handleContextMenu);
       document.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("dragstart", handleDragStart);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("blur", handleBlur);
       document.body.style.userSelect = "";
       document.body.style.webkitUserSelect = "";
     };
   }, []);
+
+  return { isBlurred };
 };
