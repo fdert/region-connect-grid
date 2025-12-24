@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import StoreCategoriesSlider from "@/components/store/StoreCategoriesSlider";
 import { useScreenshotProtection } from "@/hooks/useScreenshotProtection";
+import { ProtectedImage } from "@/components/ui/ProtectedImage";
 
 interface Store {
   id: string;
@@ -282,10 +283,11 @@ const StoreDetails = () => {
                 {/* Image */}
                 <div className="aspect-square bg-muted relative overflow-hidden">
                   {product.images[0] ? (
-                    <img 
+                    <ProtectedImage 
                       src={product.images[0]} 
                       alt={product.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      watermarkText={store.name}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
