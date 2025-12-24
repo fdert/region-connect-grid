@@ -65,13 +65,21 @@ const CourierOrders = () => {
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ orderId, newStatus }: { orderId: string; newStatus: OrderStatus }) => {
+    mutationFn: async ({ orderId, newStatus, oldStatus }: { orderId: string; newStatus: OrderStatus; oldStatus?: string }) => {
       const { error } = await supabase
         .from('orders')
         .update({ status: newStatus })
         .eq('id', orderId);
       
       if (error) throw error;
+
+      // Send WhatsApp notification for status change
+      try {
+        const { notifyOrderStatusChange } = await import('@/lib/notifications');
+        await notifyOrderStatusChange(orderId, newStatus, oldStatus);
+      } catch (notifyError) {
+        console.error('Failed to send notification:', notifyError);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['courier-all-orders'] });
@@ -111,16 +119,16 @@ const CourierOrders = () => {
     return format(new Date(date), 'dd/MM/yyyy - hh:mm a', { locale: ar });
   };
 
-  const handlePickup = (orderId: string) => {
-    updateStatusMutation.mutate({ orderId, newStatus: 'picked_up' });
+  const handlePickup = (orderId: string, oldStatus?: string) => {
+    updateStatusMutation.mutate({ orderId, newStatus: 'picked_up', oldStatus });
   };
 
-  const handleOnTheWay = (orderId: string) => {
-    updateStatusMutation.mutate({ orderId, newStatus: 'on_the_way' });
+  const handleOnTheWay = (orderId: string, oldStatus?: string) => {
+    updateStatusMutation.mutate({ orderId, newStatus: 'on_the_way', oldStatus });
   };
 
-  const handleDelivered = (orderId: string) => {
-    updateStatusMutation.mutate({ orderId, newStatus: 'delivered' });
+  const handleDelivered = (orderId: string, oldStatus?: string) => {
+    updateStatusMutation.mutate({ orderId, newStatus: 'delivered', oldStatus });
   };
 
   if (isLoading) {
@@ -222,7 +230,7 @@ const CourierOrders = () => {
                       {(order.status === 'assigned_to_courier' || order.status === 'ready') && (
                         <Button 
                           className="flex-1" 
-                          onClick={() => handlePickup(order.id)}
+                          onClick={() => handlePickup(order.id, order.status || undefined)}
                           disabled={updateStatusMutation.isPending}
                         >
                           تم الاستلام
@@ -231,7 +239,7 @@ const CourierOrders = () => {
                       {order.status === 'picked_up' && (
                         <Button 
                           className="flex-1" 
-                          onClick={() => handleOnTheWay(order.id)}
+                          onClick={() => handleOnTheWay(order.id, order.status || undefined)}
                           disabled={updateStatusMutation.isPending}
                         >
                           في الطريق
@@ -240,7 +248,7 @@ const CourierOrders = () => {
                       {order.status === 'on_the_way' && (
                         <Button 
                           className="flex-1" 
-                          onClick={() => handleDelivered(order.id)}
+                          onClick={() => handleDelivered(order.id, order.status || undefined)}
                           disabled={updateStatusMutation.isPending}
                         >
                           تم التسليم
