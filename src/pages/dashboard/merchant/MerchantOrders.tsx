@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useMerchantNotifications } from "@/hooks/useMerchantNotifications";
 import DashboardLayout from "../DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -82,6 +83,9 @@ const MerchantOrders = () => {
       return data;
     },
   });
+
+  // Setup realtime notifications for new orders
+  useMerchantNotifications(store?.id);
 
   // Get orders for the store
   const { data: orders, isLoading } = useQuery({
