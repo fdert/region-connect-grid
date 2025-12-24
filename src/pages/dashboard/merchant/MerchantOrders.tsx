@@ -354,9 +354,11 @@ const MerchantOrders = () => {
                   <Select
                     value={selectedOrder.status}
                     onValueChange={(status) => {
+                      const oldStatus = selectedOrder.status;
                       updateStatusMutation.mutate({
                         orderId: selectedOrder.id,
                         status: status as OrderStatus,
+                        oldStatus: oldStatus,
                       });
                       setSelectedOrder({ ...selectedOrder, status });
                     }}
