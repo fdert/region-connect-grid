@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Edit2, Webhook, Copy, Eye, EyeOff, ExternalLink } from "lucide-react";
+import { Plus, Trash2, Edit2, Webhook, Copy, Eye, EyeOff, PlayCircle, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -44,6 +44,7 @@ const WebhooksPage = () => {
     events: [] as string[],
     is_active: true
   });
+  const [testingWebhookId, setTestingWebhookId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -145,6 +146,45 @@ const WebhooksPage = () => {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast({ title: "تم النسخ" });
+  };
+
+  const handleTestWebhook = async (webhook: WebhookSetting) => {
+    setTestingWebhookId(webhook.id);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke("test-webhook", {
+        body: {
+          webhookId: webhook.id,
+          url: webhook.url,
+          secretToken: webhook.secret_token,
+          events: webhook.events
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast({ 
+          title: "نجح الاختبار ✓", 
+          description: `تم إرسال طلب تجريبي - الاستجابة: ${data.statusCode}` 
+        });
+      } else {
+        toast({ 
+          title: "فشل الاختبار", 
+          description: data?.error || "لم يتم الوصول للـ Webhook",
+          variant: "destructive" 
+        });
+      }
+    } catch (error: any) {
+      console.error("Error testing webhook:", error);
+      toast({ 
+        title: "خطأ في الاختبار", 
+        description: error.message || "تعذر الاتصال بالويب هوك",
+        variant: "destructive" 
+      });
+    } finally {
+      setTestingWebhookId(null);
+    }
   };
 
   return (
@@ -281,6 +321,20 @@ const WebhooksPage = () => {
                 </div>
                 
                 <div className="flex gap-2">
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    onClick={() => handleTestWebhook(webhook)}
+                    disabled={testingWebhookId === webhook.id}
+                    title="اختبار الـ Webhook"
+                    className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                  >
+                    {testingWebhookId === webhook.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <PlayCircle className="w-4 h-4" />
+                    )}
+                  </Button>
                   <Button size="icon" variant="ghost" onClick={() => handleEdit(webhook)}>
                     <Edit2 className="w-4 h-4" />
                   </Button>

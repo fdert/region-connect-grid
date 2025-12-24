@@ -1,1 +1,10 @@
 project_id = "zlehbcnlkfravcjcrucx"
+
+[functions.whatsapp-notification]
+verify_jwt = true
+
+[functions.send-webhook]
+verify_jwt = true
+
+[functions.test-webhook]
+verify_jwt = true
