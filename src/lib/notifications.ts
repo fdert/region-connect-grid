@@ -124,9 +124,9 @@ export async function notifyOrderStatusChange(
 ) {
   const event = `order.status_changed`;
   
-  // Map status to template name
+  // Map status to template name - matches templates in whatsapp_templates table
   const statusTemplateMap: Record<string, string> = {
-    'accepted_by_merchant': 'order_accepted',
+    'accepted_by_merchant': 'order_accepted_by_merchant',
     'preparing': 'order_preparing',
     'ready': 'order_ready',
     'assigned_to_courier': 'courier_assigned',
