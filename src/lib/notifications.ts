@@ -149,6 +149,38 @@ export async function notifyOrderStatusChange(
   }
 }
 
+// Convenience function for special order status change
+export async function notifySpecialOrderStatusChange(
+  specialOrderId: string,
+  newStatus: string,
+  oldStatus?: string
+) {
+  const event = `special_order.status_changed`;
+  
+  // Map status to template name for special orders
+  const statusTemplateMap: Record<string, string> = {
+    'verified': 'special_order_verified',
+    'accepted': 'special_order_accepted',
+    'assigned': 'courier_assigned',
+    'picked_up': 'special_order_picked_up',
+    'on_the_way': 'special_order_on_the_way',
+    'delivered': 'special_order_delivered',
+    'cancelled': 'special_order_cancelled'
+  };
+
+  // Trigger webhook
+  await triggerSpecialOrderWebhook(event, specialOrderId, { 
+    new_status: newStatus, 
+    old_status: oldStatus 
+  });
+
+  // Send WhatsApp if template exists for this status
+  const templateName = statusTemplateMap[newStatus];
+  if (templateName) {
+    await sendSpecialOrderWhatsAppNotification(templateName, specialOrderId);
+  }
+}
+
 // Convenience function for new order notification
 export async function notifyNewOrder(orderId: string) {
   await triggerOrderWebhook('order.created', orderId);
@@ -165,4 +197,10 @@ export async function notifyOrderDelivered(orderId: string) {
 export async function notifyCourierAssigned(orderId: string, courierName?: string) {
   await triggerOrderWebhook('courier.assigned', orderId, { courier_name: courierName });
   await sendOrderWhatsAppNotification('courier_assigned', orderId, undefined, { courier_name: courierName || '' });
+}
+
+// Convenience function for new special order notification
+export async function notifyNewSpecialOrder(specialOrderId: string) {
+  await triggerSpecialOrderWebhook('special_order.created', specialOrderId);
+  await sendSpecialOrderWhatsAppNotification('new_special_order', specialOrderId);
 }
