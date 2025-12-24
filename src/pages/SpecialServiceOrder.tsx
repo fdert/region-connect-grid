@@ -276,25 +276,47 @@ const SpecialServiceOrder = () => {
     setVerificationCode(code);
     setIsVerifying(true);
 
+    // Format phone number properly
+    let phoneNumber = formData.sender_phone.trim();
+    if (phoneNumber.startsWith("05")) {
+      phoneNumber = "+966" + phoneNumber.substring(1);
+    } else if (phoneNumber.startsWith("5")) {
+      phoneNumber = "+966" + phoneNumber;
+    } else if (!phoneNumber.startsWith("+")) {
+      phoneNumber = "+" + phoneNumber;
+    }
+
+    console.log("Sending verification code to:", phoneNumber, "Code:", code);
+
     try {
       // Send WhatsApp notification with verification code
-      const { error } = await supabase.functions.invoke("whatsapp-notification", {
+      const { data, error } = await supabase.functions.invoke("whatsapp-notification", {
         body: {
-          phone: formData.sender_phone,
+          phone: phoneNumber,
           template_name: "verification_code",
-          variables: { code },
+          variables: { 
+            code: code,
+            customer_name: formData.sender_name || "عميلنا العزيز"
+          },
         },
       });
 
+      console.log("WhatsApp response:", data, error);
+
       if (error) {
         console.error("WhatsApp error:", error);
-        // For demo, show the code
+        toast.error("حدث خطأ في إرسال الكود");
         toast.info(`كود التحقق (للاختبار): ${code}`);
+      } else if (data?.success) {
+        toast.success("تم إرسال كود التحقق إلى الواتساب بنجاح");
       } else {
-        toast.success("تم إرسال كود التحقق إلى الواتساب");
+        console.error("WhatsApp failed:", data?.error);
+        toast.error(data?.error || "فشل في إرسال الكود");
+        toast.info(`كود التحقق (للاختبار): ${code}`);
       }
     } catch (error) {
       console.error("Error sending verification:", error);
+      toast.error("حدث خطأ في الاتصال");
       toast.info(`كود التحقق (للاختبار): ${code}`);
     }
   };
