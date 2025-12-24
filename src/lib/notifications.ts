@@ -126,6 +126,7 @@ export async function notifyOrderStatusChange(
   
   // Map status to template name - matches templates in whatsapp_templates table
   const statusTemplateMap: Record<string, string> = {
+    'new': 'new_order',
     'accepted_by_merchant': 'order_accepted_by_merchant',
     'preparing': 'order_preparing',
     'ready': 'order_ready',
@@ -158,7 +159,8 @@ export async function notifySpecialOrderStatusChange(
   const event = `special_order.status_changed`;
   
   // Map status to template name for special orders
-  const statusTemplateMap: Record<string, string> = {
+  const specialStatusTemplateMap: Record<string, string> = {
+    'pending': 'verification_code',
     'verified': 'special_order_verified',
     'accepted': 'special_order_accepted',
     'assigned': 'courier_assigned',
@@ -175,7 +177,7 @@ export async function notifySpecialOrderStatusChange(
   });
 
   // Send WhatsApp if template exists for this status
-  const templateName = statusTemplateMap[newStatus];
+  const templateName = specialStatusTemplateMap[newStatus];
   if (templateName) {
     await sendSpecialOrderWhatsAppNotification(templateName, specialOrderId);
   }
