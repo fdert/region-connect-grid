@@ -152,6 +152,19 @@ const WebhooksPage = () => {
     setTestingWebhookId(webhook.id);
     
     try {
+      // Check if user is authenticated
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({ 
+          title: "يجب تسجيل الدخول", 
+          description: "الرجاء تسجيل الدخول لاختبار الـ Webhook",
+          variant: "destructive" 
+        });
+        return;
+      }
+
+      console.log("Testing webhook:", webhook.url);
+      
       const { data, error } = await supabase.functions.invoke("test-webhook", {
         body: {
           webhookId: webhook.id,
@@ -161,7 +174,12 @@ const WebhooksPage = () => {
         }
       });
 
-      if (error) throw error;
+      console.log("Test webhook response:", data, error);
+
+      if (error) {
+        console.error("Function invoke error:", error);
+        throw new Error(error.message || "خطأ في استدعاء الدالة");
+      }
 
       if (data?.success) {
         toast({ 
@@ -171,7 +189,7 @@ const WebhooksPage = () => {
       } else {
         toast({ 
           title: "فشل الاختبار", 
-          description: data?.error || "لم يتم الوصول للـ Webhook",
+          description: data?.error || `فشل الاتصال بالـ Webhook${data?.statusCode ? ` (${data.statusCode})` : ''}`,
           variant: "destructive" 
         });
       }
