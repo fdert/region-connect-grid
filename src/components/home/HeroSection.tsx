@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Search, ArrowLeft, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import HeroBanner from "./HeroBanner";
+import AnnouncementBar from "./AnnouncementBar";
 
 interface HeroSettings {
   badge_text?: string;
@@ -89,6 +90,14 @@ const HeroSection = forwardRef<HTMLElement, object>((_, ref) => {
             <Sparkles className="w-4 h-4 text-accent" />
             <span className="text-sm font-medium text-primary-foreground">{settings.badge_text}</span>
           </div>
+
+          {/* Announcement Bar - Before Hero Banner */}
+          <div className="mb-6">
+            <AnnouncementBar />
+          </div>
+
+          {/* Hero Center Banner - Before Heading */}
+          <HeroBanner />
 
           {/* Heading */}
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black text-primary-foreground mb-4 sm:mb-6 leading-tight animate-slide-up">

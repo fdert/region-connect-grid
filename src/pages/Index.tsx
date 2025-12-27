@@ -11,7 +11,6 @@ import SpecialOffersSection from "@/components/home/SpecialOffersSection";
 import MostOrderedSection from "@/components/home/MostOrderedSection";
 import NewArrivalsSection from "@/components/home/NewArrivalsSection";
 import SpecialServicesSection from "@/components/home/SpecialServicesSection";
-import HeroBanner from "@/components/home/HeroBanner";
 
 interface HomeSection {
   id: string;
@@ -44,7 +43,6 @@ const Index = () => {
   // Map section keys to components
   const sectionComponents: Record<string, React.ReactNode> = {
     hero: <HeroSection />,
-    hero_center_banner: <HeroBanner />,
     banner_top: <BannerSlider position="home_top" />,
     categories: <CategoriesSection />,
     featured_stores: <FeaturedStores />,
@@ -65,7 +63,6 @@ const Index = () => {
       return (
         <>
           <HeroSection />
-          <HeroBanner />
           <BannerSlider position="home_top" />
           <CategoriesSection />
           <FeaturedStores />
