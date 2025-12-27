@@ -124,8 +124,8 @@ const SpecialOffersSection = () => {
           </Link>
         </div>
 
-        {/* Products Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
+        {/* Products Grid - Compact */}
+        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3">
           {products.map((product, index) => {
             const discountPercent = product.compare_price 
               ? Math.round((1 - product.price / product.compare_price) * 100)
@@ -138,9 +138,9 @@ const SpecialOffersSection = () => {
                 className="group opacity-0 animate-slide-up"
                 style={{ animationDelay: `${index * 0.1}s`, animationFillMode: "forwards" }}
               >
-                <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden border border-border/50 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                  {/* Image */}
-                  <div className="relative aspect-square overflow-hidden bg-muted">
+                <div className="bg-card rounded-lg overflow-hidden border border-border/40 shadow-sm hover:shadow-lg hover:border-destructive/30 transition-all duration-300">
+                  {/* Image - Compact */}
+                  <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-muted to-muted/50">
                     {product.images[0] ? (
                       <img
                         src={product.images[0]}
@@ -148,42 +148,43 @@ const SpecialOffersSection = () => {
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <ShoppingCart className="w-10 h-10 text-muted-foreground/30" />
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-destructive/10 to-destructive/5">
+                        <ShoppingCart className="w-6 h-6 text-destructive/40" />
                       </div>
                     )}
                     
                     {/* Discount Badge */}
-                    <Badge className="absolute top-2 right-2 bg-destructive text-destructive-foreground font-bold">
-                      {discountPercent}% خصم
-                    </Badge>
+                    <div className="absolute top-1 right-1 bg-destructive text-white text-[8px] sm:text-[10px] px-1 py-0.5 rounded font-bold">
+                      -{discountPercent}%
+                    </div>
                   </div>
 
-                  {/* Content */}
-                  <div className="p-3 sm:p-4">
-                    <p className="text-xs text-muted-foreground mb-1 truncate">
+                  {/* Content - Ultra Compact */}
+                  <div className="p-1.5 sm:p-2">
+                    <p className="text-[8px] sm:text-[10px] text-muted-foreground truncate mb-0.5">
                       {product.stores?.name}
                     </p>
-                    <h3 className="font-semibold text-sm sm:text-base mb-2 line-clamp-2 group-hover:text-primary transition-colors">
+                    <h3 className="font-medium text-[10px] sm:text-xs mb-1 line-clamp-1 leading-tight group-hover:text-primary transition-colors">
                       {product.name}
                     </h3>
                     
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-base sm:text-lg font-bold text-destructive">
-                        {product.price.toFixed(2)} ر.س
+                    <div className="flex items-baseline gap-1 mb-1.5">
+                      <span className="text-xs sm:text-sm font-bold text-destructive">
+                        {product.price.toFixed(0)}
                       </span>
-                      <span className="text-xs sm:text-sm text-muted-foreground line-through">
-                        {product.compare_price?.toFixed(2)} ر.س
+                      <span className="text-[8px] sm:text-[10px] text-muted-foreground">ر.س</span>
+                      <span className="text-[8px] text-muted-foreground line-through">
+                        {product.compare_price?.toFixed(0)}
                       </span>
                     </div>
 
                     <Button 
                       size="sm" 
-                      className="w-full gap-2 text-xs sm:text-sm"
+                      className="w-full gap-1 text-[10px] sm:text-xs h-6 sm:h-7 rounded bg-destructive hover:bg-destructive/90"
                       onClick={(e) => handleAddToCart(product, e)}
                     >
-                      <ShoppingCart className="w-4 h-4" />
-                      إضافة للسلة
+                      <ShoppingCart className="w-3 h-3" />
+                      إضافة
                     </Button>
                   </div>
                 </div>
