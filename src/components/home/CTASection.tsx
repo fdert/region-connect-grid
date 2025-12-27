@@ -1,8 +1,51 @@
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Store, Truck, ArrowLeft } from "lucide-react";
 
+interface CTASettings {
+  merchant_title?: string;
+  merchant_description?: string;
+  merchant_features?: string[];
+  merchant_button?: string;
+  courier_title?: string;
+  courier_description?: string;
+  courier_features?: string[];
+  courier_button?: string;
+}
+
+const defaultSettings: CTASettings = {
+  merchant_title: "هل أنت تاجر؟",
+  merchant_description: "انضم إلى منصة سوقنا وابدأ ببيع منتجاتك لآلاف العملاء. نوفر لك كل الأدوات التي تحتاجها لإدارة متجرك بسهولة.",
+  merchant_features: ["لوحة تحكم متكاملة", "تقارير وإحصائيات مفصلة", "دعم فني على مدار الساعة"],
+  merchant_button: "سجّل كتاجر الآن",
+  courier_title: "اعمل كمندوب توصيل",
+  courier_description: "انضم لفريق التوصيل واحصل على دخل إضافي بمرونة تامة. اختر أوقات عملك واستمتع بحرية العمل المستقل.",
+  courier_features: ["دخل مرن ومجزي", "اختر أوقات عملك", "تطبيق سهل الاستخدام"],
+  courier_button: "انضم كمندوب"
+};
+
 const CTASection = () => {
+  const { data: ctaSection } = useQuery({
+    queryKey: ["cta-section-content"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("home_sections")
+        .select("settings")
+        .eq("section_key", "cta")
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const settings: CTASettings = {
+    ...defaultSettings,
+    ...(ctaSection?.settings as CTASettings || {})
+  };
+
   return (
     <section className="py-16 md:py-24 bg-muted/30">
       <div className="container mx-auto px-4">
@@ -20,31 +63,24 @@ const CTASection = () => {
               </div>
               
               <h3 className="text-2xl md:text-3xl font-bold text-primary-foreground mb-4">
-                هل أنت تاجر؟
+                {settings.merchant_title}
               </h3>
               <p className="text-primary-foreground/80 mb-6 max-w-md">
-                انضم إلى منصة سوقنا وابدأ ببيع منتجاتك لآلاف العملاء. 
-                نوفر لك كل الأدوات التي تحتاجها لإدارة متجرك بسهولة.
+                {settings.merchant_description}
               </p>
               
               <ul className="space-y-2 mb-8 text-primary-foreground/90">
-                <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-                  لوحة تحكم متكاملة
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-                  تقارير وإحصائيات مفصلة
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-                  دعم فني على مدار الساعة
-                </li>
+                {settings.merchant_features?.map((feature, index) => (
+                  <li key={index} className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+                    {feature}
+                  </li>
+                ))}
               </ul>
 
               <Link to="/auth/register?role=merchant">
                 <Button variant="accent" size="lg" className="gap-2">
-                  سجّل كتاجر الآن
+                  {settings.merchant_button}
                   <ArrowLeft className="w-4 h-4" />
                 </Button>
               </Link>
@@ -64,31 +100,24 @@ const CTASection = () => {
               </div>
               
               <h3 className="text-2xl md:text-3xl font-bold text-background mb-4">
-                اعمل كمندوب توصيل
+                {settings.courier_title}
               </h3>
               <p className="text-background/70 mb-6 max-w-md">
-                انضم لفريق التوصيل واحصل على دخل إضافي بمرونة تامة. 
-                اختر أوقات عملك واستمتع بحرية العمل المستقل.
+                {settings.courier_description}
               </p>
               
               <ul className="space-y-2 mb-8 text-background/80">
-                <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-                  دخل مرن ومجزي
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-                  اختر أوقات عملك
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-                  تطبيق سهل الاستخدام
-                </li>
+                {settings.courier_features?.map((feature, index) => (
+                  <li key={index} className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+                    {feature}
+                  </li>
+                ))}
               </ul>
 
               <Link to="/auth/register?role=courier">
                 <Button variant="hero" size="lg" className="gap-2">
-                  انضم كمندوب
+                  {settings.courier_button}
                   <ArrowLeft className="w-4 h-4" />
                 </Button>
               </Link>

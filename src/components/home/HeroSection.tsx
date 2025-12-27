@@ -1,12 +1,72 @@
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Search, ArrowLeft, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 
+interface HeroSettings {
+  badge_text?: string;
+  main_title?: string;
+  highlight_text?: string;
+  description?: string;
+  search_placeholder?: string;
+  cta_primary?: string;
+  cta_secondary?: string;
+  stats?: Array<{ value: string; label: string }>;
+}
+
+const defaultSettings: HeroSettings = {
+  badge_text: "منصة التسوق الأولى في المنطقة",
+  main_title: "اكتشف أفضل المتاجر",
+  highlight_text: "في مكان واحد",
+  description: "تسوّق من مئات المتاجر المحلية والعالمية، واستمتع بتجربة تسوق سهلة وآمنة مع خدمة توصيل سريعة لباب منزلك.",
+  search_placeholder: "ابحث عن منتج، متجر، أو خدمة...",
+  cta_primary: "تصفح المتاجر",
+  cta_secondary: "انضم كتاجر",
+  stats: [
+    { value: "+500", label: "متجر نشط" },
+    { value: "+10K", label: "منتج متاح" },
+    { value: "+50K", label: "عميل سعيد" },
+  ]
+};
+
 const HeroSection = () => {
+  const { data: heroSection } = useQuery({
+    queryKey: ["hero-section-content"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("home_sections")
+        .select("settings, background_color, background_image")
+        .eq("section_key", "hero")
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const settings: HeroSettings = {
+    ...defaultSettings,
+    ...(heroSection?.settings as HeroSettings || {})
+  };
+
+  const stats = settings.stats || defaultSettings.stats;
+
   return (
     <section className="relative min-h-[70vh] sm:min-h-[80vh] md:min-h-[90vh] flex items-center justify-center overflow-hidden px-4">
       {/* Background Pattern */}
-      <div className="absolute inset-0 gradient-hero opacity-95" />
+      <div 
+        className="absolute inset-0 gradient-hero opacity-95" 
+        style={heroSection?.background_color ? { backgroundColor: heroSection.background_color } : undefined}
+      />
+      
+      {/* Background Image */}
+      {heroSection?.background_image && (
+        <div 
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url(${heroSection.background_image})` }}
+        />
+      )}
       
       {/* Decorative Elements */}
       <div className="absolute inset-0 overflow-hidden">
@@ -25,19 +85,19 @@ const HeroSection = () => {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-dark mb-8 animate-fade-in">
             <Sparkles className="w-4 h-4 text-accent" />
-            <span className="text-sm font-medium text-primary-foreground">منصة التسوق الأولى في المنطقة</span>
+            <span className="text-sm font-medium text-primary-foreground">{settings.badge_text}</span>
           </div>
 
           {/* Heading */}
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black text-primary-foreground mb-4 sm:mb-6 leading-tight animate-slide-up">
-            اكتشف أفضل المتاجر
+            {settings.main_title}
             <br />
-            <span className="text-accent">في مكان واحد</span>
+            <span className="text-accent">{settings.highlight_text}</span>
           </h1>
 
           {/* Subheading */}
           <p className="text-base sm:text-lg md:text-xl text-primary-foreground/80 mb-6 sm:mb-10 max-w-2xl mx-auto animate-slide-up stagger-1 px-2">
-            تسوّق من مئات المتاجر المحلية والعالمية، واستمتع بتجربة تسوق سهلة وآمنة مع خدمة توصيل سريعة لباب منزلك.
+            {settings.description}
           </p>
 
           {/* Search Bar */}
@@ -45,7 +105,7 @@ const HeroSection = () => {
             <div className="relative">
               <input
                 type="text"
-                placeholder="ابحث عن منتج، متجر، أو خدمة..."
+                placeholder={settings.search_placeholder}
                 className="w-full h-12 sm:h-14 md:h-16 px-4 sm:px-6 pr-12 sm:pr-14 rounded-xl sm:rounded-2xl bg-background/95 backdrop-blur-xl border-2 border-transparent focus:border-accent shadow-xl focus:shadow-2xl outline-none transition-all text-foreground placeholder:text-muted-foreground text-sm sm:text-base"
               />
               <div className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 gradient-primary rounded-lg sm:rounded-xl flex items-center justify-center">
@@ -73,23 +133,19 @@ const HeroSection = () => {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 animate-slide-up stagger-3 w-full sm:w-auto">
             <Link to="/stores" className="w-full sm:w-auto">
               <Button variant="hero" size="lg" className="w-full sm:w-auto">
-                تصفح المتاجر
+                {settings.cta_primary}
               </Button>
             </Link>
             <Link to="/auth/register?role=merchant" className="w-full sm:w-auto">
               <Button variant="glass" size="lg" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 w-full sm:w-auto">
-                انضم كتاجر
+                {settings.cta_secondary}
               </Button>
             </Link>
           </div>
 
           {/* Stats */}
           <div className="grid grid-cols-3 gap-2 sm:gap-4 md:gap-8 mt-10 sm:mt-16 animate-slide-up stagger-4 w-full">
-            {[
-              { value: "+500", label: "متجر نشط" },
-              { value: "+10K", label: "منتج متاح" },
-              { value: "+50K", label: "عميل سعيد" },
-            ].map((stat, i) => (
+            {stats?.map((stat, i) => (
               <div key={i} className="text-center glass-dark rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-6">
                 <div className="text-lg sm:text-2xl md:text-4xl font-black text-accent mb-0.5 sm:mb-1">{stat.value}</div>
                 <div className="text-xs sm:text-sm md:text-base text-primary-foreground/70">{stat.label}</div>

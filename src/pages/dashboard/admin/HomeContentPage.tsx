@@ -154,6 +154,8 @@ const HomeContentPage = () => {
   const [editingSection, setEditingSection] = useState<HomeSection | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isNewSectionDialogOpen, setIsNewSectionDialogOpen] = useState(false);
+  const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
+  const [previewTemplate, setPreviewTemplate] = useState<StoreTemplate | null>(null);
   const [newSection, setNewSection] = useState({
     section_key: "",
     title_ar: "",
@@ -267,6 +269,10 @@ const HomeContentPage = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["home-sections"] });
+      queryClient.invalidateQueries({ queryKey: ["home-sections-public"] });
+      queryClient.invalidateQueries({ queryKey: ["hero-section-content"] });
+      queryClient.invalidateQueries({ queryKey: ["cta-section-content"] });
+      queryClient.invalidateQueries({ queryKey: ["features-section-content"] });
       toast.success("تم تحديث القسم بنجاح");
     },
     onError: () => {
@@ -321,25 +327,38 @@ const HomeContentPage = () => {
 
   const applyTemplateMutation = useMutation({
     mutationFn: async (template: StoreTemplate) => {
+      // Update download count
       await supabase
         .from("store_templates")
         .update({ downloads_count: (template.downloads_count || 0) + 1 })
         .eq("id", template.id);
 
-      const templateSections = template.template_data?.sections || [];
+      const templateData = template.template_data || {};
+      const templateSections = templateData.sections || [];
+      const templateHeroSettings = templateData.hero || {};
+      const templateCtaSettings = templateData.cta || {};
+      const templateFeaturesSettings = templateData.features || {};
       
       if (sections) {
         for (const section of sections) {
+          let newSettings = { ...section.settings };
+          
+          // Apply template-specific settings
+          if (section.section_key === 'hero' && templateHeroSettings) {
+            newSettings = { ...newSettings, ...templateHeroSettings };
+          }
+          if (section.section_key === 'cta' && templateCtaSettings) {
+            newSettings = { ...newSettings, ...templateCtaSettings };
+          }
+          if (section.section_key === 'features' && templateFeaturesSettings) {
+            newSettings = { ...newSettings, ...templateFeaturesSettings };
+          }
+          
           await supabase
             .from("home_sections")
             .update({ 
-              is_visible: templateSections.includes(section.section_key),
-              settings: {
-                ...section.settings,
-                ...(template.template_data?.hero?.style && section.section_key === 'hero' 
-                  ? { theme: template.template_data.hero.style } 
-                  : {})
-              }
+              is_visible: templateSections.length === 0 || templateSections.includes(section.section_key),
+              settings: newSettings
             })
             .eq("id", section.id);
         }
@@ -347,7 +366,11 @@ const HomeContentPage = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["home-sections"] });
-      toast.success("تم تطبيق القالب بنجاح");
+      queryClient.invalidateQueries({ queryKey: ["home-sections-public"] });
+      queryClient.invalidateQueries({ queryKey: ["hero-section-content"] });
+      queryClient.invalidateQueries({ queryKey: ["cta-section-content"] });
+      queryClient.invalidateQueries({ queryKey: ["features-section-content"] });
+      toast.success("تم تطبيق القالب بنجاح! سيظهر التغيير على الصفحة الرئيسية.");
     },
     onError: () => {
       toast.error("حدث خطأ أثناء تطبيق القالب");
@@ -1137,25 +1160,37 @@ const HomeContentPage = () => {
                           <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
                             {template.description_ar || template.description}
                           </p>
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between gap-2">
                             <span className="text-xs text-muted-foreground flex items-center gap-1">
                               <Download className="w-3 h-3" />
                               {template.downloads_count} تحميل
                             </span>
-                            <Button 
-                              size="sm" 
-                              onClick={() => applyTemplateMutation.mutate(template)}
-                              disabled={applyTemplateMutation.isPending}
-                            >
-                              {applyTemplateMutation.isPending ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <>
-                                  <Check className="w-4 h-4 ml-1" />
-                                  تطبيق
-                                </>
-                              )}
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => {
+                                  setPreviewTemplate(template);
+                                  setIsPreviewDialogOpen(true);
+                                }}
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                onClick={() => applyTemplateMutation.mutate(template)}
+                                disabled={applyTemplateMutation.isPending}
+                              >
+                                {applyTemplateMutation.isPending ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <Check className="w-4 h-4 ml-1" />
+                                    تطبيق
+                                  </>
+                                )}
+                              </Button>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
@@ -1520,6 +1555,74 @@ const HomeContentPage = () => {
           </DialogContent>
         </Dialog>
 
+        {/* Template Preview Dialog */}
+        <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>معاينة القالب: {previewTemplate?.name_ar}</DialogTitle>
+              <DialogDescription>{previewTemplate?.description_ar || previewTemplate?.description}</DialogDescription>
+            </DialogHeader>
+            
+            {previewTemplate && (
+              <div className="space-y-4">
+                <div className="aspect-video bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg overflow-hidden">
+                  {previewTemplate.preview_image ? (
+                    <img 
+                      src={previewTemplate.preview_image} 
+                      alt={previewTemplate.name_ar}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Layout className="w-24 h-24 text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground">الفئة</Label>
+                    <p className="font-medium">{previewTemplate.category || "عام"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">مرات التحميل</Label>
+                    <p className="font-medium">{previewTemplate.downloads_count}</p>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/50">
+                  <h4 className="font-semibold mb-2">الأقسام المضمنة:</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {(previewTemplate.template_data?.sections || ['hero', 'categories', 'featured_stores', 'features', 'cta']).map((section: string) => (
+                      <span key={section} className="px-2 py-1 bg-primary/10 text-primary rounded text-sm">
+                        {section}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsPreviewDialogOpen(false)}>
+                إغلاق
+              </Button>
+              <Button 
+                onClick={() => {
+                  if (previewTemplate) {
+                    applyTemplateMutation.mutate(previewTemplate);
+                    setIsPreviewDialogOpen(false);
+                  }
+                }}
+                disabled={applyTemplateMutation.isPending}
+              >
+                {applyTemplateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <Check className="w-4 h-4 ml-2" />}
+                تطبيق القالب
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Tips */}
         <Card className="bg-primary/5 border-primary/20">
           <CardContent className="pt-6">
@@ -1533,7 +1636,7 @@ const HomeContentPage = () => {
               <li>اضغط على زر التعديل لتغيير محتوى ونصوص وصور كل قسم</li>
               <li>يمكنك تطبيق قالب جاهز لتغيير مظهر الصفحة بالكامل</li>
               <li>استخدم تبويب "الفوتر" لتعديل روابط وبيانات أسفل الموقع</li>
-              <li>الأقسام المخصصة (custom_) يمكن حذفها، أما الأقسام الأساسية فيمكن إخفاؤها فقط</li>
+              <li>التغييرات تظهر مباشرة على الصفحة الرئيسية بعد الحفظ</li>
             </ul>
           </CardContent>
         </Card>
