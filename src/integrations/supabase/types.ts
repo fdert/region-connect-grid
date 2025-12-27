@@ -131,34 +131,49 @@ export type Database = {
       }
       home_sections: {
         Row: {
+          background_color: string | null
+          background_image: string | null
+          content_items: Json | null
           created_at: string | null
           id: string
           is_visible: boolean | null
           section_key: string
           settings: Json | null
           sort_order: number | null
+          subtitle_ar: string | null
+          subtitle_en: string | null
           title_ar: string
           title_en: string | null
           updated_at: string | null
         }
         Insert: {
+          background_color?: string | null
+          background_image?: string | null
+          content_items?: Json | null
           created_at?: string | null
           id?: string
           is_visible?: boolean | null
           section_key: string
           settings?: Json | null
           sort_order?: number | null
+          subtitle_ar?: string | null
+          subtitle_en?: string | null
           title_ar: string
           title_en?: string | null
           updated_at?: string | null
         }
         Update: {
+          background_color?: string | null
+          background_image?: string | null
+          content_items?: Json | null
           created_at?: string | null
           id?: string
           is_visible?: boolean | null
           section_key?: string
           settings?: Json | null
           sort_order?: number | null
+          subtitle_ar?: string | null
+          subtitle_en?: string | null
           title_ar?: string
           title_en?: string | null
           updated_at?: string | null
@@ -720,6 +735,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      store_templates: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          description_ar: string | null
+          downloads_count: number | null
+          id: string
+          is_active: boolean | null
+          is_premium: boolean | null
+          name: string
+          name_ar: string
+          preview_image: string | null
+          template_data: Json
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          description_ar?: string | null
+          downloads_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_premium?: boolean | null
+          name: string
+          name_ar: string
+          preview_image?: string | null
+          template_data?: Json
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          description_ar?: string | null
+          downloads_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_premium?: boolean | null
+          name?: string
+          name_ar?: string
+          preview_image?: string | null
+          template_data?: Json
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       stores: {
         Row: {
