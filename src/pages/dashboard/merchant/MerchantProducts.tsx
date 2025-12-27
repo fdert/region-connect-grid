@@ -835,24 +835,49 @@ const MerchantProducts = () => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>السعر *</Label>
+                  <Label>السعر الحالي (سعر البيع) *</Label>
                   <Input
                     type="number"
                     value={form.price}
                     onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
                     placeholder="0"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">السعر الذي سيدفعه العميل</p>
                 </div>
                 <div>
-                  <Label>السعر قبل الخصم</Label>
+                  <Label>السعر الأصلي (قبل الخصم)</Label>
                   <Input
                     type="number"
                     value={form.compare_price}
                     onChange={(e) => setForm({ ...form, compare_price: Number(e.target.value) })}
                     placeholder="0"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">اتركه فارغاً أو اجعله أكبر من السعر الحالي لعرض الخصم</p>
                 </div>
               </div>
+              
+              {/* Discount Preview */}
+              {form.compare_price > 0 && form.price > 0 && form.compare_price > form.price && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2 text-green-700">
+                    <span className="text-lg font-bold">
+                      خصم {Math.round((1 - form.price / form.compare_price) * 100)}%
+                    </span>
+                    <span className="text-sm">
+                      (وفر {(form.compare_price - form.price).toFixed(2)} ر.س)
+                    </span>
+                  </div>
+                  <p className="text-xs text-green-600 mt-1">سيظهر هذا المنتج في قسم العروض الخاصة</p>
+                </div>
+              )}
+              
+              {form.compare_price > 0 && form.price > 0 && form.compare_price <= form.price && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <p className="text-sm text-amber-700">
+                    ⚠️ السعر الأصلي يجب أن يكون أكبر من السعر الحالي لعرض الخصم
+                  </p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>المخزون</Label>

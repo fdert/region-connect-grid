@@ -129,6 +129,42 @@ export type Database = {
           },
         ]
       }
+      home_sections: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_visible: boolean | null
+          section_key: string
+          settings: Json | null
+          sort_order: number | null
+          title_ar: string
+          title_en: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_visible?: boolean | null
+          section_key: string
+          settings?: Json | null
+          sort_order?: number | null
+          title_ar: string
+          title_en?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_visible?: boolean | null
+          section_key?: string
+          settings?: Json | null
+          sort_order?: number | null
+          title_ar?: string
+          title_en?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       order_timeline: {
         Row: {
           created_at: string | null

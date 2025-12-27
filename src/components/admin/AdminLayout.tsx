@@ -36,6 +36,7 @@ const menuItems = [
   { icon: ShoppingCart, label: "الطلبات", href: "/admin/orders" },
   { icon: Gift, label: "الخدمات الخاصة", href: "/admin/special-services" },
   { icon: ShoppingCart, label: "طلبات خاصة", href: "/admin/special-orders" },
+  { icon: LayoutDashboard, label: "محتوى الرئيسية", href: "/admin/home-content" },
   { icon: Image, label: "البنرات", href: "/admin/banners" },
   { icon: Palette, label: "المظهر والألوان", href: "/admin/theme" },
   { icon: Webhook, label: "Webhooks", href: "/admin/webhooks" },
