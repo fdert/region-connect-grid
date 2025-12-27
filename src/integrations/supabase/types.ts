@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      announcement_bar: {
+        Row: {
+          background_color: string | null
+          created_at: string | null
+          font_size: number | null
+          id: string
+          is_active: boolean | null
+          link_url: string | null
+          speed: number | null
+          text: string
+          text_color: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          background_color?: string | null
+          created_at?: string | null
+          font_size?: number | null
+          id?: string
+          is_active?: boolean | null
+          link_url?: string | null
+          speed?: number | null
+          text: string
+          text_color?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          background_color?: string | null
+          created_at?: string | null
+          font_size?: number | null
+          id?: string
+          is_active?: boolean | null
+          link_url?: string | null
+          speed?: number | null
+          text?: string
+          text_color?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       banners: {
         Row: {
           created_at: string | null
