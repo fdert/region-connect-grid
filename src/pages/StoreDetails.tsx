@@ -274,93 +274,68 @@ const StoreDetails = () => {
             <p className="text-muted-foreground">لا توجد منتجات متاحة حالياً</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3">
             {products.map((product) => (
               <div 
                 key={product.id}
-                className="bg-card rounded-lg sm:rounded-xl overflow-hidden border shadow-sm hover:shadow-md transition-shadow group"
+                className="bg-card rounded-lg overflow-hidden border border-border/40 shadow-sm hover:shadow-lg hover:border-primary/30 transition-all duration-300 group"
               >
-                {/* Image - Smaller */}
-                <div className="aspect-square bg-muted relative overflow-hidden">
+                {/* Image - Very Compact */}
+                <div className="aspect-[4/3] bg-gradient-to-br from-muted to-muted/50 relative overflow-hidden">
                   {product.images[0] ? (
                     <ProtectedImage 
                       src={product.images[0]} 
                       alt={product.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                       watermarkText={store.name}
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <ShoppingCart className="w-8 h-8 text-muted-foreground/50" />
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
+                      <ShoppingCart className="w-6 h-6 text-primary/40" />
                     </div>
                   )}
                   
+                  {/* Discount Badge */}
                   {product.compare_price && product.compare_price > product.price && (
-                    <Badge className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 bg-destructive text-[10px] sm:text-xs px-1.5 py-0.5">
-                      خصم {Math.round((1 - product.price / product.compare_price) * 100)}%
-                    </Badge>
+                    <div className="absolute top-1 right-1 bg-destructive text-white text-[8px] sm:text-[10px] px-1 py-0.5 rounded font-bold">
+                      -{Math.round((1 - product.price / product.compare_price) * 100)}%
+                    </div>
                   )}
                   
                   {product.is_service && (
-                    <Badge className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 text-[10px] sm:text-xs px-1.5 py-0.5" variant="secondary">خدمة</Badge>
+                    <div className="absolute top-1 left-1 bg-secondary text-secondary-foreground text-[8px] sm:text-[10px] px-1 py-0.5 rounded">خدمة</div>
                   )}
                 </div>
 
-                {/* Content - Compact */}
-                <div className="p-2 sm:p-3">
-                  <h3 className="font-semibold text-xs sm:text-sm mb-1 line-clamp-2 leading-tight">{product.name}</h3>
+                {/* Content - Ultra Compact */}
+                <div className="p-1.5 sm:p-2">
+                  <h3 className="font-medium text-[10px] sm:text-xs mb-1 line-clamp-1 leading-tight">{product.name}</h3>
                   
-                  <div className="flex items-center gap-1 mb-2">
-                    <span className="text-sm sm:text-base font-bold text-primary">
-                      {product.price.toFixed(0)} ر.س
+                  <div className="flex items-baseline gap-1 mb-1.5">
+                    <span className="text-xs sm:text-sm font-bold text-primary">
+                      {product.price.toFixed(0)}
                     </span>
+                    <span className="text-[8px] sm:text-[10px] text-muted-foreground">ر.س</span>
                     {product.compare_price && product.compare_price > product.price && (
-                      <span className="text-[10px] sm:text-xs text-muted-foreground line-through">
+                      <span className="text-[8px] text-muted-foreground line-through">
                         {product.compare_price.toFixed(0)}
                       </span>
                     )}
                   </div>
 
-                  {/* Quantity & Add to Cart - Compact */}
-                  <div className="flex items-center gap-1 sm:gap-2">
-                    <div className="flex items-center border rounded-md">
-                      <button
-                        onClick={() => updateQuantity(product.id, -1)}
-                        className="p-1 sm:p-1.5 hover:bg-muted transition-colors"
-                      >
-                        <Minus className="w-3 h-3" />
-                      </button>
-                      <span className="w-6 sm:w-8 text-center text-xs sm:text-sm font-medium">
-                        {quantities[product.id] || 1}
-                      </span>
-                      <button
-                        onClick={() => updateQuantity(product.id, 1)}
-                        className="p-1 sm:p-1.5 hover:bg-muted transition-colors"
-                      >
-                        <Plus className="w-3 h-3" />
-                      </button>
-                    </div>
-                    
-                    <Button 
-                      size="sm"
-                      className="flex-1 gap-1 text-xs px-2 h-7 sm:h-8"
-                      onClick={() => handleAddToCart(product)}
-                      disabled={!product.is_service && product.stock < 1}
-                    >
-                      <ShoppingCart className="w-3 h-3" />
-                      <span className="hidden sm:inline">إضافة</span>
-                      <span className="sm:hidden">+</span>
-                    </Button>
-                  </div>
+                  {/* Add to Cart - Minimal */}
+                  <Button 
+                    size="sm"
+                    className="w-full gap-1 text-[10px] sm:text-xs h-6 sm:h-7 rounded"
+                    onClick={() => handleAddToCart(product)}
+                    disabled={!product.is_service && product.stock < 1}
+                  >
+                    <Plus className="w-3 h-3" />
+                    إضافة للسلة
+                  </Button>
 
-                  {!product.is_service && product.stock < 5 && product.stock > 0 && (
-                    <p className="text-[10px] text-amber-600 mt-1">
-                      متبقي {product.stock} فقط
-                    </p>
-                  )}
-                  
                   {!product.is_service && product.stock < 1 && (
-                    <p className="text-[10px] text-destructive mt-1">نفذت الكمية</p>
+                    <p className="text-[8px] text-destructive mt-0.5 text-center">نفذت الكمية</p>
                   )}
                 </div>
               </div>
