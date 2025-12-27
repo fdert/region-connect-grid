@@ -8,8 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Store, Phone, MapPin, Clock, DollarSign, Loader2, Save, Image, Upload } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Store, Phone, MapPin, Clock, DollarSign, Loader2, Save, Image, Upload, Tag } from "lucide-react";
 import { toast } from "sonner";
+
+interface Category {
+  id: string;
+  name: string;
+  name_ar: string;
+}
 
 interface StoreForm {
   name: string;
@@ -22,6 +29,7 @@ interface StoreForm {
   is_active: boolean;
   logo_url: string;
   cover_url: string;
+  category_id: string;
 }
 
 const MerchantSettings = () => {
@@ -37,6 +45,7 @@ const MerchantSettings = () => {
     is_active: false,
     logo_url: "",
     cover_url: "",
+    category_id: "",
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>("");
@@ -45,6 +54,22 @@ const MerchantSettings = () => {
   const [isUploading, setIsUploading] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch categories
+  const { data: categories = [] } = useQuery({
+    queryKey: ["store-categories"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("id, name, name_ar")
+        .eq("is_active", true)
+        .is("parent_id", null)
+        .order("sort_order");
+      
+      if (error) throw error;
+      return data as Category[];
+    },
+  });
 
   // Get current user's store
   const { data: store, isLoading } = useQuery({
@@ -78,6 +103,7 @@ const MerchantSettings = () => {
         is_active: store.is_active || false,
         logo_url: store.logo_url || "",
         cover_url: store.cover_url || "",
+        category_id: (store as any).category_id || "",
       });
       setLogoPreview(store.logo_url || "");
       setCoverPreview(store.cover_url || "");
@@ -163,6 +189,7 @@ const MerchantSettings = () => {
           is_active: data.is_active,
           logo_url: logoUrl || null,
           cover_url: coverUrl || null,
+          category_id: data.category_id || null,
         })
         .eq("id", store.id);
       
@@ -241,6 +268,24 @@ const MerchantSettings = () => {
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   placeholder="أدخل اسم المتجر"
                 />
+              </div>
+              <div>
+                <Label>تصنيف المتجر</Label>
+                <Select
+                  value={form.category_id}
+                  onValueChange={(value) => setForm({ ...form, category_id: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="اختر تصنيف المتجر" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name_ar}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label>وصف المتجر</Label>

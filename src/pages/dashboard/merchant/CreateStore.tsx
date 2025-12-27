@@ -7,9 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Store, Phone, MapPin, DollarSign, Loader2, ArrowLeft, Image, Upload } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Store, Phone, MapPin, DollarSign, Loader2, ArrowLeft, Image, Upload, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
+
+interface Category {
+  id: string;
+  name: string;
+  name_ar: string;
+}
 
 interface StoreForm {
   name: string;
@@ -21,6 +28,7 @@ interface StoreForm {
   min_order_amount: number;
   logo_url: string;
   cover_url: string;
+  category_id: string;
 }
 
 const CreateStore = () => {
@@ -35,6 +43,7 @@ const CreateStore = () => {
     min_order_amount: 0,
     logo_url: "",
     cover_url: "",
+    category_id: "",
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>("");
@@ -43,6 +52,22 @@ const CreateStore = () => {
   const [isUploading, setIsUploading] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch categories
+  const { data: categories = [] } = useQuery({
+    queryKey: ["store-categories"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("id, name, name_ar")
+        .eq("is_active", true)
+        .is("parent_id", null)
+        .order("sort_order");
+      
+      if (error) throw error;
+      return data as Category[];
+    },
+  });
 
   // Check if user already has a store
   const { data: existingStore, isLoading: checkingStore } = useQuery({
@@ -141,6 +166,7 @@ const CreateStore = () => {
           min_order_amount: data.min_order_amount,
           logo_url: logoUrl || null,
           cover_url: coverUrl || null,
+          category_id: data.category_id || null,
           is_active: false,
           is_approved: false,
         });
@@ -226,6 +252,24 @@ const CreateStore = () => {
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   placeholder="مثال: مطعم الشام"
                 />
+              </div>
+              <div>
+                <Label>تصنيف المتجر *</Label>
+                <Select
+                  value={form.category_id}
+                  onValueChange={(value) => setForm({ ...form, category_id: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="اختر تصنيف المتجر" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name_ar}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label>وصف المتجر</Label>
