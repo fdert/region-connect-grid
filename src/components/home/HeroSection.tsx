@@ -90,9 +90,6 @@ const HeroSection = forwardRef<HTMLElement, object>((_, ref) => {
             <span className="text-sm font-medium text-primary-foreground">{settings.badge_text}</span>
           </div>
 
-          {/* Hero Center Banner */}
-          <HeroBanner />
-
           {/* Heading */}
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black text-primary-foreground mb-4 sm:mb-6 leading-tight animate-slide-up">
             {settings.main_title}
