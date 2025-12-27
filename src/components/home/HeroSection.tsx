@@ -92,7 +92,7 @@ const HeroSection = forwardRef<HTMLElement, object>((_, ref) => {
           </div>
 
           {/* Announcement Bar - Before Hero Banner */}
-          <div className="mb-6">
+          <div className="mt-4 mb-6">
             <AnnouncementBar />
           </div>
 
