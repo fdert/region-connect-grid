@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
@@ -26,7 +27,7 @@ const defaultSettings: CTASettings = {
   courier_button: "انضم كمندوب"
 };
 
-const CTASection = () => {
+const CTASection = forwardRef<HTMLElement, object>((_, ref) => {
   const { data: ctaSection } = useQuery({
     queryKey: ["cta-section-content"],
     queryFn: async () => {
@@ -47,7 +48,7 @@ const CTASection = () => {
   };
 
   return (
-    <section className="py-16 md:py-24 bg-muted/30">
+    <section ref={ref} className="py-16 md:py-24 bg-muted/30">
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Merchant CTA */}
@@ -127,6 +128,8 @@ const CTASection = () => {
       </div>
     </section>
   );
-};
+});
+
+CTASection.displayName = "CTASection";
 
 export default CTASection;

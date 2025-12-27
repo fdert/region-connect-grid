@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, forwardRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ interface BannerSliderProps {
   position?: string;
 }
 
-const BannerSlider = ({ position = "home_top" }: BannerSliderProps) => {
+const BannerSlider = forwardRef<HTMLElement, BannerSliderProps>(({ position = "home_top" }, ref) => {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -102,7 +102,7 @@ const BannerSlider = ({ position = "home_top" }: BannerSliderProps) => {
   };
 
   return (
-    <section className="w-full bg-background">
+    <section ref={ref} className="w-full bg-background">
       <div className="container mx-auto px-4 py-4">
         <div className="relative group">
           {/* Main Banner Container */}
@@ -173,6 +173,8 @@ const BannerSlider = ({ position = "home_top" }: BannerSliderProps) => {
       </div>
     </section>
   );
-};
+});
+
+BannerSlider.displayName = "BannerSlider";
 
 export default BannerSlider;
