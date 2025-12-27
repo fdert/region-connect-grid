@@ -691,6 +691,48 @@ export type Database = {
         }
         Relationships: []
       }
+      static_pages: {
+        Row: {
+          content_ar: string
+          content_en: string | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          meta_description_ar: string | null
+          meta_description_en: string | null
+          page_key: string
+          title_ar: string
+          title_en: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          content_ar: string
+          content_en?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          meta_description_ar?: string | null
+          meta_description_en?: string | null
+          page_key: string
+          title_ar: string
+          title_en?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          content_ar?: string
+          content_en?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          meta_description_ar?: string | null
+          meta_description_en?: string | null
+          page_key?: string
+          title_ar?: string
+          title_en?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       store_reviews: {
         Row: {
           comment: string | null

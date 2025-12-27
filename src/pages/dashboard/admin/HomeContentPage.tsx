@@ -1696,7 +1696,7 @@ const HomeContentPage = () => {
 
         {/* Template Preview Dialog */}
         <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>معاينة القالب: {previewTemplate?.name_ar}</DialogTitle>
               <DialogDescription>{previewTemplate?.description_ar || previewTemplate?.description}</DialogDescription>
@@ -1704,28 +1704,80 @@ const HomeContentPage = () => {
             
             {previewTemplate && (
               <div className="space-y-4">
-                <div className="aspect-video bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg overflow-hidden">
-                  {previewTemplate.preview_image ? (
-                    <img 
-                      src={previewTemplate.preview_image} 
-                      alt={previewTemplate.name_ar}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Layout className="w-24 h-24 text-muted-foreground" />
+                {/* Live Preview */}
+                <div className="border rounded-xl overflow-hidden bg-background">
+                  <div className="bg-muted/50 px-4 py-2 border-b flex items-center gap-2">
+                    <div className="flex gap-1.5">
+                      <div className="w-3 h-3 rounded-full bg-red-400" />
+                      <div className="w-3 h-3 rounded-full bg-yellow-400" />
+                      <div className="w-3 h-3 rounded-full bg-green-400" />
                     </div>
-                  )}
+                    <span className="text-xs text-muted-foreground mr-2">معاينة حية</span>
+                  </div>
+                  <div 
+                    className="aspect-[16/9] p-6 flex flex-col items-center justify-center text-center relative overflow-hidden"
+                    style={{ 
+                      backgroundColor: previewTemplate.template_data?.theme?.background_color || previewTemplate.template_data?.hero?.background_color || '#f0f9ff'
+                    }}
+                  >
+                    {/* Decorative elements */}
+                    <div 
+                      className="absolute top-4 right-4 w-24 h-24 rounded-full blur-2xl opacity-30"
+                      style={{ backgroundColor: previewTemplate.template_data?.theme?.primary_color || '#3b82f6' }}
+                    />
+                    <div 
+                      className="absolute bottom-4 left-4 w-32 h-32 rounded-full blur-2xl opacity-20"
+                      style={{ backgroundColor: previewTemplate.template_data?.hero?.accent_color || '#10b981' }}
+                    />
+                    
+                    {/* Preview content */}
+                    <div className="relative z-10">
+                      <span 
+                        className="inline-block px-3 py-1 rounded-full text-xs font-medium mb-3 text-white"
+                        style={{ backgroundColor: previewTemplate.template_data?.theme?.primary_color || '#3b82f6' }}
+                      >
+                        منصة التسوق الأولى
+                      </span>
+                      <h2 className="text-2xl md:text-3xl font-bold mb-2" style={{ color: '#1f2937' }}>
+                        اكتشف أفضل المتاجر
+                      </h2>
+                      <p className="text-sm text-gray-600 mb-4 max-w-md">
+                        تسوّق من مئات المتاجر المحلية والعالمية
+                      </p>
+                      <div className="flex gap-2 justify-center">
+                        <button 
+                          className="px-4 py-2 rounded-lg text-white text-sm font-medium"
+                          style={{ backgroundColor: previewTemplate.template_data?.hero?.button_color || previewTemplate.template_data?.theme?.primary_color || '#3b82f6' }}
+                        >
+                          تصفح المتاجر
+                        </button>
+                        <button className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-700">
+                          انضم كتاجر
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-muted-foreground">الفئة</Label>
+
+                {/* Template Info */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="p-3 bg-muted/50 rounded-lg">
+                    <Label className="text-muted-foreground text-xs">الفئة</Label>
                     <p className="font-medium">{previewTemplate.category || "عام"}</p>
                   </div>
-                  <div>
-                    <Label className="text-muted-foreground">مرات التحميل</Label>
+                  <div className="p-3 bg-muted/50 rounded-lg">
+                    <Label className="text-muted-foreground text-xs">مرات التحميل</Label>
                     <p className="font-medium">{previewTemplate.downloads_count}</p>
+                  </div>
+                  <div className="p-3 bg-muted/50 rounded-lg">
+                    <Label className="text-muted-foreground text-xs">اللون الرئيسي</Label>
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-5 h-5 rounded-full border"
+                        style={{ backgroundColor: previewTemplate.template_data?.theme?.primary_color || '#3b82f6' }}
+                      />
+                      <span className="text-sm">{previewTemplate.template_data?.theme?.primary_color || '#3b82f6'}</span>
+                    </div>
                   </div>
                 </div>
 
@@ -1738,6 +1790,12 @@ const HomeContentPage = () => {
                       </span>
                     ))}
                   </div>
+                </div>
+
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-sm text-amber-800">
+                    <strong>ملاحظة:</strong> تطبيق القالب سيؤثر على ألوان وإعدادات الأقسام في الصفحة الرئيسية. هذه القوالب معدة مسبقاً ويمكنك تخصيصها بعد التطبيق.
+                  </p>
                 </div>
               </div>
             )}
