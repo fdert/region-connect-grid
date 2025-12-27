@@ -109,31 +109,31 @@ const FeaturedStores = () => {
                 className="group opacity-0 animate-slide-up"
                 style={{ animationDelay: `${index * 0.1}s`, animationFillMode: "forwards" }}
               >
-                <div className="bg-card rounded-xl sm:rounded-2xl overflow-hidden border border-border/50 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
-                  {/* Colored Background with Logo */}
-                  <div className={`relative aspect-[4/3] ${palette.bg} flex items-center justify-center p-4 sm:p-6`}>
+                <div className="bg-card rounded-lg sm:rounded-xl overflow-hidden border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+                  {/* Colored Background with Logo - Smaller */}
+                  <div className={`relative aspect-square ${palette.bg} flex items-center justify-center p-2 sm:p-3`}>
                     {/* Status Badge */}
-                    <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
-                      <Badge variant="default" className="bg-success text-white shadow-lg text-xs px-2 py-0.5">
+                    <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2">
+                      <Badge variant="default" className="bg-success text-white shadow-lg text-[10px] px-1.5 py-0.5">
                         مفتوح
                       </Badge>
                     </div>
                     
                     {/* Verified Badge */}
-                    <div className="absolute top-2 left-2 sm:top-3 sm:left-3 w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
-                      <BadgeCheck className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                    <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
+                      <BadgeCheck className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
                     </div>
 
-                    {/* White Logo Container */}
-                    <div className="w-16 h-16 sm:w-24 sm:h-24 lg:w-28 lg:h-28 bg-white rounded-xl sm:rounded-2xl shadow-xl flex items-center justify-center overflow-hidden group-hover:scale-105 transition-transform duration-300">
+                    {/* White Logo Container - Smaller */}
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 lg:w-18 lg:h-18 bg-white rounded-lg sm:rounded-xl shadow-lg flex items-center justify-center overflow-hidden group-hover:scale-105 transition-transform duration-300">
                       {store.logo_url ? (
                         <img
                           src={store.logo_url}
                           alt={store.name}
-                          className="w-full h-full object-contain p-1.5 sm:p-2"
+                          className="w-full h-full object-contain p-1 sm:p-1.5"
                         />
                       ) : (
-                        <span className="text-2xl sm:text-4xl lg:text-5xl font-bold text-gray-300">
+                        <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-300">
                           {store.name.charAt(0)}
                         </span>
                       )}
