@@ -274,13 +274,13 @@ const StoreDetails = () => {
             <p className="text-muted-foreground">لا توجد منتجات متاحة حالياً</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
             {products.map((product) => (
               <div 
                 key={product.id}
-                className="bg-card rounded-2xl overflow-hidden border shadow-sm hover:shadow-md transition-shadow group"
+                className="bg-card rounded-lg sm:rounded-xl overflow-hidden border shadow-sm hover:shadow-md transition-shadow group"
               >
-                {/* Image */}
+                {/* Image - Smaller */}
                 <div className="aspect-square bg-muted relative overflow-hidden">
                   {product.images[0] ? (
                     <ProtectedImage 
@@ -291,74 +291,76 @@ const StoreDetails = () => {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <ShoppingCart className="w-12 h-12 text-muted-foreground/50" />
+                      <ShoppingCart className="w-8 h-8 text-muted-foreground/50" />
                     </div>
                   )}
                   
                   {product.compare_price && product.compare_price > product.price && (
-                    <Badge className="absolute top-3 right-3 bg-destructive">
+                    <Badge className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 bg-destructive text-[10px] sm:text-xs px-1.5 py-0.5">
                       خصم {Math.round((1 - product.price / product.compare_price) * 100)}%
                     </Badge>
                   )}
                   
                   {product.is_service && (
-                    <Badge className="absolute top-3 left-3" variant="secondary">خدمة</Badge>
+                    <Badge className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 text-[10px] sm:text-xs px-1.5 py-0.5" variant="secondary">خدمة</Badge>
                   )}
                 </div>
 
-                {/* Content */}
-                <div className="p-4">
-                  <h3 className="font-semibold mb-2 line-clamp-2">{product.name}</h3>
+                {/* Content - Compact */}
+                <div className="p-2 sm:p-3">
+                  <h3 className="font-semibold text-xs sm:text-sm mb-1 line-clamp-2 leading-tight">{product.name}</h3>
                   
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-lg font-bold text-primary">
-                      {product.price.toFixed(2)} ر.س
+                  <div className="flex items-center gap-1 mb-2">
+                    <span className="text-sm sm:text-base font-bold text-primary">
+                      {product.price.toFixed(0)} ر.س
                     </span>
                     {product.compare_price && product.compare_price > product.price && (
-                      <span className="text-sm text-muted-foreground line-through">
-                        {product.compare_price.toFixed(2)} ر.س
+                      <span className="text-[10px] sm:text-xs text-muted-foreground line-through">
+                        {product.compare_price.toFixed(0)}
                       </span>
                     )}
                   </div>
 
-                  {/* Quantity & Add to Cart */}
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center border rounded-lg">
+                  {/* Quantity & Add to Cart - Compact */}
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    <div className="flex items-center border rounded-md">
                       <button
                         onClick={() => updateQuantity(product.id, -1)}
-                        className="p-2 hover:bg-muted transition-colors"
+                        className="p-1 sm:p-1.5 hover:bg-muted transition-colors"
                       >
-                        <Minus className="w-4 h-4" />
+                        <Minus className="w-3 h-3" />
                       </button>
-                      <span className="w-10 text-center font-medium">
+                      <span className="w-6 sm:w-8 text-center text-xs sm:text-sm font-medium">
                         {quantities[product.id] || 1}
                       </span>
                       <button
                         onClick={() => updateQuantity(product.id, 1)}
-                        className="p-2 hover:bg-muted transition-colors"
+                        className="p-1 sm:p-1.5 hover:bg-muted transition-colors"
                       >
-                        <Plus className="w-4 h-4" />
+                        <Plus className="w-3 h-3" />
                       </button>
                     </div>
                     
                     <Button 
-                      className="flex-1 gap-2"
+                      size="sm"
+                      className="flex-1 gap-1 text-xs px-2 h-7 sm:h-8"
                       onClick={() => handleAddToCart(product)}
                       disabled={!product.is_service && product.stock < 1}
                     >
-                      <ShoppingCart className="w-4 h-4" />
-                      إضافة
+                      <ShoppingCart className="w-3 h-3" />
+                      <span className="hidden sm:inline">إضافة</span>
+                      <span className="sm:hidden">+</span>
                     </Button>
                   </div>
 
                   {!product.is_service && product.stock < 5 && product.stock > 0 && (
-                    <p className="text-xs text-amber-600 mt-2">
+                    <p className="text-[10px] text-amber-600 mt-1">
                       متبقي {product.stock} فقط
                     </p>
                   )}
                   
                   {!product.is_service && product.stock < 1 && (
-                    <p className="text-xs text-destructive mt-2">نفذت الكمية</p>
+                    <p className="text-[10px] text-destructive mt-1">نفذت الكمية</p>
                   )}
                 </div>
               </div>
