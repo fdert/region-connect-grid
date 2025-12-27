@@ -829,6 +829,7 @@ export type Database = {
       stores: {
         Row: {
           address: string | null
+          category_id: string | null
           city: string | null
           cover_url: string | null
           created_at: string | null
@@ -850,6 +851,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          category_id?: string | null
           city?: string | null
           cover_url?: string | null
           created_at?: string | null
@@ -871,6 +873,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          category_id?: string | null
           city?: string | null
           cover_url?: string | null
           created_at?: string | null
@@ -890,7 +893,15 @@ export type Database = {
           updated_at?: string | null
           working_hours?: Json | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "stores_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       support_replies: {
         Row: {
