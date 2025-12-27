@@ -141,10 +141,14 @@ const defaultSectionSettings: Record<string, any> = {
     ]
   },
   cta: {
-    title: "جاهز للبدء؟",
-    description: "انضم إلى آلاف العملاء السعداء وابدأ التسوق الآن",
-    button_text: "ابدأ التسوق",
-    button_link: "/stores"
+    merchant_title: "هل أنت تاجر؟",
+    merchant_description: "انضم إلى منصة سوقنا وابدأ ببيع منتجاتك لآلاف العملاء. نوفر لك كل الأدوات التي تحتاجها لإدارة متجرك بسهولة.",
+    merchant_features: ["لوحة تحكم متكاملة", "تقارير وإحصائيات مفصلة", "دعم فني على مدار الساعة"],
+    merchant_button: "سجّل كتاجر الآن",
+    courier_title: "اعمل كمندوب توصيل",
+    courier_description: "انضم لفريق التوصيل واحصل على دخل إضافي بمرونة تامة. اختر أوقات عملك واستمتع بحرية العمل المستقل.",
+    courier_features: ["دخل مرن ومجزي", "اختر أوقات عملك", "تطبيق سهل الاستخدام"],
+    courier_button: "انضم كمندوب"
   }
 };
 
@@ -338,29 +342,56 @@ const HomeContentPage = () => {
       const templateHeroSettings = templateData.hero || {};
       const templateCtaSettings = templateData.cta || {};
       const templateFeaturesSettings = templateData.features || {};
+      const templateTheme = templateData.theme || {};
       
       if (sections) {
         for (const section of sections) {
-          let newSettings = { ...section.settings };
+          const currentSettings = section.settings || {};
+          let newSettings = { ...currentSettings };
+          let newBackgroundColor = section.background_color;
           
-          // Apply template-specific settings
-          if (section.section_key === 'hero' && templateHeroSettings) {
-            newSettings = { ...newSettings, ...templateHeroSettings };
+          // Apply template-specific settings based on section key
+          if (section.section_key === 'hero') {
+            newSettings = { 
+              ...defaultSectionSettings.hero,
+              ...currentSettings, 
+              ...templateHeroSettings,
+              theme: template.category,
+              primary_color: templateHeroSettings.color || templateTheme.primary_color,
+              button_color: templateHeroSettings.button_color || templateTheme.primary_color,
+            };
+            newBackgroundColor = templateHeroSettings.background_color || templateTheme.background_color;
           }
-          if (section.section_key === 'cta' && templateCtaSettings) {
-            newSettings = { ...newSettings, ...templateCtaSettings };
+          if (section.section_key === 'cta') {
+            newSettings = { 
+              ...defaultSectionSettings.cta,
+              ...currentSettings, 
+              ...templateCtaSettings,
+              primary_color: templateCtaSettings.color || templateTheme.primary_color,
+              button_color: templateCtaSettings.button_color || templateTheme.primary_color,
+            };
+            newBackgroundColor = templateCtaSettings.background_color || templateTheme.background_color;
           }
-          if (section.section_key === 'features' && templateFeaturesSettings) {
-            newSettings = { ...newSettings, ...templateFeaturesSettings };
+          if (section.section_key === 'features') {
+            newSettings = { 
+              ...defaultSectionSettings.features,
+              ...currentSettings, 
+              ...templateFeaturesSettings 
+            };
           }
           
-          await supabase
+          const { error } = await supabase
             .from("home_sections")
             .update({ 
               is_visible: templateSections.length === 0 || templateSections.includes(section.section_key),
-              settings: newSettings
+              settings: newSettings,
+              background_color: newBackgroundColor
             })
             .eq("id", section.id);
+            
+          if (error) {
+            console.error('Error updating section:', section.section_key, error);
+          }
         }
       }
     },
@@ -1328,6 +1359,74 @@ const HomeContentPage = () => {
                   </div>
                 </div>
 
+                {/* Style Settings for all sections */}
+                <div className="grid grid-cols-2 gap-4 border-t pt-4">
+                  <div>
+                    <Label>لون الأزرار الرئيسي</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <input 
+                        type="color" 
+                        className="w-10 h-10 rounded cursor-pointer"
+                        value={editingSection.settings?.button_color || "#3b82f6"}
+                        onChange={(e) => updateSectionSetting('button_color', e.target.value)}
+                      />
+                      <Input 
+                        value={editingSection.settings?.button_color || ""}
+                        onChange={(e) => updateSectionSetting('button_color', e.target.value)}
+                        placeholder="#3b82f6"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label>لون النص الرئيسي</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <input 
+                        type="color" 
+                        className="w-10 h-10 rounded cursor-pointer"
+                        value={editingSection.settings?.text_color || "#1f2937"}
+                        onChange={(e) => updateSectionSetting('text_color', e.target.value)}
+                      />
+                      <Input 
+                        value={editingSection.settings?.text_color || ""}
+                        onChange={(e) => updateSectionSetting('text_color', e.target.value)}
+                        placeholder="#1f2937"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>نوع الخط</Label>
+                    <select 
+                      className="w-full p-2 border rounded-md mt-1"
+                      value={editingSection.settings?.font_family || "cairo"}
+                      onChange={(e) => updateSectionSetting('font_family', e.target.value)}
+                    >
+                      <option value="cairo">Cairo</option>
+                      <option value="tajawal">Tajawal</option>
+                      <option value="almarai">Almarai</option>
+                      <option value="ibm-plex-sans-arabic">IBM Plex Sans Arabic</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label>لون التمييز (Accent)</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <input 
+                        type="color" 
+                        className="w-10 h-10 rounded cursor-pointer"
+                        value={editingSection.settings?.accent_color || "#10b981"}
+                        onChange={(e) => updateSectionSetting('accent_color', e.target.value)}
+                      />
+                      <Input 
+                        value={editingSection.settings?.accent_color || ""}
+                        onChange={(e) => updateSectionSetting('accent_color', e.target.value)}
+                        placeholder="#10b981"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 {/* Section-specific settings */}
                 {editingSection.section_key === 'hero' && (
                   <div className="space-y-4 border-t pt-4">
@@ -1418,33 +1517,73 @@ const HomeContentPage = () => {
                 {editingSection.section_key === 'cta' && (
                   <div className="space-y-4 border-t pt-4">
                     <h4 className="font-semibold">إعدادات قسم الدعوة للعمل</h4>
-                    <div>
-                      <Label>العنوان</Label>
-                      <Input
-                        value={editingSection.settings?.title || ""}
-                        onChange={(e) => updateSectionSetting('title', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label>الوصف</Label>
-                      <Textarea
-                        value={editingSection.settings?.description || ""}
-                        onChange={(e) => updateSectionSetting('description', e.target.value)}
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    
+                    {/* Merchant Section */}
+                    <div className="p-4 border rounded-lg space-y-3 bg-primary/5">
+                      <h5 className="font-medium text-primary">قسم التاجر</h5>
                       <div>
-                        <Label>نص الزر</Label>
+                        <Label>عنوان التاجر</Label>
                         <Input
-                          value={editingSection.settings?.button_text || ""}
-                          onChange={(e) => updateSectionSetting('button_text', e.target.value)}
+                          value={editingSection.settings?.merchant_title || "هل أنت تاجر؟"}
+                          onChange={(e) => updateSectionSetting('merchant_title', e.target.value)}
                         />
                       </div>
                       <div>
-                        <Label>رابط الزر</Label>
+                        <Label>وصف التاجر</Label>
+                        <Textarea
+                          value={editingSection.settings?.merchant_description || ""}
+                          onChange={(e) => updateSectionSetting('merchant_description', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>نص زر التاجر</Label>
                         <Input
-                          value={editingSection.settings?.button_link || ""}
-                          onChange={(e) => updateSectionSetting('button_link', e.target.value)}
+                          value={editingSection.settings?.merchant_button || "سجّل كتاجر الآن"}
+                          onChange={(e) => updateSectionSetting('merchant_button', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>مميزات التاجر (اكتب كل ميزة في سطر)</Label>
+                        <Textarea
+                          value={(editingSection.settings?.merchant_features || []).join('\n')}
+                          onChange={(e) => updateSectionSetting('merchant_features', e.target.value.split('\n').filter(f => f.trim()))}
+                          rows={3}
+                          placeholder="لوحة تحكم متكاملة&#10;تقارير وإحصائيات مفصلة&#10;دعم فني على مدار الساعة"
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Courier Section */}
+                    <div className="p-4 border rounded-lg space-y-3 bg-accent/5">
+                      <h5 className="font-medium text-accent">قسم المندوب</h5>
+                      <div>
+                        <Label>عنوان المندوب</Label>
+                        <Input
+                          value={editingSection.settings?.courier_title || "اعمل كمندوب توصيل"}
+                          onChange={(e) => updateSectionSetting('courier_title', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>وصف المندوب</Label>
+                        <Textarea
+                          value={editingSection.settings?.courier_description || ""}
+                          onChange={(e) => updateSectionSetting('courier_description', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>نص زر المندوب</Label>
+                        <Input
+                          value={editingSection.settings?.courier_button || "انضم كمندوب"}
+                          onChange={(e) => updateSectionSetting('courier_button', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>مميزات المندوب (اكتب كل ميزة في سطر)</Label>
+                        <Textarea
+                          value={(editingSection.settings?.courier_features || []).join('\n')}
+                          onChange={(e) => updateSectionSetting('courier_features', e.target.value.split('\n').filter(f => f.trim()))}
+                          rows={3}
+                          placeholder="دخل مرن ومجزي&#10;اختر أوقات عملك&#10;تطبيق سهل الاستخدام"
                         />
                       </div>
                     </div>
