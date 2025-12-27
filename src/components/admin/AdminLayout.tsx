@@ -21,7 +21,8 @@ import {
   Menu,
   X,
   ChevronDown,
-  Bell
+  Bell,
+  FileText
 } from "lucide-react";
 
 interface AdminLayoutProps {
@@ -37,6 +38,7 @@ const menuItems = [
   { icon: Gift, label: "الخدمات الخاصة", href: "/admin/special-services" },
   { icon: ShoppingCart, label: "طلبات خاصة", href: "/admin/special-orders" },
   { icon: LayoutDashboard, label: "محتوى الرئيسية", href: "/admin/home-content" },
+  { icon: FileText, label: "الصفحات الثابتة", href: "/admin/static-pages" },
   { icon: Image, label: "البنرات", href: "/admin/banners" },
   { icon: Palette, label: "المظهر والألوان", href: "/admin/theme" },
   { icon: Webhook, label: "Webhooks", href: "/admin/webhooks" },

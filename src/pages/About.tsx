@@ -1,6 +1,9 @@
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import MainLayout from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { Skeleton } from "@/components/ui/skeleton";
 import { 
   Store, 
   Users, 
@@ -45,6 +48,21 @@ const features = [
 ];
 
 const About = () => {
+  const { data: page, isLoading } = useQuery({
+    queryKey: ["static-page", "about"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("static_pages")
+        .select("*")
+        .eq("page_key", "about")
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
   return (
     <MainLayout>
       {/* Hero Section */}
@@ -56,7 +74,7 @@ const About = () => {
               <Store className="w-10 h-10" />
             </div>
             <h1 className="text-4xl md:text-5xl font-bold mb-4">
-              مرحباً بك في سوقنا
+              {isLoading ? <Skeleton className="h-12 w-64 mx-auto bg-primary-foreground/20" /> : page?.title_ar || "مرحباً بك في سوقنا"}
             </h1>
             <p className="text-xl text-primary-foreground/80 mb-8">
               منصة التسوق الإلكتروني الأولى في المنطقة التي تجمع بين المتاجر والعملاء في مكان واحد
@@ -98,49 +116,61 @@ const About = () => {
         </div>
       </section>
 
-      {/* About Section */}
+      {/* Dynamic Content Section */}
       <section className="py-16">
         <div className="container mx-auto px-4">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <h2 className="text-3xl font-bold mb-4">من نحن؟</h2>
-              <p className="text-muted-foreground mb-6 leading-relaxed">
-                سوقنا هي منصة تسوق إلكتروني متكاملة تهدف إلى ربط العملاء بأفضل المتاجر المحلية. 
-                نؤمن بأن التسوق يجب أن يكون تجربة ممتعة وسهلة، ولذلك نعمل على توفير منصة تجمع 
-                بين سهولة الاستخدام وتنوع الخيارات وضمان جودة الخدمة.
-              </p>
-              <p className="text-muted-foreground mb-6 leading-relaxed">
-                تأسست سوقنا بهدف دعم التجار المحليين ومساعدتهم على الوصول إلى عملاء أكثر، 
-                مع توفير تجربة تسوق مريحة للعملاء من منازلهم.
-              </p>
-              <ul className="space-y-3">
-                {[
-                  "متاجر موثقة ومعتمدة",
-                  "أسعار تنافسية وعروض حصرية",
-                  "توصيل سريع وآمن",
-                  "دعم فني على مدار الساعة"
-                ].map((item, index) => (
-                  <li key={index} className="flex items-center gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-primary" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="relative">
-              <div className="aspect-square rounded-3xl bg-gradient-to-br from-primary/20 to-secondary/40 p-8 flex items-center justify-center">
-                <div className="grid grid-cols-2 gap-4">
-                  {[Store, Users, Truck, Star].map((Icon, index) => (
-                    <div 
-                      key={index}
-                      className="w-24 h-24 rounded-2xl bg-card shadow-lg flex items-center justify-center"
-                    >
-                      <Icon className="w-12 h-12 text-primary" />
+          <div className="max-w-4xl mx-auto">
+            {isLoading ? (
+              <div className="space-y-4">
+                <Skeleton className="h-8 w-48" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-full" />
+              </div>
+            ) : page?.content_ar ? (
+              <div 
+                className="prose prose-lg max-w-none text-foreground prose-headings:text-foreground prose-p:text-muted-foreground"
+                dangerouslySetInnerHTML={{ __html: page.content_ar }}
+              />
+            ) : (
+              <div className="grid lg:grid-cols-2 gap-12 items-center">
+                <div>
+                  <h2 className="text-3xl font-bold mb-4">من نحن؟</h2>
+                  <p className="text-muted-foreground mb-6 leading-relaxed">
+                    سوقنا هي منصة تسوق إلكتروني متكاملة تهدف إلى ربط العملاء بأفضل المتاجر المحلية. 
+                    نؤمن بأن التسوق يجب أن يكون تجربة ممتعة وسهلة، ولذلك نعمل على توفير منصة تجمع 
+                    بين سهولة الاستخدام وتنوع الخيارات وضمان جودة الخدمة.
+                  </p>
+                  <ul className="space-y-3">
+                    {[
+                      "متاجر موثقة ومعتمدة",
+                      "أسعار تنافسية وعروض حصرية",
+                      "توصيل سريع وآمن",
+                      "دعم فني على مدار الساعة"
+                    ].map((item, index) => (
+                      <li key={index} className="flex items-center gap-3">
+                        <CheckCircle2 className="w-5 h-5 text-primary" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="relative">
+                  <div className="aspect-square rounded-3xl bg-gradient-to-br from-primary/20 to-secondary/40 p-8 flex items-center justify-center">
+                    <div className="grid grid-cols-2 gap-4">
+                      {[Store, Users, Truck, Star].map((Icon, index) => (
+                        <div 
+                          key={index}
+                          className="w-24 h-24 rounded-2xl bg-card shadow-lg flex items-center justify-center"
+                        >
+                          <Icon className="w-12 h-12 text-primary" />
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </section>

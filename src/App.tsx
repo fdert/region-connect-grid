@@ -18,6 +18,8 @@ import Categories from "./pages/Categories";
 import CategoryDetails from "./pages/CategoryDetails";
 import Offers from "./pages/Offers";
 import About from "./pages/About";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsConditions from "./pages/TermsConditions";
 
 // Admin Dashboard Pages
 import AdminDashboard from "./pages/dashboard/admin/AdminDashboard";
@@ -35,6 +37,7 @@ import CategoriesPage from "./pages/dashboard/admin/CategoriesPage";
 import SpecialServicesPage from "./pages/dashboard/admin/SpecialServicesPage";
 import SpecialOrdersPage from "./pages/dashboard/admin/SpecialOrdersPage";
 import HomeContentPage from "./pages/dashboard/admin/HomeContentPage";
+import StaticPagesPage from "./pages/dashboard/admin/StaticPagesPage";
 import SpecialServiceOrder from "./pages/SpecialServiceOrder";
 
 // Merchant Dashboard Pages
@@ -82,6 +85,8 @@ const App = () => (
               <Route path="/categories/:id" element={<CategoryDetails />} />
               <Route path="/offers" element={<Offers />} />
               <Route path="/about" element={<About />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<TermsConditions />} />
               
               {/* Auth Routes */}
               <Route path="/auth/login" element={<Login />} />
@@ -103,6 +108,7 @@ const App = () => (
               <Route path="/admin/special-services" element={<SpecialServicesPage />} />
               <Route path="/admin/special-orders" element={<SpecialOrdersPage />} />
               <Route path="/admin/home-content" element={<HomeContentPage />} />
+              <Route path="/admin/static-pages" element={<StaticPagesPage />} />
               
               {/* Special Services */}
               <Route path="/special-services/:id" element={<SpecialServiceOrder />} />
