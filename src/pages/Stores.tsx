@@ -319,7 +319,7 @@ const Stores = () => {
 
         {/* Stores Grid/List */}
         <div className={viewMode === "grid" 
-          ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6" 
+          ? "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4" 
           : "flex flex-col gap-3 sm:gap-4"
         }>
           {filteredStores.map((store, index) => (
@@ -329,12 +329,12 @@ const Stores = () => {
               className="group opacity-0 animate-slide-up"
               style={{ animationDelay: `${index * 0.05}s`, animationFillMode: "forwards" }}
             >
-              <div className={`bg-card rounded-xl sm:rounded-2xl overflow-hidden border border-border/50 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 ${
+              <div className={`bg-card rounded-lg sm:rounded-xl overflow-hidden border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 ${
                 viewMode === "list" ? "flex" : ""
               }`}>
-                {/* Image */}
+                {/* Cover/Logo Image - Smaller */}
                 <div className={`relative overflow-hidden ${
-                  viewMode === "list" ? "w-32 h-28 sm:w-48 sm:h-36 flex-shrink-0" : "h-40 sm:h-48"
+                  viewMode === "list" ? "w-24 h-20 sm:w-32 sm:h-24 flex-shrink-0" : "h-24 sm:h-28"
                 }`}>
                   {store.cover_url || store.logo_url ? (
                     <img
@@ -343,53 +343,66 @@ const Stores = () => {
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />
                   ) : (
-                    <div className="w-full h-full bg-muted flex items-center justify-center">
-                      <StoreIcon className="w-12 h-12 text-muted-foreground" />
+                    <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
+                      <StoreIcon className="w-8 h-8 text-primary/60" />
                     </div>
                   )}
-                  <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
+                  
+                  {/* Badges overlay */}
+                  <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2">
                     <Badge 
                       variant="default"
-                      className="text-xs bg-success"
+                      className="text-[10px] sm:text-xs px-1.5 py-0.5 bg-success"
                     >
                       مفتوح
                     </Badge>
                   </div>
                   {store.is_approved && (
-                    <div className="absolute top-2 left-2 sm:top-3 sm:left-3 w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-primary flex items-center justify-center">
-                      <BadgeCheck className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
+                    <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-primary/90 flex items-center justify-center">
+                      <BadgeCheck className="w-3 h-3 sm:w-4 sm:h-4 text-primary-foreground" />
+                    </div>
+                  )}
+                  
+                  {/* Logo overlay if has cover */}
+                  {store.cover_url && store.logo_url && (
+                    <div className="absolute bottom-1 right-1 sm:bottom-1.5 sm:right-1.5 w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-white shadow-md overflow-hidden border border-border/30">
+                      <img
+                        src={store.logo_url}
+                        alt={store.name}
+                        className="w-full h-full object-contain p-0.5"
+                      />
                     </div>
                   )}
                 </div>
 
-                {/* Content */}
-                <div className={`p-3 sm:p-4 md:p-5 ${viewMode === "list" ? "flex-1 min-w-0" : ""}`}>
+                {/* Content - Compact */}
+                <div className={`p-2 sm:p-3 ${viewMode === "list" ? "flex-1 min-w-0" : ""}`}>
                   {store.category_name && (
-                    <span className="text-xs text-primary font-medium">{store.category_name}</span>
+                    <span className="text-[10px] sm:text-xs text-primary font-medium">{store.category_name}</span>
                   )}
-                  <h3 className="font-bold text-base sm:text-lg mt-1 mb-2 group-hover:text-primary transition-colors truncate">
+                  <h3 className="font-bold text-xs sm:text-sm mt-0.5 mb-1 group-hover:text-primary transition-colors truncate">
                     {store.name}
                   </h3>
 
-                  <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-2 sm:mb-3">
-                    <div className="flex items-center gap-1">
-                      <Star className="w-3 h-3 sm:w-4 sm:h-4 text-accent fill-accent" />
-                      <span className="font-semibold text-xs sm:text-sm">{store.rating || 0}</span>
+                  <div className="flex items-center gap-1 mb-1">
+                    <div className="flex items-center gap-0.5">
+                      <Star className="w-3 h-3 text-accent fill-accent" />
+                      <span className="font-semibold text-[10px] sm:text-xs">{store.rating || 0}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground">({store.total_reviews || 0})</span>
-                    <span className="text-xs text-muted-foreground hidden sm:inline">• {store.products_count || 0} منتج</span>
+                    <span className="text-[10px] sm:text-xs text-muted-foreground">({store.total_reviews || 0})</span>
+                    <span className="text-[10px] text-muted-foreground hidden sm:inline">• {store.products_count || 0} منتج</span>
                   </div>
 
-                  <div className="flex flex-col gap-1 sm:gap-2 text-xs sm:text-sm text-muted-foreground">
+                  <div className="flex flex-col gap-0.5 text-[10px] sm:text-xs text-muted-foreground">
                     {store.city && (
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                        <span className="truncate">{store.city}{store.address ? `، ${store.address}` : ''}</span>
+                      <div className="flex items-center gap-1">
+                        <MapPin className="w-2.5 h-2.5 sm:w-3 sm:h-3 flex-shrink-0" />
+                        <span className="truncate">{store.city}</span>
                       </div>
                     )}
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                      <span className="truncate">رسوم التوصيل: {store.delivery_fee || 0} ر.س</span>
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3 flex-shrink-0" />
+                      <span className="truncate">توصيل: {store.delivery_fee || 0} ر.س</span>
                     </div>
                   </div>
                 </div>
