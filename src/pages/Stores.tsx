@@ -3,6 +3,7 @@ import MainLayout from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import * as LucideIcons from "lucide-react";
 import { 
   Search, 
   Star, 
@@ -11,7 +12,17 @@ import {
   BadgeCheck,
   Grid3X3,
   List,
-  Store as StoreIcon
+  Store as StoreIcon,
+  Tag,
+  Apple,
+  ShoppingBag,
+  Shirt,
+  Smartphone,
+  Home,
+  Utensils,
+  Cake,
+  Heart,
+  Package
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,6 +41,7 @@ interface Store {
   delivery_fee: number | null;
   is_active: boolean | null;
   is_approved: boolean | null;
+  category_id?: string | null;
   category_name?: string;
   products_count?: number;
 }
@@ -38,7 +50,41 @@ interface Category {
   id: string;
   name: string;
   name_ar: string;
+  icon: string | null;
+  image_url: string | null;
 }
+
+// Category color palette
+const categoryColors = [
+  { bg: "bg-emerald-500", gradient: "from-emerald-500 to-emerald-600", text: "text-white" },
+  { bg: "bg-blue-500", gradient: "from-blue-500 to-blue-600", text: "text-white" },
+  { bg: "bg-purple-500", gradient: "from-purple-500 to-purple-600", text: "text-white" },
+  { bg: "bg-orange-500", gradient: "from-orange-500 to-orange-600", text: "text-white" },
+  { bg: "bg-rose-500", gradient: "from-rose-500 to-rose-600", text: "text-white" },
+  { bg: "bg-cyan-500", gradient: "from-cyan-500 to-cyan-600", text: "text-white" },
+  { bg: "bg-amber-500", gradient: "from-amber-500 to-amber-600", text: "text-white" },
+  { bg: "bg-teal-500", gradient: "from-teal-500 to-teal-600", text: "text-white" },
+  { bg: "bg-indigo-500", gradient: "from-indigo-500 to-indigo-600", text: "text-white" },
+  { bg: "bg-pink-500", gradient: "from-pink-500 to-pink-600", text: "text-white" },
+];
+
+// Get icon component from string name
+const getIconComponent = (iconName: string | null) => {
+  if (!iconName) return Package;
+  const icons: Record<string, React.ComponentType<{ className?: string }>> = {
+    'Apple': Apple,
+    'ShoppingBag': ShoppingBag,
+    'Shirt': Shirt,
+    'Smartphone': Smartphone,
+    'Home': Home,
+    'Utensils': Utensils,
+    'Cake': Cake,
+    'Heart': Heart,
+    'Package': Package,
+    'Tag': Tag,
+  };
+  return icons[iconName] || Package;
+};
 
 const Stores = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -55,10 +101,10 @@ const Stores = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // Fetch categories
+      // Fetch categories with icon and image
       const { data: categoriesData, error: categoriesError } = await supabase
         .from('categories')
-        .select('id, name, name_ar')
+        .select('id, name, name_ar, icon, image_url')
         .eq('is_active', true)
         .is('parent_id', null)
         .order('sort_order');
@@ -99,11 +145,13 @@ const Stores = () => {
               .single();
 
             let categoryName = '';
-            if (productWithCategory?.category_id) {
+            let categoryId = store.category_id || productWithCategory?.category_id || null;
+            
+            if (categoryId) {
               const { data: categoryData } = await supabase
                 .from('categories')
                 .select('name_ar')
-                .eq('id', productWithCategory.category_id)
+                .eq('id', categoryId)
                 .single();
               categoryName = categoryData?.name_ar || '';
             }
@@ -111,6 +159,7 @@ const Stores = () => {
             return {
               ...store,
               products_count: count || 0,
+              category_id: categoryId,
               category_name: categoryName
             };
           })
@@ -128,7 +177,9 @@ const Stores = () => {
     const matchesSearch = store.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           (store.description?.toLowerCase().includes(searchQuery.toLowerCase())) ||
                           (store.category_name?.includes(searchQuery));
-    const matchesCategory = selectedCategory === "الكل" || store.category_name === selectedCategory;
+    const matchesCategory = selectedCategory === "الكل" || 
+                            store.category_name === selectedCategory ||
+                            store.category_id === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
@@ -182,49 +233,82 @@ const Stores = () => {
             <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-            {/* Category Filter */}
-            <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
-              <Button
-                variant={selectedCategory === "الكل" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedCategory("الكل")}
-                className="whitespace-nowrap text-xs sm:text-sm flex-shrink-0"
-              >
-                الكل
-              </Button>
-              {categories.map((category) => (
-                <Button
-                  key={category.id}
-                  variant={selectedCategory === category.name_ar ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSelectedCategory(category.name_ar)}
-                  className="whitespace-nowrap text-xs sm:text-sm flex-shrink-0"
-                >
-                  {category.name_ar}
-                </Button>
-              ))}
-            </div>
+          {/* Category Filter - Beautiful Icons Grid */}
+          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 sm:gap-3">
+            {/* All Categories Button */}
+            <button
+              onClick={() => setSelectedCategory("الكل")}
+              className={`flex flex-col items-center gap-1.5 p-2 sm:p-3 rounded-xl transition-all duration-300 ${
+                selectedCategory === "الكل"
+                  ? "bg-primary text-primary-foreground shadow-lg scale-105"
+                  : "bg-card hover:bg-accent border border-border/50 hover:border-primary/30"
+              }`}
+            >
+              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center ${
+                selectedCategory === "الكل" ? "bg-white/20" : "bg-gradient-to-br from-gray-400 to-gray-500"
+              }`}>
+                <Grid3X3 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              </div>
+              <span className="text-[10px] sm:text-xs font-medium text-center truncate w-full">الكل</span>
+            </button>
 
-            {/* View Toggle */}
-            <div className="flex gap-2 self-end sm:self-auto">
-              <Button
-                variant={viewMode === "grid" ? "default" : "outline"}
-                size="icon"
-                onClick={() => setViewMode("grid")}
-                className="h-9 w-9 sm:h-10 sm:w-10"
-              >
-                <Grid3X3 className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={viewMode === "list" ? "default" : "outline"}
-                size="icon"
-                onClick={() => setViewMode("list")}
-                className="h-9 w-9 sm:h-10 sm:w-10"
-              >
-                <List className="w-4 h-4" />
-              </Button>
-            </div>
+            {categories.map((category, index) => {
+              const colorSet = categoryColors[index % categoryColors.length];
+              const IconComponent = getIconComponent(category.icon);
+              const isSelected = selectedCategory === category.id || selectedCategory === category.name_ar;
+
+              return (
+                <button
+                  key={category.id}
+                  onClick={() => setSelectedCategory(category.id)}
+                  className={`flex flex-col items-center gap-1.5 p-2 sm:p-3 rounded-xl transition-all duration-300 ${
+                    isSelected
+                      ? "bg-primary text-primary-foreground shadow-lg scale-105"
+                      : "bg-card hover:bg-accent border border-border/50 hover:border-primary/30 hover:scale-102"
+                  }`}
+                >
+                  <div className={`relative w-8 h-8 sm:w-10 sm:h-10 rounded-lg overflow-hidden flex items-center justify-center ${
+                    isSelected ? "bg-white/20" : `bg-gradient-to-br ${colorSet.gradient}`
+                  }`}>
+                    {category.image_url ? (
+                      <>
+                        <img 
+                          src={category.image_url} 
+                          alt={category.name_ar}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/20" />
+                      </>
+                    ) : (
+                      <IconComponent className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                    )}
+                  </div>
+                  <span className="text-[10px] sm:text-xs font-medium text-center truncate w-full leading-tight">
+                    {category.name_ar}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* View Toggle */}
+          <div className="flex gap-2 justify-end">
+            <Button
+              variant={viewMode === "grid" ? "default" : "outline"}
+              size="icon"
+              onClick={() => setViewMode("grid")}
+              className="h-9 w-9 sm:h-10 sm:w-10"
+            >
+              <Grid3X3 className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={viewMode === "list" ? "default" : "outline"}
+              size="icon"
+              onClick={() => setViewMode("list")}
+              className="h-9 w-9 sm:h-10 sm:w-10"
+            >
+              <List className="w-4 h-4" />
+            </Button>
           </div>
         </div>
 
