@@ -13,12 +13,14 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { useThemeSettings } from "@/hooks/useThemeSettings";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const location = useLocation();
   const { user, role } = useAuth();
+  const { logoUrl } = useThemeSettings();
 
   const getDashboardLink = () => {
     switch (role) {
@@ -50,9 +52,13 @@ const Navbar = () => {
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center shadow-glow">
-              <Store className="w-5 h-5 text-primary-foreground" />
-            </div>
+            {logoUrl ? (
+              <img src={logoUrl} alt="سوقنا" className="h-10 w-auto object-contain" />
+            ) : (
+              <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center shadow-glow">
+                <Store className="w-5 h-5 text-primary-foreground" />
+              </div>
+            )}
             <span className="text-xl font-bold text-gradient">سوقنا</span>
           </Link>
 
