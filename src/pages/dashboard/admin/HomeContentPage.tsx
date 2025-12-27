@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -49,7 +49,17 @@ import {
   Upload,
   Layout,
   Palette,
-  Check
+  Check,
+  Link as LinkIcon,
+  Phone,
+  Mail,
+  MapPin,
+  Facebook,
+  Twitter,
+  Instagram,
+  Youtube,
+  MessageCircle,
+  Music2
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -80,6 +90,17 @@ interface StoreTemplate {
   is_active: boolean;
   is_premium: boolean;
   downloads_count: number;
+}
+
+interface SiteSetting {
+  id: string;
+  key: string;
+  value: Record<string, any>;
+}
+
+interface FooterLink {
+  label: string;
+  href: string;
 }
 
 const sectionIcons: Record<string, React.ReactNode> = {
@@ -141,6 +162,14 @@ const HomeContentPage = () => {
     sort_order: 0
   });
 
+  // Footer state
+  const [footerQuickLinks, setFooterQuickLinks] = useState<FooterLink[]>([]);
+  const [footerMerchantLinks, setFooterMerchantLinks] = useState<FooterLink[]>([]);
+  const [footerContact, setFooterContact] = useState({ phone: "", email: "", address: "" });
+  const [footerSocial, setFooterSocial] = useState({ facebook: "", twitter: "", instagram: "", whatsapp: "", youtube: "", tiktok: "" });
+  const [footerBrand, setFooterBrand] = useState({ name: "", description: "", copyright: "" });
+  const [footerLegal, setFooterLegal] = useState({ privacy_policy: "", terms: "" });
+
   const { data: sections, isLoading } = useQuery({
     queryKey: ["home-sections"],
     queryFn: async () => {
@@ -166,6 +195,66 @@ const HomeContentPage = () => {
       return data as StoreTemplate[];
     },
   });
+
+  const { data: siteSettings, isLoading: settingsLoading } = useQuery({
+    queryKey: ["site-settings-footer"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("site_settings")
+        .select("*")
+        .in("key", ["footer_quick_links", "footer_merchant_links", "footer_contact", "footer_social", "footer_brand", "footer_legal_links"]);
+
+      if (error) throw error;
+      return data as SiteSetting[];
+    },
+  });
+
+  // Initialize footer state from database
+  useEffect(() => {
+    if (siteSettings) {
+      siteSettings.forEach(setting => {
+        const value = setting.value as Record<string, any>;
+        switch (setting.key) {
+          case "footer_quick_links":
+            setFooterQuickLinks(value.links || []);
+            break;
+          case "footer_merchant_links":
+            setFooterMerchantLinks(value.links || []);
+            break;
+          case "footer_contact":
+            setFooterContact({ 
+              phone: value.phone || "", 
+              email: value.email || "", 
+              address: value.address || "" 
+            });
+            break;
+          case "footer_social":
+            setFooterSocial({
+              facebook: value.facebook || "",
+              twitter: value.twitter || "",
+              instagram: value.instagram || "",
+              whatsapp: value.whatsapp || "",
+              youtube: value.youtube || "",
+              tiktok: value.tiktok || ""
+            });
+            break;
+          case "footer_brand":
+            setFooterBrand({
+              name: value.name || "",
+              description: value.description || "",
+              copyright: value.copyright || ""
+            });
+            break;
+          case "footer_legal_links":
+            setFooterLegal({
+              privacy_policy: value.privacy_policy || "",
+              terms: value.terms || ""
+            });
+            break;
+        }
+      });
+    }
+  }, [siteSettings]);
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<HomeSection> }) => {
@@ -232,13 +321,11 @@ const HomeContentPage = () => {
 
   const applyTemplateMutation = useMutation({
     mutationFn: async (template: StoreTemplate) => {
-      // Update downloads count
       await supabase
         .from("store_templates")
         .update({ downloads_count: (template.downloads_count || 0) + 1 })
         .eq("id", template.id);
 
-      // Apply template sections visibility
       const templateSections = template.template_data?.sections || [];
       
       if (sections) {
@@ -264,6 +351,36 @@ const HomeContentPage = () => {
     },
     onError: () => {
       toast.error("حدث خطأ أثناء تطبيق القالب");
+    },
+  });
+
+  const updateFooterSettingMutation = useMutation({
+    mutationFn: async ({ key, value }: { key: string; value: Record<string, any> }) => {
+      const { data: existing } = await supabase
+        .from("site_settings")
+        .select("id")
+        .eq("key", key)
+        .single();
+
+      if (existing) {
+        const { error } = await supabase
+          .from("site_settings")
+          .update({ value })
+          .eq("key", key);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("site_settings")
+          .insert({ key, value });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["site-settings-footer"] });
+      toast.success("تم حفظ الإعدادات بنجاح");
+    },
+    onError: () => {
+      toast.error("حدث خطأ أثناء الحفظ");
     },
   });
 
@@ -321,6 +438,51 @@ const HomeContentPage = () => {
         [key]: value
       }
     });
+  };
+
+  const addFooterLink = (type: "quick" | "merchant") => {
+    if (type === "quick") {
+      setFooterQuickLinks([...footerQuickLinks, { label: "", href: "" }]);
+    } else {
+      setFooterMerchantLinks([...footerMerchantLinks, { label: "", href: "" }]);
+    }
+  };
+
+  const updateFooterLink = (type: "quick" | "merchant", index: number, field: "label" | "href", value: string) => {
+    if (type === "quick") {
+      const updated = [...footerQuickLinks];
+      updated[index][field] = value;
+      setFooterQuickLinks(updated);
+    } else {
+      const updated = [...footerMerchantLinks];
+      updated[index][field] = value;
+      setFooterMerchantLinks(updated);
+    }
+  };
+
+  const removeFooterLink = (type: "quick" | "merchant", index: number) => {
+    if (type === "quick") {
+      setFooterQuickLinks(footerQuickLinks.filter((_, i) => i !== index));
+    } else {
+      setFooterMerchantLinks(footerMerchantLinks.filter((_, i) => i !== index));
+    }
+  };
+
+  const saveFooterSettings = () => {
+    updateFooterSettingMutation.mutate({ key: "footer_quick_links", value: { links: footerQuickLinks } });
+    updateFooterSettingMutation.mutate({ key: "footer_merchant_links", value: { links: footerMerchantLinks } });
+    updateFooterSettingMutation.mutate({ key: "footer_contact", value: footerContact });
+    updateFooterSettingMutation.mutate({ key: "footer_social", value: footerSocial });
+    updateFooterSettingMutation.mutate({ key: "footer_brand", value: footerBrand });
+    updateFooterSettingMutation.mutate({ key: "footer_legal_links", value: footerLegal });
+  };
+
+  const openEditWithDefaults = (section: HomeSection) => {
+    // Merge default settings with existing settings
+    const defaultSettings = defaultSectionSettings[section.section_key] || {};
+    const mergedSettings = { ...defaultSettings, ...section.settings };
+    setEditingSection({ ...section, settings: mergedSettings });
+    setIsEditDialogOpen(true);
   };
 
   if (isLoading) {
@@ -401,10 +563,14 @@ const HomeContentPage = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="sections" className="flex items-center gap-2">
               <Settings className="w-4 h-4" />
               الأقسام
+            </TabsTrigger>
+            <TabsTrigger value="footer" className="flex items-center gap-2">
+              <LinkIcon className="w-4 h-4" />
+              الفوتر
             </TabsTrigger>
             <TabsTrigger value="templates" className="flex items-center gap-2">
               <Layout className="w-4 h-4" />
@@ -507,6 +673,7 @@ const HomeContentPage = () => {
                       <TableHead className="w-12">الترتيب</TableHead>
                       <TableHead>القسم</TableHead>
                       <TableHead>الاسم بالعربية</TableHead>
+                      <TableHead>المحتوى الحالي</TableHead>
                       <TableHead>الحالة</TableHead>
                       <TableHead className="text-left">الإجراءات</TableHead>
                     </TableRow>
@@ -532,6 +699,30 @@ const HomeContentPage = () => {
                         </TableCell>
                         <TableCell>
                           <span className="font-medium">{section.title_ar}</span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="max-w-xs">
+                            {section.section_key === 'hero' && section.settings?.main_title && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                {section.settings.main_title} {section.settings.highlight_text}
+                              </p>
+                            )}
+                            {section.section_key === 'cta' && section.settings?.title && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                {section.settings.title}
+                              </p>
+                            )}
+                            {section.section_key === 'features' && section.settings?.items && (
+                              <p className="text-xs text-muted-foreground">
+                                {section.settings.items.length} عناصر
+                              </p>
+                            )}
+                            {section.subtitle_ar && !['hero', 'cta', 'features'].includes(section.section_key) && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                {section.subtitle_ar}
+                              </p>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
@@ -566,10 +757,7 @@ const HomeContentPage = () => {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => {
-                                setEditingSection(section);
-                                setIsEditDialogOpen(true);
-                              }}
+                              onClick={() => openEditWithDefaults(section)}
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
@@ -595,6 +783,313 @@ const HomeContentPage = () => {
                 </Table>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Footer Tab */}
+          <TabsContent value="footer" className="space-y-4">
+            {settingsLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin" />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Brand Settings */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Home className="w-5 h-5" />
+                      معلومات العلامة التجارية
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label>اسم المنصة</Label>
+                      <Input
+                        value={footerBrand.name}
+                        onChange={(e) => setFooterBrand({ ...footerBrand, name: e.target.value })}
+                        placeholder="سوقنا"
+                      />
+                    </div>
+                    <div>
+                      <Label>وصف المنصة</Label>
+                      <Textarea
+                        value={footerBrand.description}
+                        onChange={(e) => setFooterBrand({ ...footerBrand, description: e.target.value })}
+                        rows={3}
+                        placeholder="منصة سوقنا هي الوجهة الأولى..."
+                      />
+                    </div>
+                    <div>
+                      <Label>نص حقوق النشر</Label>
+                      <Input
+                        value={footerBrand.copyright}
+                        onChange={(e) => setFooterBrand({ ...footerBrand, copyright: e.target.value })}
+                        placeholder="© 2024 سوقنا. جميع الحقوق محفوظة."
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Contact Info */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Phone className="w-5 h-5" />
+                      معلومات الاتصال
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label className="flex items-center gap-2">
+                        <Phone className="w-4 h-4" />
+                        رقم الهاتف
+                      </Label>
+                      <Input
+                        value={footerContact.phone}
+                        onChange={(e) => setFooterContact({ ...footerContact, phone: e.target.value })}
+                        placeholder="+966 50 123 4567"
+                        dir="ltr"
+                      />
+                    </div>
+                    <div>
+                      <Label className="flex items-center gap-2">
+                        <Mail className="w-4 h-4" />
+                        البريد الإلكتروني
+                      </Label>
+                      <Input
+                        value={footerContact.email}
+                        onChange={(e) => setFooterContact({ ...footerContact, email: e.target.value })}
+                        placeholder="support@souqna.com"
+                        dir="ltr"
+                      />
+                    </div>
+                    <div>
+                      <Label className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4" />
+                        العنوان
+                      </Label>
+                      <Input
+                        value={footerContact.address}
+                        onChange={(e) => setFooterContact({ ...footerContact, address: e.target.value })}
+                        placeholder="المملكة العربية السعودية، الرياض"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Social Media */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Instagram className="w-5 h-5" />
+                      وسائل التواصل الاجتماعي
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="flex items-center gap-2">
+                          <Facebook className="w-4 h-4 text-blue-600" />
+                          فيسبوك
+                        </Label>
+                        <Input
+                          value={footerSocial.facebook}
+                          onChange={(e) => setFooterSocial({ ...footerSocial, facebook: e.target.value })}
+                          placeholder="https://facebook.com/..."
+                          dir="ltr"
+                        />
+                      </div>
+                      <div>
+                        <Label className="flex items-center gap-2">
+                          <Twitter className="w-4 h-4 text-sky-500" />
+                          تويتر
+                        </Label>
+                        <Input
+                          value={footerSocial.twitter}
+                          onChange={(e) => setFooterSocial({ ...footerSocial, twitter: e.target.value })}
+                          placeholder="https://twitter.com/..."
+                          dir="ltr"
+                        />
+                      </div>
+                      <div>
+                        <Label className="flex items-center gap-2">
+                          <Instagram className="w-4 h-4 text-pink-500" />
+                          انستقرام
+                        </Label>
+                        <Input
+                          value={footerSocial.instagram}
+                          onChange={(e) => setFooterSocial({ ...footerSocial, instagram: e.target.value })}
+                          placeholder="https://instagram.com/..."
+                          dir="ltr"
+                        />
+                      </div>
+                      <div>
+                        <Label className="flex items-center gap-2">
+                          <MessageCircle className="w-4 h-4 text-green-500" />
+                          واتساب
+                        </Label>
+                        <Input
+                          value={footerSocial.whatsapp}
+                          onChange={(e) => setFooterSocial({ ...footerSocial, whatsapp: e.target.value })}
+                          placeholder="https://wa.me/..."
+                          dir="ltr"
+                        />
+                      </div>
+                      <div>
+                        <Label className="flex items-center gap-2">
+                          <Youtube className="w-4 h-4 text-red-500" />
+                          يوتيوب
+                        </Label>
+                        <Input
+                          value={footerSocial.youtube}
+                          onChange={(e) => setFooterSocial({ ...footerSocial, youtube: e.target.value })}
+                          placeholder="https://youtube.com/..."
+                          dir="ltr"
+                        />
+                      </div>
+                      <div>
+                        <Label className="flex items-center gap-2">
+                          <Music2 className="w-4 h-4" />
+                          تيك توك
+                        </Label>
+                        <Input
+                          value={footerSocial.tiktok}
+                          onChange={(e) => setFooterSocial({ ...footerSocial, tiktok: e.target.value })}
+                          placeholder="https://tiktok.com/..."
+                          dir="ltr"
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Legal Links */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <LinkIcon className="w-5 h-5" />
+                      الروابط القانونية
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label>رابط سياسة الخصوصية</Label>
+                      <Input
+                        value={footerLegal.privacy_policy}
+                        onChange={(e) => setFooterLegal({ ...footerLegal, privacy_policy: e.target.value })}
+                        placeholder="/privacy"
+                        dir="ltr"
+                      />
+                    </div>
+                    <div>
+                      <Label>رابط الشروط والأحكام</Label>
+                      <Input
+                        value={footerLegal.terms}
+                        onChange={(e) => setFooterLegal({ ...footerLegal, terms: e.target.value })}
+                        placeholder="/terms"
+                        dir="ltr"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Quick Links */}
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <LinkIcon className="w-5 h-5" />
+                      روابط سريعة
+                    </CardTitle>
+                    <Button size="sm" variant="outline" onClick={() => addFooterLink("quick")}>
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {footerQuickLinks.map((link, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <Input
+                          value={link.label}
+                          onChange={(e) => updateFooterLink("quick", index, "label", e.target.value)}
+                          placeholder="العنوان"
+                          className="flex-1"
+                        />
+                        <Input
+                          value={link.href}
+                          onChange={(e) => updateFooterLink("quick", index, "href", e.target.value)}
+                          placeholder="/path"
+                          className="flex-1"
+                          dir="ltr"
+                        />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive"
+                          onClick={() => removeFooterLink("quick", index)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                {/* Merchant Links */}
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <ShoppingBag className="w-5 h-5" />
+                      روابط التجار
+                    </CardTitle>
+                    <Button size="sm" variant="outline" onClick={() => addFooterLink("merchant")}>
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {footerMerchantLinks.map((link, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <Input
+                          value={link.label}
+                          onChange={(e) => updateFooterLink("merchant", index, "label", e.target.value)}
+                          placeholder="العنوان"
+                          className="flex-1"
+                        />
+                        <Input
+                          value={link.href}
+                          onChange={(e) => updateFooterLink("merchant", index, "href", e.target.value)}
+                          placeholder="/path"
+                          className="flex-1"
+                          dir="ltr"
+                        />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive"
+                          onClick={() => removeFooterLink("merchant", index)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                {/* Save Button */}
+                <div className="lg:col-span-2">
+                  <Button 
+                    onClick={saveFooterSettings} 
+                    className="w-full"
+                    disabled={updateFooterSettingMutation.isPending}
+                  >
+                    {updateFooterSettingMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin ml-2" />
+                    ) : (
+                      <Save className="w-4 h-4 ml-2" />
+                    )}
+                    حفظ إعدادات الفوتر
+                  </Button>
+                </div>
+              </div>
+            )}
           </TabsContent>
 
           {/* Templates Tab */}
@@ -832,6 +1327,13 @@ const HomeContentPage = () => {
                         rows={3}
                       />
                     </div>
+                    <div>
+                      <Label>نص البحث</Label>
+                      <Input
+                        value={editingSection.settings?.search_placeholder || ""}
+                        onChange={(e) => updateSectionSetting('search_placeholder', e.target.value)}
+                      />
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <Label>زر رئيسي</Label>
@@ -847,6 +1349,33 @@ const HomeContentPage = () => {
                           onChange={(e) => updateSectionSetting('cta_secondary', e.target.value)}
                         />
                       </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>الإحصائيات</Label>
+                      {(editingSection.settings?.stats || []).map((stat: any, idx: number) => (
+                        <div key={idx} className="flex gap-2">
+                          <Input
+                            value={stat.value}
+                            onChange={(e) => {
+                              const stats = [...(editingSection.settings?.stats || [])];
+                              stats[idx] = { ...stats[idx], value: e.target.value };
+                              updateSectionSetting('stats', stats);
+                            }}
+                            placeholder="القيمة"
+                            className="flex-1"
+                          />
+                          <Input
+                            value={stat.label}
+                            onChange={(e) => {
+                              const stats = [...(editingSection.settings?.stats || [])];
+                              stats[idx] = { ...stats[idx], label: e.target.value };
+                              updateSectionSetting('stats', stats);
+                            }}
+                            placeholder="التسمية"
+                            className="flex-1"
+                          />
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -886,6 +1415,96 @@ const HomeContentPage = () => {
                     </div>
                   </div>
                 )}
+
+                {editingSection.section_key === 'features' && (
+                  <div className="space-y-4 border-t pt-4">
+                    <h4 className="font-semibold">إعدادات قسم المميزات</h4>
+                    {(editingSection.settings?.items || []).map((item: any, idx: number) => (
+                      <div key={idx} className="p-4 border rounded-lg space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label>الميزة {idx + 1}</Label>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-destructive"
+                            onClick={() => {
+                              const items = [...(editingSection.settings?.items || [])];
+                              items.splice(idx, 1);
+                              updateSectionSetting('items', items);
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-xs">الأيقونة</Label>
+                            <Input
+                              value={item.icon}
+                              onChange={(e) => {
+                                const items = [...(editingSection.settings?.items || [])];
+                                items[idx] = { ...items[idx], icon: e.target.value };
+                                updateSectionSetting('items', items);
+                              }}
+                              placeholder="Truck, Shield, Headphones..."
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs">اللون</Label>
+                            <select
+                              className="w-full p-2 border rounded-md"
+                              value={item.color}
+                              onChange={(e) => {
+                                const items = [...(editingSection.settings?.items || [])];
+                                items[idx] = { ...items[idx], color: e.target.value };
+                                updateSectionSetting('items', items);
+                              }}
+                            >
+                              <option value="blue">أزرق</option>
+                              <option value="green">أخضر</option>
+                              <option value="purple">بنفسجي</option>
+                              <option value="red">أحمر</option>
+                              <option value="orange">برتقالي</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-xs">العنوان</Label>
+                          <Input
+                            value={item.title}
+                            onChange={(e) => {
+                              const items = [...(editingSection.settings?.items || [])];
+                              items[idx] = { ...items[idx], title: e.target.value };
+                              updateSectionSetting('items', items);
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">الوصف</Label>
+                          <Input
+                            value={item.description}
+                            onChange={(e) => {
+                              const items = [...(editingSection.settings?.items || [])];
+                              items[idx] = { ...items[idx], description: e.target.value };
+                              updateSectionSetting('items', items);
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        const items = [...(editingSection.settings?.items || [])];
+                        items.push({ icon: "Star", title: "", description: "", color: "blue" });
+                        updateSectionSetting('items', items);
+                      }}
+                    >
+                      <Plus className="w-4 h-4 ml-2" />
+                      إضافة ميزة
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -913,6 +1532,7 @@ const HomeContentPage = () => {
               <li>استخدم أزرار الترتيب لتغيير موضع الأقسام في الصفحة</li>
               <li>اضغط على زر التعديل لتغيير محتوى ونصوص وصور كل قسم</li>
               <li>يمكنك تطبيق قالب جاهز لتغيير مظهر الصفحة بالكامل</li>
+              <li>استخدم تبويب "الفوتر" لتعديل روابط وبيانات أسفل الموقع</li>
               <li>الأقسام المخصصة (custom_) يمكن حذفها، أما الأقسام الأساسية فيمكن إخفاؤها فقط</li>
             </ul>
           </CardContent>
