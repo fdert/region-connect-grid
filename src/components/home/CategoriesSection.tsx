@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
+import * as LucideIcons from "lucide-react";
 import { Tag, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +34,18 @@ const colorPalette = [
   "bg-indigo-500",
   "bg-cyan-500",
 ];
+
+// Helper to get Lucide icon by name
+const getIconComponent = (iconName: string | null): React.ComponentType<{ className?: string }> => {
+  if (!iconName) return Tag;
+  
+  // Capitalize first letter to match Lucide icon names
+  const formattedName = iconName.charAt(0).toUpperCase() + iconName.slice(1);
+  const icons = LucideIcons as unknown as Record<string, React.ComponentType<{ className?: string }>>;
+  const IconComponent = icons[formattedName];
+  
+  return IconComponent || Tag;
+};
 
 const CategoriesSection = () => {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -138,6 +151,7 @@ const CategoriesSection = () => {
             {categories.map((category, index) => {
               const bgColor = colorPalette[index % colorPalette.length];
               const productCount = storeCounts[category.id] || 0;
+              const IconComponent = getIconComponent(category.icon);
 
               return (
                 <CarouselItem key={category.id} className="basis-1/2 sm:basis-1/3 lg:basis-1/4 pr-4">
@@ -156,7 +170,7 @@ const CategoriesSection = () => {
                           />
                         ) : (
                           <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
-                            <Tag className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+                            <IconComponent className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
                           </div>
                         )}
                       </div>
