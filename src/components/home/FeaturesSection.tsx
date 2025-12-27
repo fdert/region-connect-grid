@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -88,7 +89,7 @@ const defaultSettings: FeaturesSettings = {
   items: defaultItems,
 };
 
-const FeaturesSection = () => {
+const FeaturesSection = forwardRef<HTMLElement, object>((_, ref) => {
   const { data: featuresSection } = useQuery({
     queryKey: ["features-section-content"],
     queryFn: async () => {
@@ -111,7 +112,7 @@ const FeaturesSection = () => {
   const features = settings.items || defaultItems;
 
   return (
-    <section className="py-16 md:py-24">
+    <section ref={ref} className="py-16 md:py-24">
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto mb-12">
@@ -154,6 +155,8 @@ const FeaturesSection = () => {
       </div>
     </section>
   );
-};
+});
+
+FeaturesSection.displayName = "FeaturesSection";
 
 export default FeaturesSection;

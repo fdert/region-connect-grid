@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -30,7 +31,7 @@ const defaultSettings: HeroSettings = {
   ]
 };
 
-const HeroSection = () => {
+const HeroSection = forwardRef<HTMLElement, object>((_, ref) => {
   const { data: heroSection } = useQuery({
     queryKey: ["hero-section-content"],
     queryFn: async () => {
@@ -53,7 +54,7 @@ const HeroSection = () => {
   const stats = settings.stats || defaultSettings.stats;
 
   return (
-    <section className="relative min-h-[70vh] sm:min-h-[80vh] md:min-h-[90vh] flex items-center justify-center overflow-hidden px-4">
+    <section ref={ref} className="relative min-h-[70vh] sm:min-h-[80vh] md:min-h-[90vh] flex items-center justify-center overflow-hidden px-4">
       {/* Background Pattern */}
       <div 
         className="absolute inset-0 gradient-hero opacity-95" 
@@ -166,6 +167,8 @@ const HeroSection = () => {
       </div>
     </section>
   );
-};
+});
+
+HeroSection.displayName = "HeroSection";
 
 export default HeroSection;
