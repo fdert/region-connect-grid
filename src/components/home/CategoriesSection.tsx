@@ -14,16 +14,18 @@ interface Category {
   is_active: boolean;
 }
 
-// Color palette for categories
-const colorPalette = [
-  "bg-sky-500",
-  "bg-teal-500",
-  "bg-emerald-500",
-  "bg-amber-500",
-  "bg-rose-500",
-  "bg-violet-500",
-  "bg-indigo-500",
-  "bg-cyan-500",
+// Color palette for category icons
+const iconColorPalette = [
+  "text-emerald-500",
+  "text-rose-500",
+  "text-amber-500",
+  "text-violet-500",
+  "text-sky-500",
+  "text-teal-500",
+  "text-indigo-500",
+  "text-cyan-500",
+  "text-pink-500",
+  "text-orange-500",
 ];
 
 // Helper to get Lucide icon by name
@@ -49,14 +51,13 @@ const CategoriesSection = () => {
 
   const fetchCategories = async () => {
     try {
-      // Fetch categories
+      // Fetch all active categories (no limit)
       const { data: categoriesData, error: categoriesError } = await supabase
         .from("categories")
         .select("*")
         .eq("is_active", true)
         .is("parent_id", null)
-        .order("sort_order")
-        .limit(10);
+        .order("sort_order");
 
       if (categoriesError) throw categoriesError;
 
@@ -118,17 +119,30 @@ const CategoriesSection = () => {
           <h2 className="text-lg sm:text-xl font-bold">
             قسّمناها لك
           </h2>
-          <Link to="/categories" className="text-xs sm:text-sm text-primary hover:underline flex items-center gap-1">
-            عرض المزيد
-            <ArrowLeft className="w-3 h-3" />
-          </Link>
         </div>
 
-        {/* Categories Grid - Compact design matching products */}
-        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2">
+        {/* Categories Grid - Design matching reference image */}
+        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 gap-3 sm:gap-4">
+          {/* "All" Category First */}
+          <Link
+            to="/categories"
+            className="block group"
+          >
+            <div className="bg-primary rounded-xl p-3 sm:p-4 flex flex-col items-center justify-center gap-2 hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 aspect-square">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" />
+                  <rect x="14" y="14" width="7" height="7" rx="1" />
+                </svg>
+              </div>
+              <span className="text-white font-semibold text-xs sm:text-sm">الكل</span>
+            </div>
+          </Link>
+          
           {categories.map((category, index) => {
-            const bgColor = colorPalette[index % colorPalette.length];
-            const productCount = storeCounts[category.id] || 0;
+            const iconColor = iconColorPalette[index % iconColorPalette.length];
             const IconComponent = getIconComponent(category.icon);
 
             return (
@@ -137,33 +151,21 @@ const CategoriesSection = () => {
                 to={`/categories/${category.id}`}
                 className="block group"
               >
-                <div className="bg-card rounded-lg border border-border/50 overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
-                  {/* Category Image */}
-                  <div className={`relative aspect-square ${bgColor} flex items-center justify-center`}>
+                <div className="bg-card rounded-xl border border-border/50 p-3 sm:p-4 flex flex-col items-center justify-center gap-2 hover:shadow-lg hover:border-primary/30 transition-all duration-200 hover:-translate-y-0.5 aspect-square">
+                  <div className={`w-10 h-10 sm:w-12 sm:h-12 bg-muted rounded-lg flex items-center justify-center ${iconColor}`}>
                     {category.image_url ? (
                       <img 
                         src={category.image_url} 
                         alt={category.name_ar}
-                        className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-200"
+                        className="w-8 h-8 sm:w-10 sm:h-10 object-contain group-hover:scale-110 transition-transform duration-200"
                       />
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
-                        <IconComponent className="w-4 h-4 text-white" />
-                      </div>
+                      <IconComponent className="w-5 h-5 sm:w-6 sm:h-6" />
                     )}
                   </div>
-                  
-                  {/* Category Name */}
-                  <div className="p-1.5 bg-background">
-                    <h4 className="font-medium text-[10px] sm:text-xs text-center line-clamp-1 text-foreground">
-                      {category.name_ar}
-                    </h4>
-                    {productCount > 0 && (
-                      <p className="text-[8px] text-muted-foreground text-center">
-                        {productCount} منتج
-                      </p>
-                    )}
-                  </div>
+                  <span className="text-foreground font-medium text-[10px] sm:text-xs text-center line-clamp-2 leading-tight">
+                    {category.name_ar}
+                  </span>
                 </div>
               </Link>
             );
