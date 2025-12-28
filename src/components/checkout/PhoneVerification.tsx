@@ -30,13 +30,13 @@ const PhoneVerification = ({ onVerified, onBack }: PhoneVerificationProps) => {
   const [step, setStep] = useState<Step>("phone");
   const [phone, setPhone] = useState("");
   const [otpCode, setOtpCode] = useState("");
-  const [demoCode, setDemoCode] = useState("");
   const [address, setAddress] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [locationLoading, setLocationLoading] = useState(false);
   const [waitingForWhatsAppLocation, setWaitingForWhatsAppLocation] = useState(false);
   const [locationRequestSent, setLocationRequestSent] = useState(false);
+  const [locationCheckCount, setLocationCheckCount] = useState(0);
 
   useEffect(() => {
     if (countdown > 0) {
@@ -99,10 +99,6 @@ const PhoneVerification = ({ onVerified, onBack }: PhoneVerificationProps) => {
 
       if (error) throw error;
 
-      if (data?.demo_code) {
-        setDemoCode(data.demo_code);
-      }
-
       toast({
         title: "تم الإرسال",
         description: "تم إرسال رمز التحقق إلى واتساب"
@@ -132,15 +128,7 @@ const PhoneVerification = ({ onVerified, onBack }: PhoneVerificationProps) => {
       return;
     }
 
-    // For demo - verify against demo code
-    if (demoCode && otpCode !== demoCode) {
-      toast({
-        title: "خطأ",
-        description: "رمز التحقق غير صحيح",
-        variant: "destructive"
-      });
-      return;
-    }
+    // Verify OTP via backend - real validation
 
     setIsLoading(true);
     try {
@@ -345,12 +333,9 @@ const PhoneVerification = ({ onVerified, onBack }: PhoneVerificationProps) => {
             <p className="font-medium text-primary" dir="ltr">{phone}</p>
           </div>
 
-          {demoCode && (
-            <div className="bg-muted/50 rounded-lg p-3 text-center text-sm">
-              <span className="text-muted-foreground">للتجربة، رمز التحقق هو: </span>
-              <span className="font-bold text-primary">{demoCode}</span>
-            </div>
-          )}
+          <div className="bg-muted/50 rounded-lg p-3 text-center text-sm">
+            <span className="text-muted-foreground">تحقق من الواتساب لمعرفة رمز التحقق</span>
+          </div>
 
           <div className="flex justify-center py-4" dir="ltr">
             <InputOTP 

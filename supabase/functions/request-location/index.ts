@@ -41,16 +41,24 @@ serve(async (req) => {
       formattedPhone = '+' + formattedPhone;
     }
 
-    // Get active webhook for sending WhatsApp messages
+    // Get active webhook for location requests - check for both event types
     const { data: webhooks, error: webhookError } = await supabase
       .from("webhook_settings")
       .select("*")
-      .eq("is_active", true)
-      .contains("events", ["whatsapp.message"]);
+      .eq("is_active", true);
 
     if (webhookError) {
       console.error("Error fetching webhooks:", webhookError);
     }
+
+    // Filter webhooks that contain location.request OR whatsapp.message
+    const locationWebhooks = webhooks?.filter(w => 
+      w.events?.includes("location.request") || 
+      w.events?.includes("whatsapp.message") ||
+      w.events?.includes("whatsapp")
+    ) || [];
+
+    console.log("Found webhooks for location request:", locationWebhooks.length);
 
     // Get location request template
     const { data: template, error: templateError } = await supabase
@@ -61,7 +69,16 @@ serve(async (req) => {
       .maybeSingle();
 
     // Default message if no template found
-    let message = `📍 مرحباً!\n\nلإتمام طلبك، نحتاج لموقع التوصيل.\n\nالرجاء إرسال موقعك الحالي عبر:\n1. اضغط على أيقونة المرفقات (📎)\n2. اختر "الموقع" (Location)\n3. أرسل موقعك الحالي\n\nشكراً لك! 🚚`;
+    let message = `📍 مرحباً!
+
+لإتمام طلبك، نحتاج لموقع التوصيل.
+
+الرجاء إرسال موقعك الحالي عبر:
+1. اضغط على أيقونة المرفقات (📎)
+2. اختر "الموقع" (Location)
+3. أرسل موقعك الحالي
+
+شكراً لك! 🚚`;
 
     if (template) {
       message = template.template;
@@ -69,11 +86,14 @@ serve(async (req) => {
 
     // Send WhatsApp message via webhook
     let webhookSent = false;
-    if (webhooks && webhooks.length > 0) {
-      for (const webhook of webhooks) {
+    let webhookResponses: string[] = [];
+    
+    if (locationWebhooks.length > 0) {
+      for (const webhook of locationWebhooks) {
         try {
           const webhookPayload = {
             type: "location_request",
+            event: "location.request",
             phone: formattedPhone,
             message: message,
             timestamp: new Date().toISOString()
@@ -90,16 +110,23 @@ serve(async (req) => {
             body: JSON.stringify(webhookPayload)
           });
 
+          const responseText = await response.text();
+          console.log(`Webhook ${webhook.name} response: ${response.status} - ${responseText}`);
+          webhookResponses.push(`${webhook.name}: ${response.status}`);
+
           if (response.ok) {
             webhookSent = true;
-            console.log("Location request sent successfully via webhook");
+            console.log("Location request sent successfully via webhook:", webhook.name);
           } else {
-            console.error("Webhook response not ok:", response.status);
+            console.error("Webhook response not ok:", response.status, responseText);
           }
         } catch (error) {
-          console.error("Error sending to webhook:", error);
+          console.error("Error sending to webhook:", webhook.name, error);
+          webhookResponses.push(`${webhook.name}: error`);
         }
       }
+    } else {
+      console.log("No webhooks configured for location.request");
     }
 
     // Update OTP session to mark that location was requested
@@ -119,7 +146,9 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         message: "Location request sent via WhatsApp",
-        webhook_sent: webhookSent
+        webhook_sent: webhookSent,
+        webhooks_found: locationWebhooks.length,
+        webhook_responses: webhookResponses
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
