@@ -8,7 +8,7 @@ const corsHeaders = {
 
 interface OTPRequest {
   phone: string;
-  action: "send" | "verify";
+  action: "send" | "verify" | "check_location";
   code?: string;
   user_id?: string;
   location_url?: string;
@@ -50,13 +50,63 @@ serve(async (req) => {
 
     console.log(`OTP action: ${action} for phone: ${formattedPhone}`);
 
+    // Check location action - poll for location from WhatsApp
+    if (action === "check_location") {
+      const { data: otpSession, error: fetchError } = await supabase
+        .from("otp_sessions")
+        .select("*")
+        .eq("phone", formattedPhone)
+        .gt("expires_at", new Date().toISOString())
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (fetchError || !otpSession) {
+        return new Response(
+          JSON.stringify({ success: false, has_location: false }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (otpSession.location_lat && otpSession.location_lng) {
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            has_location: true,
+            location: {
+              lat: otpSession.location_lat,
+              lng: otpSession.location_lng,
+              address: otpSession.location_address,
+              url: otpSession.location_url
+            }
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, has_location: false }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     if (action === "send") {
       // Generate OTP
       const otpCode = generateOTP();
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes expiry
 
-      // Store OTP in database (we'll use a simple approach with site_settings or create a temp storage)
-      // For now, we'll use a simple in-memory approach via webhook
+      // Store OTP in database
+      const { error: insertError } = await supabase
+        .from("otp_sessions")
+        .insert({
+          phone: formattedPhone,
+          otp_code: otpCode,
+          expires_at: expiresAt.toISOString()
+        });
+
+      if (insertError) {
+        console.error("Error storing OTP:", insertError);
+      }
       
       // Get webhook URL for WhatsApp
       const { data: webhooks } = await supabase
@@ -136,14 +186,36 @@ serve(async (req) => {
     }
 
     if (action === "verify") {
-      // In a production system, you would verify against stored OTP
-      // For now, we'll do a simple check if code was provided
       if (!code || code.length !== 6) {
         return new Response(
           JSON.stringify({ success: false, error: "رمز التحقق غير صالح" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+
+      // Verify OTP against stored session
+      const { data: otpSession, error: fetchError } = await supabase
+        .from("otp_sessions")
+        .select("*")
+        .eq("phone", formattedPhone)
+        .eq("otp_code", code)
+        .gt("expires_at", new Date().toISOString())
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (fetchError || !otpSession) {
+        return new Response(
+          JSON.stringify({ success: false, error: "رمز التحقق غير صحيح أو منتهي الصلاحية" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Mark session as verified
+      await supabase
+        .from("otp_sessions")
+        .update({ is_verified: true, updated_at: new Date().toISOString() })
+        .eq("id", otpSession.id);
 
       // Update user profile with phone if user_id provided
       if (user_id) {
@@ -153,11 +225,20 @@ serve(async (req) => {
           .eq("user_id", user_id);
       }
 
+      // Return location if available
+      const locationData = otpSession.location_lat && otpSession.location_lng ? {
+        lat: otpSession.location_lat,
+        lng: otpSession.location_lng,
+        address: otpSession.location_address,
+        url: otpSession.location_url
+      } : null;
+
       return new Response(
         JSON.stringify({ 
           success: true, 
           message: "تم التحقق بنجاح",
-          verified_phone: formattedPhone
+          verified_phone: formattedPhone,
+          location: locationData
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

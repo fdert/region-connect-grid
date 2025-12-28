@@ -35,6 +35,7 @@ const PhoneVerification = ({ onVerified, onBack }: PhoneVerificationProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [locationLoading, setLocationLoading] = useState(false);
+  const [checkingWhatsAppLocation, setCheckingWhatsAppLocation] = useState(false);
 
   useEffect(() => {
     if (countdown > 0) {
@@ -42,6 +43,46 @@ const PhoneVerification = ({ onVerified, onBack }: PhoneVerificationProps) => {
       return () => clearTimeout(timer);
     }
   }, [countdown]);
+
+  // Poll for WhatsApp location after OTP is sent
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (step === "otp" || step === "location") {
+      interval = setInterval(async () => {
+        try {
+          const { data } = await supabase.functions.invoke("send-otp", {
+            body: { phone, action: "check_location" }
+          });
+          
+          if (data?.has_location && data?.location) {
+            const loc = data.location;
+            const locationAddress = loc.address || `${loc.lat}, ${loc.lng}`;
+            const fullAddress = `${locationAddress}\n\n📍 رابط الموقع: ${loc.url}`;
+            setAddress(fullAddress);
+            
+            toast({
+              title: "تم استلام الموقع",
+              description: "تم استلام موقعك من الواتساب"
+            });
+            
+            // If we're still on OTP step, move to location
+            if (step === "otp") {
+              // Don't auto-advance, let user complete OTP verification first
+            }
+            
+            clearInterval(interval);
+          }
+        } catch (error) {
+          console.error("Error checking location:", error);
+        }
+      }, 3000); // Check every 3 seconds
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [step, phone, toast]);
 
   const handleSendOTP = async () => {
     if (phone.length < 10) {
@@ -117,6 +158,14 @@ const PhoneVerification = ({ onVerified, onBack }: PhoneVerificationProps) => {
           title: "تم التحقق",
           description: "تم التحقق من رقمك بنجاح"
         });
+        
+        // If location was received from WhatsApp, use it
+        if (data?.location) {
+          const loc = data.location;
+          const locationAddress = loc.address || `${loc.lat}, ${loc.lng}`;
+          setAddress(`${locationAddress}\n\n📍 رابط الموقع: ${loc.url}`);
+        }
+        
         setStep("location");
       } else {
         throw new Error(data?.error || "فشل التحقق");
