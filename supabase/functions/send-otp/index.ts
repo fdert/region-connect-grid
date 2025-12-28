@@ -108,15 +108,20 @@ serve(async (req) => {
         console.error("Error storing OTP:", insertError);
       }
       
-      // Get webhook URL for WhatsApp
+      // Get webhook URL for WhatsApp OTP
       const { data: webhooks } = await supabase
         .from("webhook_settings")
-        .select("url")
-        .eq("is_active", true)
-        .contains("events", ["whatsapp"])
-        .limit(1);
+        .select("*")
+        .eq("is_active", true);
 
-      const webhookUrl = webhooks?.[0]?.url;
+      // Filter for webhooks that handle WhatsApp or OTP events
+      const otpWebhooks = webhooks?.filter(w => 
+        w.events?.includes("whatsapp.otp") || 
+        w.events?.includes("whatsapp.message") ||
+        w.events?.includes("whatsapp")
+      ) || [];
+
+      const webhook = otpWebhooks[0];
 
       // Build verification message with location request
       const message = `🔐 رمز التحقق الخاص بك هو: *${otpCode}*
@@ -132,10 +137,11 @@ serve(async (req) => {
 
 سوقنا 🛒`;
 
-      if (webhookUrl) {
+      if (webhook) {
         // Send OTP via WhatsApp webhook
         const webhookPayload = {
-          event: "otp_verification",
+          event: "whatsapp.otp",
+          type: "otp_verification",
           timestamp: new Date().toISOString(),
           data: {
             phone: formattedPhone,
@@ -145,17 +151,18 @@ serve(async (req) => {
           }
         };
 
-        console.log(`Sending OTP to webhook: ${webhookUrl}`);
+        console.log(`Sending OTP to webhook: ${webhook.url}`);
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 15000);
 
         try {
-          const webhookResponse = await fetch(webhookUrl, {
+          const webhookResponse = await fetch(webhook.url, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "User-Agent": "DeliveryPlatform-OTP/1.0"
+              "User-Agent": "DeliveryPlatform-OTP/1.0",
+              ...(webhook.secret_token && { "X-Webhook-Secret": webhook.secret_token })
             },
             body: JSON.stringify(webhookPayload),
             signal: controller.signal
@@ -168,7 +175,7 @@ serve(async (req) => {
           console.error("Webhook error:", fetchError);
         }
       } else {
-        console.log("No WhatsApp webhook configured");
+        console.log("No WhatsApp webhook configured for OTP");
       }
 
       // Return success with the OTP (in production, this should NOT be returned to client)
