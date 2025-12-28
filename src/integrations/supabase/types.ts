@@ -325,6 +325,48 @@ export type Database = {
           },
         ]
       }
+      otp_sessions: {
+        Row: {
+          created_at: string | null
+          expires_at: string
+          id: string
+          is_verified: boolean | null
+          location_address: string | null
+          location_lat: number | null
+          location_lng: number | null
+          location_url: string | null
+          otp_code: string
+          phone: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          is_verified?: boolean | null
+          location_address?: string | null
+          location_lat?: number | null
+          location_lng?: number | null
+          location_url?: string | null
+          otp_code: string
+          phone: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          is_verified?: boolean | null
+          location_address?: string | null
+          location_lat?: number | null
+          location_lng?: number | null
+          location_url?: string | null
+          otp_code?: string
+          phone?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       points_transactions: {
         Row: {
           created_at: string | null
