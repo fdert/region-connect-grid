@@ -35,7 +35,8 @@ const PhoneVerification = ({ onVerified, onBack }: PhoneVerificationProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [locationLoading, setLocationLoading] = useState(false);
-  const [checkingWhatsAppLocation, setCheckingWhatsAppLocation] = useState(false);
+  const [waitingForWhatsAppLocation, setWaitingForWhatsAppLocation] = useState(false);
+  const [locationRequestSent, setLocationRequestSent] = useState(false);
 
   useEffect(() => {
     if (countdown > 0) {
@@ -44,11 +45,11 @@ const PhoneVerification = ({ onVerified, onBack }: PhoneVerificationProps) => {
     }
   }, [countdown]);
 
-  // Poll for WhatsApp location after OTP is sent
+  // Poll for WhatsApp location after location request is sent
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
-    if (step === "otp" || step === "location") {
+    if (step === "location" && waitingForWhatsAppLocation) {
       interval = setInterval(async () => {
         try {
           const { data } = await supabase.functions.invoke("send-otp", {
@@ -60,16 +61,12 @@ const PhoneVerification = ({ onVerified, onBack }: PhoneVerificationProps) => {
             const locationAddress = loc.address || `${loc.lat}, ${loc.lng}`;
             const fullAddress = `${locationAddress}\n\n📍 رابط الموقع: ${loc.url}`;
             setAddress(fullAddress);
+            setWaitingForWhatsAppLocation(false);
             
             toast({
-              title: "تم استلام الموقع",
-              description: "تم استلام موقعك من الواتساب"
+              title: "تم استلام الموقع ✅",
+              description: "تم استلام موقعك من الواتساب بنجاح"
             });
-            
-            // If we're still on OTP step, move to location
-            if (step === "otp") {
-              // Don't auto-advance, let user complete OTP verification first
-            }
             
             clearInterval(interval);
           }
@@ -82,7 +79,7 @@ const PhoneVerification = ({ onVerified, onBack }: PhoneVerificationProps) => {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [step, phone, toast]);
+  }, [step, phone, waitingForWhatsAppLocation, toast]);
 
   const handleSendOTP = async () => {
     if (phone.length < 10) {
@@ -156,14 +153,25 @@ const PhoneVerification = ({ onVerified, onBack }: PhoneVerificationProps) => {
       if (data?.success) {
         toast({
           title: "تم التحقق",
-          description: "تم التحقق من رقمك بنجاح"
+          description: "تم التحقق من رقمك بنجاح، الآن سيتم طلب موقعك عبر الواتساب"
         });
         
-        // If location was received from WhatsApp, use it
-        if (data?.location) {
-          const loc = data.location;
-          const locationAddress = loc.address || `${loc.lat}, ${loc.lng}`;
-          setAddress(`${locationAddress}\n\n📍 رابط الموقع: ${loc.url}`);
+        // Send location request via WhatsApp
+        try {
+          const { data: locData, error: locError } = await supabase.functions.invoke("request-location", {
+            body: { phone }
+          });
+          
+          if (!locError && locData?.success) {
+            setLocationRequestSent(true);
+            setWaitingForWhatsAppLocation(true);
+            toast({
+              title: "تم إرسال طلب الموقع 📍",
+              description: "تم إرسال رسالة لطلب موقعك عبر الواتساب"
+            });
+          }
+        } catch (error) {
+          console.error("Error requesting location:", error);
         }
         
         setStep("location");
@@ -406,9 +414,47 @@ const PhoneVerification = ({ onVerified, onBack }: PhoneVerificationProps) => {
             </div>
             <h2 className="text-xl font-bold">تحديد موقع التوصيل</h2>
             <p className="text-muted-foreground text-sm mt-1">
-              شارك موقعك لتسهيل عملية التوصيل
+              {locationRequestSent 
+                ? "تم إرسال رسالة واتساب لطلب موقعك، يرجى إرسال موقعك من الواتساب"
+                : "شارك موقعك لتسهيل عملية التوصيل"
+              }
             </p>
           </div>
+
+          {/* WhatsApp Location Status */}
+          {waitingForWhatsAppLocation && (
+            <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-800 rounded-xl p-4 animate-pulse">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
+                  <MessageCircle className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="font-bold text-green-700 dark:text-green-400">في انتظار موقعك من الواتساب</p>
+                  <p className="text-sm text-green-600 dark:text-green-500">
+                    افتح الواتساب وأرسل موقعك الحالي
+                  </p>
+                </div>
+                <Loader2 className="w-6 h-6 animate-spin text-green-500 mr-auto" />
+              </div>
+            </div>
+          )}
+
+          {/* Location received indicator */}
+          {address && !waitingForWhatsAppLocation && (
+            <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-300 dark:border-green-700 rounded-xl p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
+                  <CheckCircle2 className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="font-bold text-green-700 dark:text-green-400">تم استلام الموقع ✅</p>
+                  <p className="text-sm text-green-600 dark:text-green-500">
+                    يمكنك المتابعة أو تعديل الموقع أدناه
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <Button
             variant="outline"
@@ -422,7 +468,7 @@ const PhoneVerification = ({ onVerified, onBack }: PhoneVerificationProps) => {
             ) : (
               <Navigation className="w-6 h-6 text-primary" />
             )}
-            <span className="text-lg">تحديد موقعي الحالي</span>
+            <span className="text-lg">تحديد موقعي من المتصفح</span>
           </Button>
 
           <div className="relative">
@@ -430,7 +476,7 @@ const PhoneVerification = ({ onVerified, onBack }: PhoneVerificationProps) => {
               <div className="w-full border-t border-border" />
             </div>
             <div className="relative flex justify-center">
-              <span className="bg-card px-4 text-sm text-muted-foreground">أو</span>
+              <span className="bg-card px-4 text-sm text-muted-foreground">أو أدخل العنوان يدوياً</span>
             </div>
           </div>
 
