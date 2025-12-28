@@ -71,32 +71,22 @@ const SpecialServicesSection = () => {
   }
 
   return (
-    <section className="py-10 sm:py-16 md:py-24 bg-gradient-to-b from-primary/5 to-background relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-secondary/10 rounded-full blur-3xl" />
-      </div>
-
-      <div className="container mx-auto px-4 relative z-10">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 sm:mb-12 gap-4">
-          <div>
-            <Badge className="mb-3 bg-primary/10 text-primary border-0">
-              <Shield className="w-3 h-3 ml-1" />
-              خدمات موثوقة
-            </Badge>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-3">
-              خدمات <span className="text-gradient">خاصة</span>
+    <section className="py-6 sm:py-8">
+      <div className="container mx-auto px-4">
+        {/* Header - Matching other sections */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Package className="w-4 h-4 text-primary" />
+            </div>
+            <h2 className="text-lg sm:text-xl font-bold">
+              خدمات خاصة
             </h2>
-            <p className="text-muted-foreground text-sm sm:text-base">
-              خدمات توصيل متميزة لتلبية احتياجاتك الخاصة
-            </p>
           </div>
         </div>
 
-        {/* Services Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        {/* Services Grid - Compact design matching products */}
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
           {services.map((service, index) => {
             const IconComponent = iconMap[service.icon || "Package"] || Package;
             
@@ -104,55 +94,43 @@ const SpecialServicesSection = () => {
               <Link
                 key={service.id}
                 to={`/special-services/${service.id}`}
-                className="group opacity-0 animate-slide-up"
-                style={{ animationDelay: `${index * 0.1}s`, animationFillMode: "forwards" }}
+                className="block group"
               >
-                <div className="relative bg-card rounded-2xl overflow-hidden border border-border/50 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2 h-full">
-                  {/* Gradient Background */}
-                  <div className="relative h-40 bg-gradient-to-br from-primary via-primary/80 to-secondary flex items-center justify-center">
-                    <div className="absolute inset-0 bg-[url('/placeholder.svg')] opacity-10" />
-                    <div className="w-20 h-20 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                      <IconComponent className="w-10 h-10 text-white" />
+                <div className="bg-card rounded-lg border border-border/50 overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+                  {/* Service Icon */}
+                  <div className="relative aspect-[4/3] bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center">
+                    <div className="w-10 h-10 bg-white/20 backdrop-blur rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
+                      <IconComponent className="w-5 h-5 text-white" />
                     </div>
                     
                     {/* Price Badge */}
-                    <div className="absolute top-3 left-3">
-                      <Badge className="bg-white/20 backdrop-blur text-white border-0">
-                        يبدأ من {service.min_price || 0} ر.س
-                      </Badge>
+                    <div className="absolute top-1 right-1">
+                      <span className="bg-white/20 backdrop-blur text-white text-[8px] px-1.5 py-0.5 rounded-full">
+                        {service.min_price || 0} ر.س
+                      </span>
                     </div>
                   </div>
 
                   {/* Content */}
-                  <div className="p-5">
-                    <h3 className="font-bold text-lg mb-2 group-hover:text-primary transition-colors">
+                  <div className="p-2">
+                    <h3 className="font-semibold text-[10px] sm:text-xs text-center line-clamp-1 group-hover:text-primary transition-colors">
                       {service.name_ar}
                     </h3>
-                    <p className="text-muted-foreground text-sm mb-4 line-clamp-2">
-                      {service.description_ar || "خدمة توصيل سريعة وآمنة"}
+                    <p className="text-[8px] text-muted-foreground text-center line-clamp-1 mt-0.5">
+                      {service.description_ar || "توصيل سريع وآمن"}
                     </p>
-
-                    {/* Features */}
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
-                        <Clock className="w-3 h-3" />
-                        توصيل سريع
+                    
+                    {/* Mini Features */}
+                    <div className="flex items-center justify-center gap-1 mt-1.5">
+                      <div className="flex items-center gap-0.5 text-[7px] text-muted-foreground bg-muted px-1 py-0.5 rounded">
+                        <Clock className="w-2 h-2" />
+                        سريع
                       </div>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
-                        <Shield className="w-3 h-3" />
-                        مضمون
-                      </div>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
-                        <MapPin className="w-3 h-3" />
-                        تتبع مباشر
+                      <div className="flex items-center gap-0.5 text-[7px] text-muted-foreground bg-muted px-1 py-0.5 rounded">
+                        <Shield className="w-2 h-2" />
+                        آمن
                       </div>
                     </div>
-
-                    {/* CTA */}
-                    <Button className="w-full gap-2 group-hover:gap-3 transition-all">
-                      اطلب الآن
-                      <ArrowLeft className="w-4 h-4" />
-                    </Button>
                   </div>
                 </div>
               </Link>

@@ -124,8 +124,8 @@ const CategoriesSection = () => {
           </Link>
         </div>
 
-        {/* Categories Grid - All visible without carousel */}
-        <div className="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-8 gap-2 sm:gap-3">
+        {/* Categories Grid - Compact design matching products */}
+        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2">
           {categories.map((category, index) => {
             const bgColor = colorPalette[index % colorPalette.length];
             const productCount = storeCounts[category.id] || 0;
@@ -137,30 +137,32 @@ const CategoriesSection = () => {
                 to={`/categories/${category.id}`}
                 className="block group"
               >
-                <div className={`relative h-16 sm:h-20 rounded-lg sm:rounded-xl overflow-hidden ${bgColor} transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5`}>
-                  {/* Category Image or Icon */}
-                  <div className="absolute inset-0 flex items-center justify-center">
+                <div className="bg-card rounded-lg border border-border/50 overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+                  {/* Category Image */}
+                  <div className={`relative aspect-square ${bgColor} flex items-center justify-center`}>
                     {category.image_url ? (
                       <img 
                         src={category.image_url} 
                         alt={category.name_ar}
-                        className="w-full h-full object-contain p-1.5 group-hover:scale-110 transition-transform duration-300"
+                        className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-200"
                       />
                     ) : (
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
-                        <IconComponent className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                      <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
+                        <IconComponent className="w-4 h-4 text-white" />
                       </div>
                     )}
                   </div>
                   
-                  {/* Gradient overlay for text */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                  
                   {/* Category Name */}
-                  <div className="absolute bottom-0 left-0 right-0 p-1.5 sm:p-2">
-                    <h4 className="text-white font-semibold text-[10px] sm:text-xs text-center line-clamp-1 drop-shadow-lg">
+                  <div className="p-1.5 bg-background">
+                    <h4 className="font-medium text-[10px] sm:text-xs text-center line-clamp-1 text-foreground">
                       {category.name_ar}
                     </h4>
+                    {productCount > 0 && (
+                      <p className="text-[8px] text-muted-foreground text-center">
+                        {productCount} منتج
+                      </p>
+                    )}
                   </div>
                 </div>
               </Link>
