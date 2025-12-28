@@ -28,7 +28,10 @@ const availableEvents = [
   { value: "courier.assigned", label: "تعيين مندوب" },
   { value: "support.ticket_created", label: "تذكرة دعم جديدة" },
   { value: "support.ticket_updated", label: "تحديث تذكرة دعم" },
-  { value: "whatsapp", label: "إشعارات واتساب" },
+  { value: "whatsapp.message", label: "إرسال رسائل واتساب" },
+  { value: "whatsapp.otp", label: "إرسال رمز التحقق OTP" },
+  { value: "location.request", label: "طلب موقع العميل" },
+  { value: "location.receive", label: "استقبال موقع العميل" },
 ];
 
 const WebhooksPage = () => {
