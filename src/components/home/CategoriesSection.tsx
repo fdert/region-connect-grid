@@ -151,7 +151,7 @@ const CategoriesSection = () => {
                 to={`/categories/${category.id}`}
                 className="block group"
               >
-                <div className="bg-card rounded-xl border border-border/50 p-3 sm:p-4 flex flex-col items-center justify-center gap-2 hover:shadow-lg hover:border-primary/30 transition-all duration-200 hover:-translate-y-0.5 aspect-square">
+                <div className="bg-card rounded-xl border-2 border-border shadow-sm p-3 sm:p-4 flex flex-col items-center justify-center gap-2.5 hover:shadow-lg hover:border-primary/50 hover:bg-accent/5 transition-all duration-200 hover:-translate-y-0.5 aspect-square">
                   <div className={`w-10 h-10 sm:w-12 sm:h-12 bg-muted rounded-lg flex items-center justify-center ${iconColor}`}>
                     {category.image_url ? (
                       <img 
@@ -163,7 +163,7 @@ const CategoriesSection = () => {
                       <IconComponent className="w-5 h-5 sm:w-6 sm:h-6" />
                     )}
                   </div>
-                  <span className="text-foreground font-medium text-[10px] sm:text-xs text-center line-clamp-2 leading-tight">
+                  <span className="text-foreground font-semibold text-xs sm:text-sm text-center line-clamp-2 leading-tight">
                     {category.name_ar}
                   </span>
                 </div>
