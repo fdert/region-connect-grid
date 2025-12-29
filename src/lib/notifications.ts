@@ -25,22 +25,22 @@ const specialOrderStatusLabels: Record<string, string> = {
   'cancelled': 'ملغي'
 };
 
-// Template names for different events
+// Template names for different events - matching database template names
 export const NOTIFICATION_TEMPLATES = {
-  // Order templates - Customer
-  ORDER_CREATED_CUSTOMER: 'order_created',
-  ORDER_ACCEPTED_CUSTOMER: 'order_accepted_customer',
-  ORDER_PREPARING_CUSTOMER: 'order_preparing_customer',
-  ORDER_READY_CUSTOMER: 'order_ready_customer',
+  // Order templates - Customer (matching database names)
+  ORDER_CREATED_CUSTOMER: 'new_order',
+  ORDER_ACCEPTED_CUSTOMER: 'order_accepted_by_merchant',
+  ORDER_PREPARING_CUSTOMER: 'order_preparing',
+  ORDER_READY_CUSTOMER: 'order_ready',
   ORDER_COURIER_ASSIGNED_CUSTOMER: 'courier_assigned',
-  ORDER_PICKED_UP_CUSTOMER: 'order_picked_up_customer',
-  ORDER_ON_WAY_CUSTOMER: 'order_on_way_customer',
+  ORDER_PICKED_UP_CUSTOMER: 'order_picked_up',
+  ORDER_ON_WAY_CUSTOMER: 'order_on_the_way',
   ORDER_DELIVERED_CUSTOMER: 'order_delivered',
-  ORDER_CANCELLED_CUSTOMER: 'order_cancelled_customer',
+  ORDER_CANCELLED_CUSTOMER: 'order_cancelled',
   
   // Order templates - Merchant
-  ORDER_NEW_MERCHANT: 'order_new_merchant',
-  ORDER_COURIER_ASSIGNED_MERCHANT: 'order_courier_assigned_merchant',
+  ORDER_NEW_MERCHANT: 'new_order_merchant',
+  ORDER_COURIER_ASSIGNED_MERCHANT: 'courier_assigned_merchant',
   ORDER_PICKED_UP_MERCHANT: 'order_picked_up_merchant',
   ORDER_DELIVERED_MERCHANT: 'order_delivered_merchant',
   
@@ -49,11 +49,11 @@ export const NOTIFICATION_TEMPLATES = {
   ORDER_READY_COURIER: 'order_ready_courier',
   
   // Special order templates
-  SPECIAL_ORDER_CREATED: 'special_order_created',
+  SPECIAL_ORDER_CREATED: 'new_special_order',
   SPECIAL_ORDER_VERIFIED: 'special_order_verified',
   SPECIAL_ORDER_COURIER_ASSIGNED: 'special_order_courier_assigned',
   SPECIAL_ORDER_PICKED_UP: 'special_order_picked_up',
-  SPECIAL_ORDER_ON_WAY: 'special_order_on_way',
+  SPECIAL_ORDER_ON_WAY: 'special_order_on_the_way',
   SPECIAL_ORDER_DELIVERED: 'special_order_delivered',
   SPECIAL_ORDER_CANCELLED: 'special_order_cancelled',
   
