@@ -231,49 +231,187 @@ const templateTypes = [
   },
 ];
 
-// Available variables per template type
+// Available variables per template type - Comprehensive list
 const variablesByType: Record<string, { name: string; description: string }[]> = {
+  // Common order variables for all order-related templates
   order_created: [
     { name: "customer_name", description: "اسم العميل" },
     { name: "customer_phone", description: "رقم هاتف العميل" },
     { name: "order_number", description: "رقم الطلب" },
+    { name: "order_status", description: "حالة الطلب (عربي)" },
+    { name: "order_status_en", description: "Order Status (English)" },
     { name: "order_total", description: "المبلغ الإجمالي" },
     { name: "order_subtotal", description: "المبلغ قبل التوصيل" },
     { name: "delivery_fee", description: "رسوم التوصيل" },
     { name: "delivery_address", description: "عنوان التوصيل" },
+    { name: "delivery_notes", description: "ملاحظات التوصيل" },
     { name: "store_name", description: "اسم المتجر" },
     { name: "store_phone", description: "رقم المتجر" },
+    { name: "store_address", description: "عنوان المتجر" },
+    { name: "items_count", description: "عدد المنتجات" },
+    { name: "items_list", description: "قائمة المنتجات (عربي)" },
+    { name: "items_list_en", description: "Items List (English)" },
+    { name: "payment_method", description: "طريقة الدفع (عربي)" },
+    { name: "payment_method_en", description: "Payment Method (English)" },
+    { name: "payment_status", description: "حالة الدفع (عربي)" },
+    { name: "payment_status_en", description: "Payment Status (English)" },
+    { name: "is_paid", description: "هل مدفوع (نعم/لا)" },
+    { name: "is_paid_en", description: "Is Paid (Yes/No)" },
+    { name: "order_summary", description: "ملخص الطلب الكامل (عربي)" },
+    { name: "order_summary_en", description: "Full Order Summary (English)" },
+    { name: "order_date", description: "تاريخ الطلب (عربي)" },
+    { name: "order_date_en", description: "Order Date (English)" },
+  ],
+  // Merchant templates
+  order_new_merchant: [
+    { name: "merchant_name", description: "اسم التاجر" },
+    { name: "merchant_phone", description: "رقم التاجر" },
+    { name: "store_name", description: "اسم المتجر" },
+    { name: "order_number", description: "رقم الطلب" },
+    { name: "order_total", description: "المبلغ الإجمالي" },
+    { name: "order_subtotal", description: "المبلغ قبل التوصيل" },
+    { name: "delivery_fee", description: "رسوم التوصيل" },
+    { name: "platform_commission", description: "عمولة المنصة" },
     { name: "items_count", description: "عدد المنتجات" },
     { name: "items_list", description: "قائمة المنتجات" },
+    { name: "customer_name", description: "اسم العميل" },
+    { name: "customer_phone", description: "رقم العميل" },
+    { name: "delivery_address", description: "عنوان التوصيل" },
     { name: "payment_method", description: "طريقة الدفع" },
-    { name: "order_date", description: "تاريخ الطلب" },
+    { name: "payment_status", description: "حالة الدفع" },
+    { name: "order_summary", description: "ملخص الطلب الكامل" },
+  ],
+  // Courier templates (bilingual)
+  order_assigned_courier: [
+    { name: "courier_name", description: "اسم المندوب / Courier Name" },
+    { name: "courier_phone", description: "رقم المندوب / Courier Phone" },
+    { name: "order_number", description: "رقم الطلب / Order Number" },
+    { name: "order_status", description: "حالة الطلب (عربي)" },
+    { name: "order_status_en", description: "Order Status (English)" },
+    { name: "order_total", description: "المبلغ الإجمالي / Total Amount" },
+    { name: "delivery_fee", description: "رسوم التوصيل / Delivery Fee" },
+    { name: "store_name", description: "اسم المتجر / Store Name" },
+    { name: "store_phone", description: "رقم المتجر / Store Phone" },
+    { name: "store_address", description: "عنوان المتجر / Store Address" },
+    { name: "customer_name", description: "اسم العميل / Customer Name" },
+    { name: "customer_phone", description: "رقم العميل / Customer Phone" },
+    { name: "delivery_address", description: "عنوان التوصيل / Delivery Address" },
+    { name: "delivery_notes", description: "ملاحظات التوصيل / Delivery Notes" },
+    { name: "payment_method", description: "طريقة الدفع (عربي)" },
+    { name: "payment_method_en", description: "Payment Method (English)" },
+    { name: "payment_status", description: "حالة الدفع (عربي)" },
+    { name: "payment_status_en", description: "Payment Status (English)" },
+    { name: "is_paid", description: "هل مدفوع (نعم/لا)" },
+    { name: "is_paid_en", description: "Is Paid (Yes/No)" },
+    { name: "items_count", description: "عدد المنتجات / Items Count" },
+    { name: "items_list", description: "قائمة المنتجات (عربي)" },
+    { name: "items_list_en", description: "Items List (English)" },
+    { name: "order_summary", description: "ملخص الطلب (عربي)" },
+    { name: "order_summary_en", description: "Order Summary (English)" },
+  ],
+  order_ready_courier: [
+    { name: "courier_name", description: "اسم المندوب / Courier Name" },
+    { name: "order_number", description: "رقم الطلب / Order Number" },
+    { name: "store_name", description: "اسم المتجر / Store Name" },
+    { name: "store_phone", description: "رقم المتجر / Store Phone" },
+    { name: "store_address", description: "عنوان المتجر / Store Address" },
+    { name: "order_total", description: "المبلغ الإجمالي / Total Amount" },
+    { name: "payment_status", description: "حالة الدفع (عربي)" },
+    { name: "payment_status_en", description: "Payment Status (English)" },
+    { name: "order_summary", description: "ملخص الطلب (عربي)" },
+    { name: "order_summary_en", description: "Order Summary (English)" },
+  ],
+  // Special order templates
+  special_order_created: [
+    { name: "order_number", description: "رقم الطلب" },
+    { name: "order_status", description: "حالة الطلب (عربي)" },
+    { name: "order_status_en", description: "Order Status (English)" },
+    { name: "order_total", description: "المبلغ الإجمالي" },
+    { name: "delivery_fee", description: "رسوم التوصيل" },
+    { name: "distance_km", description: "المسافة (كم)" },
+    { name: "service_name", description: "اسم الخدمة (عربي)" },
+    { name: "service_name_en", description: "Service Name (English)" },
+    { name: "sender_name", description: "اسم المرسل" },
+    { name: "sender_phone", description: "رقم المرسل" },
+    { name: "sender_address", description: "عنوان المرسل" },
+    { name: "recipient_name", description: "اسم المستلم" },
+    { name: "recipient_phone", description: "رقم المستلم" },
+    { name: "recipient_address", description: "عنوان المستلم" },
+    { name: "package_type", description: "نوع الشحنة" },
+    { name: "package_size", description: "حجم الشحنة" },
+    { name: "package_description", description: "وصف الشحنة" },
+    { name: "payment_method", description: "طريقة الدفع (عربي)" },
+    { name: "payment_method_en", description: "Payment Method (English)" },
+    { name: "payment_status", description: "حالة الدفع (عربي)" },
+    { name: "payment_status_en", description: "Payment Status (English)" },
+    { name: "verification_code", description: "كود التحقق" },
+    { name: "order_summary", description: "ملخص الطلب (عربي)" },
+    { name: "order_summary_en", description: "Order Summary (English)" },
+  ],
+  // Special order courier (bilingual)
+  special_order_courier_assigned: [
+    { name: "courier_name", description: "اسم المندوب / Courier Name" },
+    { name: "courier_phone", description: "رقم المندوب / Courier Phone" },
+    { name: "order_number", description: "رقم الطلب / Order Number" },
+    { name: "order_status", description: "حالة الطلب (عربي)" },
+    { name: "order_status_en", description: "Order Status (English)" },
+    { name: "order_total", description: "المبلغ الإجمالي / Total Amount" },
+    { name: "delivery_fee", description: "رسوم التوصيل / Delivery Fee" },
+    { name: "distance_km", description: "المسافة / Distance (km)" },
+    { name: "service_name", description: "اسم الخدمة (عربي)" },
+    { name: "service_name_en", description: "Service Name (English)" },
+    { name: "sender_name", description: "اسم المرسل / Sender Name" },
+    { name: "sender_phone", description: "رقم المرسل / Sender Phone" },
+    { name: "sender_address", description: "عنوان المرسل / Sender Address" },
+    { name: "recipient_name", description: "اسم المستلم / Recipient Name" },
+    { name: "recipient_phone", description: "رقم المستلم / Recipient Phone" },
+    { name: "recipient_address", description: "عنوان المستلم / Recipient Address" },
+    { name: "package_type", description: "نوع الشحنة / Package Type" },
+    { name: "package_size", description: "حجم الشحنة / Package Size" },
+    { name: "package_description", description: "وصف الشحنة / Package Description" },
+    { name: "payment_method", description: "طريقة الدفع (عربي)" },
+    { name: "payment_method_en", description: "Payment Method (English)" },
+    { name: "payment_status", description: "حالة الدفع (عربي)" },
+    { name: "payment_status_en", description: "Payment Status (English)" },
+    { name: "is_paid", description: "هل مدفوع (نعم/لا)" },
+    { name: "is_paid_en", description: "Is Paid (Yes/No)" },
+    { name: "order_summary", description: "ملخص الطلب (عربي)" },
+    { name: "order_summary_en", description: "Order Summary (English)" },
   ],
   order_status_changed: [
     { name: "customer_name", description: "اسم العميل" },
     { name: "order_number", description: "رقم الطلب" },
-    { name: "old_status", description: "الحالة السابقة" },
-    { name: "new_status", description: "الحالة الجديدة" },
-    { name: "status_message", description: "رسالة الحالة" },
+    { name: "order_status", description: "الحالة الجديدة (عربي)" },
+    { name: "order_status_en", description: "New Status (English)" },
+    { name: "order_total", description: "المبلغ الإجمالي" },
+    { name: "delivery_fee", description: "رسوم التوصيل" },
+    { name: "payment_status", description: "حالة الدفع" },
     { name: "store_name", description: "اسم المتجر" },
-    { name: "estimated_time", description: "الوقت المتوقع" },
+    { name: "courier_name", description: "اسم المندوب" },
+    { name: "courier_phone", description: "رقم المندوب" },
+    { name: "order_summary", description: "ملخص الطلب الكامل" },
   ],
   order_delivered: [
     { name: "customer_name", description: "اسم العميل" },
     { name: "order_number", description: "رقم الطلب" },
     { name: "order_total", description: "المبلغ الإجمالي" },
+    { name: "order_subtotal", description: "المبلغ قبل التوصيل" },
+    { name: "delivery_fee", description: "رسوم التوصيل" },
+    { name: "payment_method", description: "طريقة الدفع" },
+    { name: "payment_status", description: "حالة الدفع" },
     { name: "store_name", description: "اسم المتجر" },
     { name: "courier_name", description: "اسم المندوب" },
-    { name: "delivery_time", description: "وقت التوصيل" },
-    { name: "rating_link", description: "رابط التقييم" },
+    { name: "order_summary", description: "ملخص الطلب الكامل" },
   ],
   courier_assigned: [
     { name: "customer_name", description: "اسم العميل" },
     { name: "order_number", description: "رقم الطلب" },
     { name: "courier_name", description: "اسم المندوب" },
     { name: "courier_phone", description: "رقم المندوب" },
-    { name: "estimated_time", description: "الوقت المتوقع" },
     { name: "store_name", description: "اسم المتجر" },
-    { name: "tracking_link", description: "رابط التتبع" },
+    { name: "order_total", description: "المبلغ الإجمالي" },
+    { name: "delivery_fee", description: "رسوم التوصيل" },
+    { name: "payment_status", description: "حالة الدفع" },
   ],
   support_ticket_created: [
     { name: "customer_name", description: "اسم العميل" },
@@ -281,7 +419,6 @@ const variablesByType: Record<string, { name: string; description: string }[]> =
     { name: "ticket_subject", description: "موضوع التذكرة" },
     { name: "ticket_message", description: "نص الرسالة" },
     { name: "order_number", description: "رقم الطلب (إن وجد)" },
-    { name: "support_link", description: "رابط متابعة التذكرة" },
   ],
   support_ticket_updated: [
     { name: "customer_name", description: "اسم العميل" },
@@ -289,23 +426,44 @@ const variablesByType: Record<string, { name: string; description: string }[]> =
     { name: "ticket_status", description: "حالة التذكرة" },
     { name: "reply_message", description: "نص الرد" },
     { name: "admin_name", description: "اسم الموظف" },
-    { name: "support_link", description: "رابط متابعة التذكرة" },
   ],
   welcome_message: [
     { name: "customer_name", description: "اسم العميل" },
     { name: "customer_phone", description: "رقم الهاتف" },
-    { name: "app_name", description: "اسم التطبيق" },
-    { name: "promo_code", description: "كود خصم ترحيبي" },
   ],
   custom: [
     { name: "customer_name", description: "اسم العميل" },
     { name: "customer_phone", description: "رقم الهاتف" },
     { name: "order_number", description: "رقم الطلب" },
     { name: "store_name", description: "اسم المتجر" },
-    { name: "custom_1", description: "متغير مخصص 1" },
-    { name: "custom_2", description: "متغير مخصص 2" },
-    { name: "custom_3", description: "متغير مخصص 3" },
+    { name: "order_total", description: "المبلغ الإجمالي" },
+    { name: "delivery_fee", description: "رسوم التوصيل" },
+    { name: "payment_status", description: "حالة الدفع" },
+    { name: "payment_method", description: "طريقة الدفع" },
+    { name: "order_summary", description: "ملخص الطلب" },
+    { name: "courier_name", description: "اسم المندوب" },
+    { name: "courier_phone", description: "رقم المندوب" },
   ],
+};
+
+// Function to get variables - fallback to common order variables or custom
+const getVariablesForType = (type: string) => {
+  if (variablesByType[type]) {
+    return variablesByType[type];
+  }
+  // For courier templates, return bilingual courier variables
+  if (type.includes('courier')) {
+    return variablesByType.order_assigned_courier;
+  }
+  // For special order templates
+  if (type.includes('special')) {
+    return variablesByType.special_order_created;
+  }
+  // Default to order_created variables for most order-related templates
+  if (type.includes('order')) {
+    return variablesByType.order_created;
+  }
+  return variablesByType.custom;
 };
 
 const WhatsAppTemplatesPage = () => {
@@ -442,7 +600,7 @@ const WhatsAppTemplatesPage = () => {
     return templateTypes.find(t => t.value === name)?.label || name;
   };
 
-  const availableVariables = variablesByType[selectedType] || variablesByType.custom;
+  const availableVariables = getVariablesForType(selectedType);
 
   return (
     <AdminLayout title="قوالب رسائل واتساب">

@@ -178,40 +178,109 @@ function buildOrderVariables(order: any): Record<string, string> {
     'failed': 'فشل التوصيل'
   };
 
+  const statusLabelsEn: Record<string, string> = {
+    'new': 'New',
+    'accepted_by_merchant': 'Accepted',
+    'preparing': 'Preparing',
+    'ready': 'Ready',
+    'assigned_to_courier': 'Courier Assigned',
+    'picked_up': 'Picked Up',
+    'on_the_way': 'On The Way',
+    'delivered': 'Delivered',
+    'cancelled': 'Cancelled',
+    'failed': 'Failed'
+  };
+
+  const paymentMethodLabels: Record<string, string> = {
+    'cash': 'نقداً عند التوصيل',
+    'card': 'بطاقة',
+    'wallet': 'المحفظة',
+    'online': 'دفع إلكتروني'
+  };
+
+  const paymentMethodLabelsEn: Record<string, string> = {
+    'cash': 'Cash on Delivery',
+    'card': 'Card',
+    'wallet': 'Wallet',
+    'online': 'Online Payment'
+  };
+
   // Parse items to get count and list
   let itemsCount = 0;
   let itemsList = '';
+  let itemsListEn = '';
   try {
     const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
     if (Array.isArray(items)) {
       itemsCount = items.length;
-      itemsList = items.map((item: any) => `${item.name || item.product_name} x${item.quantity || 1}`).join('\n');
+      itemsList = items.map((item: any) => `• ${item.name || item.product_name} x${item.quantity || 1} - ${item.price || 0} ر.س`).join('\n');
+      itemsListEn = items.map((item: any) => `• ${item.name || item.product_name} x${item.quantity || 1} - ${item.price || 0} SAR`).join('\n');
     }
   } catch (e) {
     console.error("Error parsing items:", e);
   }
 
+  // Payment status
+  const isPaid = order.paid === true;
+  const paymentStatus = isPaid ? '✅ مدفوع' : '❌ غير مدفوع';
+  const paymentStatusEn = isPaid ? '✅ Paid' : '❌ Not Paid';
+
+  // Format currency values
+  const formatCurrency = (val: number) => val?.toFixed(2) || '0.00';
+
   return {
+    // Basic order info
     order_number: order.order_number || '',
     order_status: statusLabels[order.status] || order.status || '',
-    order_total: order.total?.toString() || '0',
-    order_subtotal: order.subtotal?.toString() || '0',
-    delivery_fee: order.delivery_fee?.toString() || '0',
+    order_status_en: statusLabelsEn[order.status] || order.status || '',
+    
+    // Amounts
+    order_total: formatCurrency(order.total),
+    order_subtotal: formatCurrency(order.subtotal),
+    delivery_fee: formatCurrency(order.delivery_fee),
+    platform_commission: formatCurrency(order.platform_commission),
+    
+    // Payment info
+    payment_method: paymentMethodLabels[order.payment_method] || order.payment_method || '',
+    payment_method_en: paymentMethodLabelsEn[order.payment_method] || order.payment_method || '',
+    payment_status: paymentStatus,
+    payment_status_en: paymentStatusEn,
+    is_paid: isPaid ? 'نعم' : 'لا',
+    is_paid_en: isPaid ? 'Yes' : 'No',
+    
+    // Delivery info
     delivery_address: order.delivery_address || '',
     delivery_notes: order.delivery_notes || '',
-    payment_method: order.payment_method === 'cash' ? 'نقداً عند التوصيل' : order.payment_method || '',
+    
+    // Customer info
     customer_name: order.customer?.full_name || '',
     customer_phone: order.customer_phone || order.customer?.phone || '',
+    
+    // Store info
     store_name: order.stores?.name || '',
     store_phone: order.stores?.phone || '',
     store_address: order.stores?.address || '',
+    
+    // Merchant info
     merchant_name: order.merchant?.full_name || '',
     merchant_phone: order.merchant?.phone || '',
+    
+    // Courier info
     courier_name: order.courier?.full_name || '',
     courier_phone: order.courier?.phone || '',
+    
+    // Items
     items_count: itemsCount.toString(),
     items_list: itemsList,
+    items_list_en: itemsListEn,
+    
+    // Order summary (formatted block)
+    order_summary: `📦 رقم الطلب: ${order.order_number}\n💰 المبلغ: ${formatCurrency(order.subtotal)} ر.س\n🚚 رسوم التوصيل: ${formatCurrency(order.delivery_fee)} ر.س\n💵 الإجمالي: ${formatCurrency(order.total)} ر.س\n${paymentStatus} | ${paymentMethodLabels[order.payment_method] || order.payment_method || ''}`,
+    order_summary_en: `📦 Order #: ${order.order_number}\n💰 Subtotal: ${formatCurrency(order.subtotal)} SAR\n🚚 Delivery: ${formatCurrency(order.delivery_fee)} SAR\n💵 Total: ${formatCurrency(order.total)} SAR\n${paymentStatusEn} | ${paymentMethodLabelsEn[order.payment_method] || order.payment_method || ''}`,
+    
+    // Dates
     order_date: order.created_at ? new Date(order.created_at).toLocaleString('ar-SA') : '',
+    order_date_en: order.created_at ? new Date(order.created_at).toLocaleString('en-US') : '',
     created_at: order.created_at ? new Date(order.created_at).toLocaleString('ar-SA') : '',
     updated_at: order.updated_at ? new Date(order.updated_at).toLocaleString('ar-SA') : ''
   };
@@ -229,28 +298,94 @@ function buildSpecialOrderVariables(order: any): Record<string, string> {
     'cancelled': 'ملغي'
   };
 
+  const statusLabelsEn: Record<string, string> = {
+    'pending': 'Pending',
+    'verified': 'Verified',
+    'assigned': 'Courier Assigned',
+    'picked_up': 'Picked Up',
+    'on_the_way': 'On The Way',
+    'delivered': 'Delivered',
+    'cancelled': 'Cancelled'
+  };
+
+  const paymentMethodLabels: Record<string, string> = {
+    'cash': 'نقداً عند التوصيل',
+    'card': 'بطاقة',
+    'wallet': 'المحفظة',
+    'online': 'دفع إلكتروني'
+  };
+
+  const paymentMethodLabelsEn: Record<string, string> = {
+    'cash': 'Cash on Delivery',
+    'card': 'Card',
+    'wallet': 'Wallet',
+    'online': 'Online Payment'
+  };
+
+  // Payment status
+  const isPaid = order.paid === true;
+  const paymentStatus = isPaid ? '✅ مدفوع' : '❌ غير مدفوع';
+  const paymentStatusEn = isPaid ? '✅ Paid' : '❌ Not Paid';
+
+  // Format currency
+  const formatCurrency = (val: number) => val?.toFixed(2) || '0.00';
+
   return {
+    // Basic order info
     order_number: order.order_number || '',
     order_status: statusLabels[order.status] || order.status || '',
-    order_total: order.total?.toString() || '0',
-    delivery_fee: order.delivery_fee?.toString() || '0',
+    order_status_en: statusLabelsEn[order.status] || order.status || '',
+    
+    // Amounts
+    order_total: formatCurrency(order.total),
+    delivery_fee: formatCurrency(order.delivery_fee),
+    distance_km: order.distance_km?.toFixed(1) || '',
+    
+    // Payment info
+    payment_method: paymentMethodLabels[order.payment_method] || order.payment_method || '',
+    payment_method_en: paymentMethodLabelsEn[order.payment_method] || order.payment_method || '',
+    payment_status: paymentStatus,
+    payment_status_en: paymentStatusEn,
+    is_paid: isPaid ? 'نعم' : 'لا',
+    is_paid_en: isPaid ? 'Yes' : 'No',
+    
+    // Service info
     service_name: order.special_services?.name_ar || order.special_services?.name || '',
+    service_name_en: order.special_services?.name || '',
+    
+    // Sender info
     sender_name: order.sender_name || '',
     sender_phone: order.sender_phone || '',
     sender_address: order.sender_address || '',
+    
+    // Recipient info
     recipient_name: order.recipient_name || '',
     recipient_phone: order.recipient_phone || '',
     recipient_address: order.recipient_address || '',
+    
+    // Package info
     package_type: order.package_type || '',
     package_size: order.package_size || '',
     package_description: order.package_description || '',
-    distance_km: order.distance_km?.toString() || '',
+    package_weight: order.package_weight?.toString() || '',
     notes: order.notes || '',
+    
+    // Verification
     verification_code: order.verification_code || '',
+    is_verified: order.is_verified ? 'نعم' : 'لا',
+    is_verified_en: order.is_verified ? 'Yes' : 'No',
+    
+    // Courier info
     courier_name: order.courier?.full_name || '',
     courier_phone: order.courier?.phone || '',
-    payment_method: order.payment_method === 'cash' ? 'نقداً عند التوصيل' : order.payment_method || '',
-    created_at: order.created_at ? new Date(order.created_at).toLocaleString('ar-SA') : ''
+    
+    // Order summary (formatted block)
+    order_summary: `📦 رقم الطلب: ${order.order_number}\n🚚 رسوم التوصيل: ${formatCurrency(order.delivery_fee)} ر.س\n💵 الإجمالي: ${formatCurrency(order.total)} ر.س\n📍 المسافة: ${order.distance_km?.toFixed(1) || '-'} كم\n${paymentStatus} | ${paymentMethodLabels[order.payment_method] || order.payment_method || ''}`,
+    order_summary_en: `📦 Order #: ${order.order_number}\n🚚 Delivery: ${formatCurrency(order.delivery_fee)} SAR\n💵 Total: ${formatCurrency(order.total)} SAR\n📍 Distance: ${order.distance_km?.toFixed(1) || '-'} km\n${paymentStatusEn} | ${paymentMethodLabelsEn[order.payment_method] || order.payment_method || ''}`,
+    
+    // Dates
+    created_at: order.created_at ? new Date(order.created_at).toLocaleString('ar-SA') : '',
+    created_at_en: order.created_at ? new Date(order.created_at).toLocaleString('en-US') : ''
   };
 }
 
