@@ -30,10 +30,23 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { Search, UserPlus, Shield, Truck, Store, User, Edit, Key, MessageSquare, Loader2 } from "lucide-react";
+import { Search, UserPlus, Shield, Truck, Store, User, Edit, Key, MessageSquare, Loader2, Mail, Phone, Eye, EyeOff } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
+
+interface UserData {
+  id: string;
+  email: string | null;
+  phone: string | null;
+  full_name: string | null;
+  avatar_url: string | null;
+  role: AppRole;
+  role_id: string | null;
+  created_at: string;
+  last_sign_in_at: string | null;
+  force_password_change: boolean;
+}
 
 const roleIcons: Record<AppRole, React.ReactNode> = {
   admin: <Shield className="h-4 w-4" />,
@@ -71,46 +84,38 @@ export default function UsersPage() {
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<{
-    userId: string;
-    fullName: string;
-    phone: string;
-    email: string;
-  } | null>(null);
+  const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [editForm, setEditForm] = useState({
     fullName: "",
     phone: "",
     email: "",
+    password: "",
   });
+  const [showPassword, setShowPassword] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const queryClient = useQueryClient();
 
-  const { data: users, isLoading } = useQuery({
-    queryKey: ["admin-users", roleFilter],
+  // Fetch users using edge function
+  const { data: usersData, isLoading } = useQuery({
+    queryKey: ["admin-users-full", roleFilter],
     queryFn: async () => {
-      let query = supabase
-        .from("user_roles")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (roleFilter !== "all") {
-        query = query.eq("role", roleFilter as AppRole);
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        throw new Error("Not authenticated");
       }
 
-      const { data, error } = await query;
+      const { data, error } = await supabase.functions.invoke("admin-get-users", {
+        headers: {
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+        },
+      });
+
       if (error) throw error;
-      return data;
+      return data.users as UserData[];
     },
   });
 
-  const { data: profiles } = useQuery({
-    queryKey: ["admin-profiles"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("*");
-      if (error) throw error;
-      return data;
-    },
-  });
+  const users = usersData?.filter(u => roleFilter === "all" || u.role === roleFilter);
 
   const updateRoleMutation = useMutation({
     mutationFn: async ({ userId, newRole }: { userId: string; newRole: AppRole }) => {
@@ -121,7 +126,7 @@ export default function UsersPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-users-full"] });
       toast({ title: "تم تحديث الدور بنجاح" });
     },
     onError: () => {
@@ -129,31 +134,70 @@ export default function UsersPage() {
     },
   });
 
-  const updateProfileMutation = useMutation({
+  const updateUserMutation = useMutation({
     mutationFn: async ({ userId, data }: { userId: string; data: typeof editForm }) => {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          full_name: data.fullName,
-          phone: data.phone,
-          email: data.email,
-        })
-        .eq("user_id", userId);
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        throw new Error("Not authenticated");
+      }
+
+      const updatePayload: any = {
+        userId,
+        fullName: data.fullName,
+        phone: data.phone,
+        email: data.email,
+      };
+
+      // Only include password if it's provided
+      if (data.password && data.password.length > 0) {
+        updatePayload.password = data.password;
+      }
+
+      const { data: result, error } = await supabase.functions.invoke("admin-update-user", {
+        headers: {
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+        },
+        body: updatePayload,
+      });
+
       if (error) throw error;
+      return result;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-users-full"] });
       toast({ title: "تم تحديث بيانات المستخدم بنجاح" });
       setEditDialogOpen(false);
     },
-    onError: () => {
-      toast({ title: "حدث خطأ", variant: "destructive" });
+    onError: (error: any) => {
+      toast({ 
+        title: "حدث خطأ", 
+        description: error.message || "فشل في تحديث البيانات",
+        variant: "destructive" 
+      });
     },
   });
 
   const sendPasswordMutation = useMutation({
     mutationFn: async ({ userId, password, phone }: { userId: string; password: string; phone: string }) => {
-      // First, set force_password_change flag
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        throw new Error("Not authenticated");
+      }
+
+      // First, update the password using admin function
+      const { error: updateError } = await supabase.functions.invoke("admin-update-user", {
+        headers: {
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+        },
+        body: {
+          userId,
+          password,
+        },
+      });
+
+      if (updateError) throw updateError;
+
+      // Set force_password_change flag
       const { error: profileError } = await supabase
         .from("profiles")
         .update({ force_password_change: true })
@@ -169,7 +213,7 @@ export default function UsersPage() {
       if (whatsappError) throw whatsappError;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-users-full"] });
       toast({ title: "تم إرسال كلمة المرور الجديدة عبر واتساب" });
       setPasswordDialogOpen(false);
       setNewPassword("");
@@ -183,45 +227,31 @@ export default function UsersPage() {
     },
   });
 
-  const getProfile = (userId: string) => {
-    return profiles?.find((p) => p.user_id === userId);
-  };
-
   const filteredUsers = users?.filter((user) => {
-    const profile = getProfile(user.user_id);
     const searchLower = search.toLowerCase();
     return (
       !search ||
-      profile?.full_name?.toLowerCase().includes(searchLower) ||
-      profile?.phone?.includes(search) ||
-      user.user_id.includes(search)
+      user.full_name?.toLowerCase().includes(searchLower) ||
+      user.email?.toLowerCase().includes(searchLower) ||
+      user.phone?.includes(search) ||
+      user.id.includes(search)
     );
   });
 
-  const openEditDialog = (userId: string) => {
-    const profile = getProfile(userId);
-    setSelectedUser({
-      userId,
-      fullName: profile?.full_name || "",
-      phone: profile?.phone || "",
-      email: (profile as any)?.email || "",
-    });
+  const openEditDialog = (user: UserData) => {
+    setSelectedUser(user);
     setEditForm({
-      fullName: profile?.full_name || "",
-      phone: profile?.phone || "",
-      email: (profile as any)?.email || "",
+      fullName: user.full_name || "",
+      phone: user.phone || "",
+      email: user.email || "",
+      password: "",
     });
+    setShowPassword(false);
     setEditDialogOpen(true);
   };
 
-  const openPasswordDialog = (userId: string) => {
-    const profile = getProfile(userId);
-    setSelectedUser({
-      userId,
-      fullName: profile?.full_name || "",
-      phone: profile?.phone || "",
-      email: (profile as any)?.email || "",
-    });
+  const openPasswordDialog = (user: UserData) => {
+    setSelectedUser(user);
     setNewPassword(generatePassword());
     setPasswordDialogOpen(true);
   };
@@ -244,7 +274,7 @@ export default function UsersPage() {
           <div className="relative flex-1">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="بحث بالاسم أو رقم الهاتف..."
+              placeholder="بحث بالاسم أو الإيميل أو رقم الهاتف..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pr-10"
@@ -264,97 +294,113 @@ export default function UsersPage() {
           </Select>
         </div>
 
-        <div className="rounded-lg border bg-card">
+        <div className="rounded-lg border bg-card overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="text-right">المستخدم</TableHead>
+                <TableHead className="text-right">البريد الإلكتروني</TableHead>
                 <TableHead className="text-right">رقم الهاتف</TableHead>
                 <TableHead className="text-right">الدور</TableHead>
-                <TableHead className="text-right">تاريخ التسجيل</TableHead>
+                <TableHead className="text-right">آخر دخول</TableHead>
                 <TableHead className="text-right">الإجراءات</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8">
-                    جاري التحميل...
+                  <TableCell colSpan={6} className="text-center py-8">
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      جاري التحميل...
+                    </div>
                   </TableCell>
                 </TableRow>
               ) : filteredUsers?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8">
+                  <TableCell colSpan={6} className="text-center py-8">
                     لا يوجد مستخدمين
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredUsers?.map((user) => {
-                  const profile = getProfile(user.user_id);
-                  return (
-                    <TableRow key={user.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            {roleIcons[user.role]}
-                          </div>
-                          <div>
-                            <p className="font-medium">{profile?.full_name || "بدون اسم"}</p>
-                            <p className="text-xs text-muted-foreground">{user.user_id.slice(0, 8)}...</p>
-                          </div>
+                filteredUsers?.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                          {roleIcons[user.role]}
                         </div>
-                      </TableCell>
-                      <TableCell>{profile?.phone || "-"}</TableCell>
-                      <TableCell>
-                        <Badge className={roleColors[user.role]}>
-                          {roleLabels[user.role]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {new Date(user.created_at!).toLocaleDateString("ar-SA")}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Select
-                            value={user.role}
-                            onValueChange={(value) =>
-                              updateRoleMutation.mutate({
-                                userId: user.user_id,
-                                newRole: value as AppRole,
-                              })
-                            }
-                          >
-                            <SelectTrigger className="w-24">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="admin">مدير</SelectItem>
-                              <SelectItem value="merchant">تاجر</SelectItem>
-                              <SelectItem value="courier">سائق</SelectItem>
-                              <SelectItem value="customer">عميل</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEditDialog(user.user_id)}
-                            title="تعديل البيانات"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openPasswordDialog(user.user_id)}
-                            title="إرسال كلمة مرور جديدة"
-                          >
-                            <Key className="h-4 w-4" />
-                          </Button>
+                        <div>
+                          <p className="font-medium">{user.full_name || "بدون اسم"}</p>
+                          <p className="text-xs text-muted-foreground">{user.id.slice(0, 8)}...</p>
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Mail className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-sm" dir="ltr">{user.email || "-"}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Phone className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-sm" dir="ltr">{user.phone || "-"}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={roleColors[user.role]}>
+                        {roleLabels[user.role]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-muted-foreground">
+                        {user.last_sign_in_at 
+                          ? new Date(user.last_sign_in_at).toLocaleDateString("ar-SA")
+                          : "لم يسجل دخول"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Select
+                          value={user.role}
+                          onValueChange={(value) =>
+                            updateRoleMutation.mutate({
+                              userId: user.id,
+                              newRole: value as AppRole,
+                            })
+                          }
+                        >
+                          <SelectTrigger className="w-24">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="admin">مدير</SelectItem>
+                            <SelectItem value="merchant">تاجر</SelectItem>
+                            <SelectItem value="courier">سائق</SelectItem>
+                            <SelectItem value="customer">عميل</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEditDialog(user)}
+                          title="تعديل البيانات"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openPasswordDialog(user)}
+                          title="إرسال كلمة مرور جديدة"
+                        >
+                          <Key className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
             </TableBody>
           </Table>
@@ -362,11 +408,11 @@ export default function UsersPage() {
 
         {/* Edit User Dialog */}
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>تعديل بيانات المستخدم</DialogTitle>
               <DialogDescription>
-                قم بتعديل بيانات المستخدم
+                قم بتعديل بيانات المستخدم. اترك كلمة المرور فارغة إذا لم ترد تغييرها.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -379,15 +425,6 @@ export default function UsersPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>رقم الهاتف</Label>
-                <Input
-                  value={editForm.phone}
-                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                  placeholder="أدخل رقم الهاتف"
-                  dir="ltr"
-                />
-              </div>
-              <div className="space-y-2">
                 <Label>البريد الإلكتروني</Label>
                 <Input
                   type="email"
@@ -397,19 +434,49 @@ export default function UsersPage() {
                   dir="ltr"
                 />
               </div>
+              <div className="space-y-2">
+                <Label>رقم الهاتف</Label>
+                <Input
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                  placeholder="أدخل رقم الهاتف"
+                  dir="ltr"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>كلمة المرور الجديدة (اختياري)</Label>
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    value={editForm.password}
+                    onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
+                    placeholder="اترك فارغة إذا لم ترد التغيير"
+                    dir="ltr"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute left-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
                 إلغاء
               </Button>
               <Button
-                onClick={() => selectedUser && updateProfileMutation.mutate({
-                  userId: selectedUser.userId,
+                onClick={() => selectedUser && updateUserMutation.mutate({
+                  userId: selectedUser.id,
                   data: editForm,
                 })}
-                disabled={updateProfileMutation.isPending}
+                disabled={updateUserMutation.isPending}
               >
-                {updateProfileMutation.isPending && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
+                {updateUserMutation.isPending && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
                 حفظ التغييرات
               </Button>
             </DialogFooter>
@@ -422,13 +489,17 @@ export default function UsersPage() {
             <DialogHeader>
               <DialogTitle>إرسال كلمة مرور جديدة</DialogTitle>
               <DialogDescription>
-                سيتم إرسال كلمة المرور الجديدة عبر واتساب للمستخدم وسيُطلب منه تغييرها عند تسجيل الدخول
+                سيتم تحديث كلمة المرور وإرسالها عبر واتساب للمستخدم وسيُطلب منه تغييرها عند تسجيل الدخول
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>اسم المستخدم</Label>
-                <Input value={selectedUser?.fullName || "بدون اسم"} disabled />
+                <Input value={selectedUser?.full_name || "بدون اسم"} disabled />
+              </div>
+              <div className="space-y-2">
+                <Label>البريد الإلكتروني</Label>
+                <Input value={selectedUser?.email || "-"} disabled dir="ltr" />
               </div>
               <div className="space-y-2">
                 <Label>رقم الهاتف</Label>
@@ -463,7 +534,7 @@ export default function UsersPage() {
               </Button>
               <Button
                 onClick={() => selectedUser && selectedUser.phone && sendPasswordMutation.mutate({
-                  userId: selectedUser.userId,
+                  userId: selectedUser.id,
                   password: newPassword,
                   phone: selectedUser.phone,
                 })}
