@@ -8,8 +8,8 @@ const corsHeaders = {
 
 interface LocationWebhookPayload {
   phone: string;
-  latitude: number;
-  longitude: number;
+  latitude: number | string;
+  longitude: number | string;
   address?: string;
 }
 
@@ -24,19 +24,50 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const payload: LocationWebhookPayload = await req.json();
+    const rawPayload = await req.json();
+    console.log("Raw received payload:", JSON.stringify(rawPayload));
     
-    console.log("Received location webhook:", payload);
+    // Extract location data - handle different payload formats from n8n
+    let phone = rawPayload.phone || rawPayload.data?.phone || "";
+    let latitude = rawPayload.latitude ?? rawPayload.data?.latitude ?? rawPayload.lat ?? rawPayload.data?.lat;
+    let longitude = rawPayload.longitude ?? rawPayload.data?.longitude ?? rawPayload.lng ?? rawPayload.data?.lng;
+    let address = rawPayload.address || rawPayload.data?.address || "";
 
-    if (!payload.phone || payload.latitude === undefined || payload.longitude === undefined) {
+    // Convert to numbers if strings
+    latitude = typeof latitude === 'string' ? parseFloat(latitude) : latitude;
+    longitude = typeof longitude === 'string' ? parseFloat(longitude) : longitude;
+
+    console.log("Parsed location data:", { phone, latitude, longitude, address });
+
+    if (!phone) {
+      console.error("Missing phone number");
       return new Response(
-        JSON.stringify({ error: "Missing required fields: phone, latitude, longitude" }),
+        JSON.stringify({ error: "Missing required field: phone" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate coordinates - must be valid numbers and not just zeros
+    const isValidCoordinates = 
+      typeof latitude === 'number' && 
+      typeof longitude === 'number' && 
+      !isNaN(latitude) && 
+      !isNaN(longitude) &&
+      (latitude !== 0 || longitude !== 0); // At least one should be non-zero
+
+    if (!isValidCoordinates) {
+      console.error("Invalid coordinates:", { latitude, longitude });
+      return new Response(
+        JSON.stringify({ 
+          error: "Invalid coordinates. Please send valid latitude and longitude values.",
+          received: { latitude, longitude }
+        }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     // Format phone number
-    let formattedPhone = payload.phone.replace(/\s/g, '');
+    let formattedPhone = phone.toString().replace(/\s/g, '');
     if (formattedPhone.startsWith('0')) {
       formattedPhone = '966' + formattedPhone.substring(1);
     }
@@ -44,8 +75,10 @@ serve(async (req) => {
       formattedPhone = '+' + formattedPhone;
     }
 
+    console.log("Formatted phone:", formattedPhone);
+
     // Generate Google Maps URL
-    const locationUrl = `https://www.google.com/maps?q=${payload.latitude},${payload.longitude}`;
+    const locationUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
 
     // First try to find an active OTP session
     let { data: otpSession, error: fetchError } = await supabase
@@ -57,12 +90,14 @@ serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    // If no active session, try to find any recent session (even expired) within last 24 hours
+    console.log("Active session search result:", otpSession ? `Found: ${otpSession.id}` : "Not found");
+
+    // If no active session, try to find any recent session within last 24 hours
     if (!otpSession) {
-      console.log(`No active session found, checking for recent sessions...`);
+      console.log("No active session found, checking for recent sessions...");
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       
-      const { data: recentSession, error: recentError } = await supabase
+      const { data: recentSession } = await supabase
         .from("otp_sessions")
         .select("*")
         .eq("phone", formattedPhone)
@@ -73,13 +108,13 @@ serve(async (req) => {
       
       if (recentSession) {
         otpSession = recentSession;
-        console.log(`Found recent session: ${recentSession.id}`);
+        console.log("Found recent session:", recentSession.id);
       }
     }
 
     // If still no session, create a new one to store the location
     if (!otpSession) {
-      console.log(`No session found, creating new session for location storage...`);
+      console.log("No session found, creating new session for location storage...");
       
       const { data: newSession, error: createError } = await supabase
         .from("otp_sessions")
@@ -88,9 +123,9 @@ serve(async (req) => {
           otp_code: "LOCATION",
           expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
           is_verified: true,
-          location_lat: payload.latitude,
-          location_lng: payload.longitude,
-          location_address: payload.address || null,
+          location_lat: latitude,
+          location_lng: longitude,
+          location_address: address || null,
           location_url: locationUrl
         })
         .select()
@@ -99,12 +134,12 @@ serve(async (req) => {
       if (createError) {
         console.error("Error creating session for location:", createError);
         return new Response(
-          JSON.stringify({ error: "Failed to store location" }),
+          JSON.stringify({ error: "Failed to store location", details: createError.message }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      console.log(`Created new session with location: ${newSession.id}`);
+      console.log("Created new session with location:", newSession.id);
       
       return new Response(
         JSON.stringify({ 
@@ -121,9 +156,9 @@ serve(async (req) => {
     const { error: updateError } = await supabase
       .from("otp_sessions")
       .update({
-        location_lat: payload.latitude,
-        location_lng: payload.longitude,
-        location_address: payload.address || null,
+        location_lat: latitude,
+        location_lng: longitude,
+        location_address: address || null,
         location_url: locationUrl,
         updated_at: new Date().toISOString()
       })
@@ -132,7 +167,7 @@ serve(async (req) => {
     if (updateError) {
       console.error("Error updating OTP session:", updateError);
       return new Response(
-        JSON.stringify({ error: "Failed to update location" }),
+        JSON.stringify({ error: "Failed to update location", details: updateError.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -143,7 +178,9 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         message: "Location received and stored",
-        location_url: locationUrl
+        location_url: locationUrl,
+        latitude,
+        longitude
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

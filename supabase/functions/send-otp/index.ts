@@ -11,7 +11,6 @@ interface OTPRequest {
   action: "send" | "verify" | "check_location";
   code?: string;
   user_id?: string;
-  location_url?: string;
 }
 
 // Generate a random 6-digit code
@@ -30,7 +29,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { phone, action, code, user_id, location_url }: OTPRequest = await req.json();
+    const { phone, action, code, user_id }: OTPRequest = await req.json();
 
     if (!phone) {
       return new Response(
@@ -52,23 +51,48 @@ serve(async (req) => {
 
     // Check location action - poll for location from WhatsApp
     if (action === "check_location") {
-      const { data: otpSession, error: fetchError } = await supabase
+      // First try active session
+      let { data: otpSession } = await supabase
         .from("otp_sessions")
         .select("*")
         .eq("phone", formattedPhone)
         .gt("expires_at", new Date().toISOString())
         .order("created_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (fetchError || !otpSession) {
+      // If no active session, check recent sessions (24 hours)
+      if (!otpSession) {
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const { data: recentSession } = await supabase
+          .from("otp_sessions")
+          .select("*")
+          .eq("phone", formattedPhone)
+          .gt("created_at", twentyFourHoursAgo)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        otpSession = recentSession;
+      }
+
+      if (!otpSession) {
+        console.log("No session found for location check");
         return new Response(
           JSON.stringify({ success: false, has_location: false }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      if (otpSession.location_lat && otpSession.location_lng) {
+      // Check if location exists and is valid (not 0,0)
+      const hasValidLocation = 
+        otpSession.location_lat !== null && 
+        otpSession.location_lng !== null &&
+        (otpSession.location_lat !== 0 || otpSession.location_lng !== 0);
+
+      console.log(`Location check: lat=${otpSession.location_lat}, lng=${otpSession.location_lng}, valid=${hasValidLocation}`);
+
+      if (hasValidLocation) {
         return new Response(
           JSON.stringify({ 
             success: true, 
@@ -137,12 +161,16 @@ serve(async (req) => {
 
 سوقنا 🛒`;
 
+      let webhookSent = false;
+
       if (webhook) {
         // Send OTP via WhatsApp webhook
         const webhookPayload = {
           event: "whatsapp.otp",
           type: "otp_verification",
           timestamp: new Date().toISOString(),
+          phone: formattedPhone,
+          message,
           data: {
             phone: formattedPhone,
             message,
@@ -170,6 +198,7 @@ serve(async (req) => {
 
           clearTimeout(timeoutId);
           console.log(`Webhook response status: ${webhookResponse.status}`);
+          webhookSent = webhookResponse.ok;
         } catch (fetchError: any) {
           clearTimeout(timeoutId);
           console.error("Webhook error:", fetchError);
@@ -178,13 +207,12 @@ serve(async (req) => {
         console.log("No WhatsApp webhook configured for OTP");
       }
 
-      // Return success with the OTP (in production, this should NOT be returned to client)
-      // For demo purposes, we return it so the flow can work without actual WhatsApp integration
       return new Response(
         JSON.stringify({ 
           success: true, 
           message: "تم إرسال رمز التحقق إلى واتساب",
           expires_at: expiresAt.toISOString(),
+          webhook_sent: webhookSent,
           // For demo - remove in production
           demo_code: otpCode
         }),
@@ -209,9 +237,10 @@ serve(async (req) => {
         .gt("expires_at", new Date().toISOString())
         .order("created_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (fetchError || !otpSession) {
+        console.log("OTP verification failed:", { fetchError, code, phone: formattedPhone });
         return new Response(
           JSON.stringify({ success: false, error: "رمز التحقق غير صحيح أو منتهي الصلاحية" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -224,6 +253,8 @@ serve(async (req) => {
         .update({ is_verified: true, updated_at: new Date().toISOString() })
         .eq("id", otpSession.id);
 
+      console.log("OTP verified successfully for session:", otpSession.id);
+
       // Update user profile with phone if user_id provided
       if (user_id) {
         await supabase
@@ -232,8 +263,13 @@ serve(async (req) => {
           .eq("user_id", user_id);
       }
 
-      // Return location if available
-      const locationData = otpSession.location_lat && otpSession.location_lng ? {
+      // Return location if available and valid
+      const hasValidLocation = 
+        otpSession.location_lat !== null && 
+        otpSession.location_lng !== null &&
+        (otpSession.location_lat !== 0 || otpSession.location_lng !== 0);
+
+      const locationData = hasValidLocation ? {
         lat: otpSession.location_lat,
         lng: otpSession.location_lng,
         address: otpSession.location_address,
