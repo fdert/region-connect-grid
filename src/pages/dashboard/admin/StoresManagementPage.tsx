@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -14,12 +16,83 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Search, Store, Star, MapPin, CheckCircle, XCircle } from "lucide-react";
+import { 
+  Search, Store, Star, MapPin, CheckCircle, XCircle, 
+  Edit, Navigation, Loader2, Truck, Phone, DollarSign 
+} from "lucide-react";
+
+interface StoreFormData {
+  name: string;
+  description: string;
+  phone: string;
+  address: string;
+  city: string;
+  delivery_fee: number;
+  min_order_amount: number;
+  is_active: boolean;
+  is_approved: boolean;
+  location_lat: number | null;
+  location_lng: number | null;
+  base_delivery_fee: number;
+  price_per_km: number;
+  free_delivery_radius_km: number;
+  category_id: string;
+}
 
 export default function StoresManagementPage() {
   const [search, setSearch] = useState("");
+  const [editingStore, setEditingStore] = useState<any>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [form, setForm] = useState<StoreFormData>({
+    name: "",
+    description: "",
+    phone: "",
+    address: "",
+    city: "",
+    delivery_fee: 0,
+    min_order_amount: 0,
+    is_active: false,
+    is_approved: false,
+    location_lat: null,
+    location_lng: null,
+    base_delivery_fee: 5,
+    price_per_km: 2,
+    free_delivery_radius_km: 0,
+    category_id: "",
+  });
+  
   const queryClient = useQueryClient();
+
+  // Fetch categories
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("id, name, name_ar")
+        .eq("is_active", true)
+        .is("parent_id", null)
+        .order("sort_order");
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const { data: stores, isLoading } = useQuery({
     queryKey: ["admin-stores"],
@@ -32,6 +105,29 @@ export default function StoresManagementPage() {
       return data;
     },
   });
+
+  // Update form when editing store changes
+  useEffect(() => {
+    if (editingStore) {
+      setForm({
+        name: editingStore.name || "",
+        description: editingStore.description || "",
+        phone: editingStore.phone || "",
+        address: editingStore.address || "",
+        city: editingStore.city || "",
+        delivery_fee: editingStore.delivery_fee || 0,
+        min_order_amount: editingStore.min_order_amount || 0,
+        is_active: editingStore.is_active || false,
+        is_approved: editingStore.is_approved || false,
+        location_lat: editingStore.location_lat || null,
+        location_lng: editingStore.location_lng || null,
+        base_delivery_fee: editingStore.base_delivery_fee || 5,
+        price_per_km: editingStore.price_per_km || 2,
+        free_delivery_radius_km: editingStore.free_delivery_radius_km || 0,
+        category_id: editingStore.category_id || "",
+      });
+    }
+  }, [editingStore]);
 
   const toggleApprovalMutation = useMutation({
     mutationFn: async ({ storeId, isApproved }: { storeId: string; isApproved: boolean }) => {
@@ -61,6 +157,61 @@ export default function StoresManagementPage() {
     },
   });
 
+  const updateStoreMutation = useMutation({
+    mutationFn: async (data: StoreFormData & { id: string }) => {
+      const { id, ...updateData } = data;
+      const { error } = await supabase
+        .from("stores")
+        .update(updateData as any)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
+      setIsDialogOpen(false);
+      setEditingStore(null);
+      toast({ title: "تم تحديث بيانات المتجر بنجاح" });
+    },
+    onError: () => {
+      toast({ title: "خطأ", description: "فشل في تحديث بيانات المتجر", variant: "destructive" });
+    },
+  });
+
+  const handleEditStore = (store: any) => {
+    setEditingStore(store);
+    setIsDialogOpen(true);
+  };
+
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      toast({ title: "خطأ", description: "المتصفح لا يدعم تحديد الموقع", variant: "destructive" });
+      return;
+    }
+    setLocationLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setForm({
+          ...form,
+          location_lat: position.coords.latitude,
+          location_lng: position.coords.longitude,
+        });
+        setLocationLoading(false);
+        toast({ title: "تم تحديد الموقع بنجاح" });
+      },
+      () => {
+        setLocationLoading(false);
+        toast({ title: "خطأ", description: "فشل في تحديد الموقع", variant: "destructive" });
+      },
+      { enableHighAccuracy: true }
+    );
+  };
+
+  const handleSubmitEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingStore) return;
+    updateStoreMutation.mutate({ ...form, id: editingStore.id });
+  };
+
   const filteredStores = stores?.filter((store) => {
     const searchLower = search.toLowerCase();
     return (
@@ -76,7 +227,7 @@ export default function StoresManagementPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">إدارة المتاجر</h1>
-            <p className="text-muted-foreground">عرض والموافقة على المتاجر</p>
+            <p className="text-muted-foreground">عرض والموافقة على المتاجر وتعديل بياناتها</p>
           </div>
         </div>
 
@@ -121,15 +272,13 @@ export default function StoresManagementPage() {
           <div className="p-4 rounded-lg border bg-card">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-full bg-blue-500/10">
-                <Star className="h-5 w-5 text-blue-500" />
+                <Navigation className="h-5 w-5 text-blue-500" />
               </div>
               <div>
                 <p className="text-2xl font-bold">
-                  {stores?.length
-                    ? (stores.reduce((acc, s) => acc + (s.rating || 0), 0) / stores.length).toFixed(1)
-                    : 0}
+                  {stores?.filter((s: any) => s.location_lat && s.location_lng).length || 0}
                 </p>
-                <p className="text-sm text-muted-foreground">متوسط التقييم</p>
+                <p className="text-sm text-muted-foreground">لديها موقع</p>
               </div>
             </div>
           </div>
@@ -145,7 +294,7 @@ export default function StoresManagementPage() {
           />
         </div>
 
-        <div className="rounded-lg border bg-card">
+        <div className="rounded-lg border bg-card overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -153,6 +302,7 @@ export default function StoresManagementPage() {
                 <TableHead className="text-right">المدينة</TableHead>
                 <TableHead className="text-right">التقييم</TableHead>
                 <TableHead className="text-right">رسوم التوصيل</TableHead>
+                <TableHead className="text-right">الموقع</TableHead>
                 <TableHead className="text-right">معتمد</TableHead>
                 <TableHead className="text-right">مفعل</TableHead>
                 <TableHead className="text-right">الإجراءات</TableHead>
@@ -161,18 +311,18 @@ export default function StoresManagementPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
+                  <TableCell colSpan={8} className="text-center py-8">
                     جاري التحميل...
                   </TableCell>
                 </TableRow>
               ) : filteredStores?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
+                  <TableCell colSpan={8} className="text-center py-8">
                     لا يوجد متاجر
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredStores?.map((store) => (
+                filteredStores?.map((store: any) => (
                   <TableRow key={store.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -208,7 +358,24 @@ export default function StoresManagementPage() {
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell>{store.delivery_fee} ر.س</TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        <p>{store.base_delivery_fee || store.delivery_fee} ر.س أساسي</p>
+                        <p className="text-xs text-muted-foreground">{store.price_per_km || 2} ر.س/كم</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {store.location_lat && store.location_lng ? (
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                          <Navigation className="w-3 h-3 mr-1" />
+                          محدد
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                          غير محدد
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Switch
                         checked={store.is_approved || false}
@@ -232,8 +399,14 @@ export default function StoresManagementPage() {
                       />
                     </TableCell>
                     <TableCell>
-                      <Button variant="outline" size="sm">
-                        عرض التفاصيل
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleEditStore(store)}
+                        className="gap-1"
+                      >
+                        <Edit className="w-4 h-4" />
+                        تعديل
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -243,6 +416,238 @@ export default function StoresManagementPage() {
           </Table>
         </div>
       </div>
+
+      {/* Edit Store Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>تعديل بيانات المتجر</DialogTitle>
+            <DialogDescription>تعديل معلومات وإعدادات المتجر</DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSubmitEdit} className="space-y-6">
+            {/* Basic Info */}
+            <div className="space-y-4">
+              <h3 className="font-semibold flex items-center gap-2">
+                <Store className="w-4 h-4" />
+                المعلومات الأساسية
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>اسم المتجر</Label>
+                  <Input
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>التصنيف</Label>
+                  <Select
+                    value={form.category_id}
+                    onValueChange={(value) => setForm({ ...form, category_id: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر التصنيف" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((cat: any) => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.name_ar}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>الوصف</Label>
+                <Textarea
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  rows={2}
+                />
+              </div>
+            </div>
+
+            {/* Contact Info */}
+            <div className="space-y-4">
+              <h3 className="font-semibold flex items-center gap-2">
+                <Phone className="w-4 h-4" />
+                معلومات التواصل
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>رقم الهاتف</Label>
+                  <Input
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    dir="ltr"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>المدينة</Label>
+                  <Input
+                    value={form.city}
+                    onChange={(e) => setForm({ ...form, city: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>العنوان</Label>
+                  <Input
+                    value={form.address}
+                    onChange={(e) => setForm({ ...form, address: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Location */}
+            <div className="space-y-4">
+              <h3 className="font-semibold flex items-center gap-2">
+                <Navigation className="w-4 h-4" />
+                موقع المتجر
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>خط العرض (Latitude)</Label>
+                  <Input
+                    type="number"
+                    step="any"
+                    value={form.location_lat || ""}
+                    onChange={(e) => setForm({ ...form, location_lat: e.target.value ? Number(e.target.value) : null })}
+                    placeholder="24.7136"
+                    dir="ltr"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>خط الطول (Longitude)</Label>
+                  <Input
+                    type="number"
+                    step="any"
+                    value={form.location_lng || ""}
+                    onChange={(e) => setForm({ ...form, location_lng: e.target.value ? Number(e.target.value) : null })}
+                    placeholder="46.6753"
+                    dir="ltr"
+                  />
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGetLocation}
+                disabled={locationLoading}
+                className="gap-2"
+              >
+                {locationLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Navigation className="w-4 h-4" />
+                )}
+                تحديد الموقع من المتصفح
+              </Button>
+              {form.location_lat && form.location_lng && (
+                <a
+                  href={`https://maps.google.com/?q=${form.location_lat},${form.location_lng}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-primary hover:underline block"
+                >
+                  عرض على خرائط جوجل
+                </a>
+              )}
+            </div>
+
+            {/* Delivery Settings */}
+            <div className="space-y-4">
+              <h3 className="font-semibold flex items-center gap-2">
+                <Truck className="w-4 h-4" />
+                إعدادات التوصيل
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>رسوم التوصيل الأساسية (ر.س)</Label>
+                  <Input
+                    type="number"
+                    value={form.base_delivery_fee}
+                    onChange={(e) => setForm({ ...form, base_delivery_fee: Number(e.target.value) })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>سعر الكيلومتر (ر.س)</Label>
+                  <Input
+                    type="number"
+                    step="0.5"
+                    value={form.price_per_km}
+                    onChange={(e) => setForm({ ...form, price_per_km: Number(e.target.value) })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>نطاق التوصيل المجاني (كم)</Label>
+                  <Input
+                    type="number"
+                    value={form.free_delivery_radius_km}
+                    onChange={(e) => setForm({ ...form, free_delivery_radius_km: Number(e.target.value) })}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>رسوم التوصيل الثابتة (ر.س)</Label>
+                  <Input
+                    type="number"
+                    value={form.delivery_fee}
+                    onChange={(e) => setForm({ ...form, delivery_fee: Number(e.target.value) })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>الحد الأدنى للطلب (ر.س)</Label>
+                  <Input
+                    type="number"
+                    value={form.min_order_amount}
+                    onChange={(e) => setForm({ ...form, min_order_amount: Number(e.target.value) })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Status */}
+            <div className="space-y-4">
+              <h3 className="font-semibold flex items-center gap-2">
+                <DollarSign className="w-4 h-4" />
+                الحالة
+              </h3>
+              <div className="flex flex-wrap gap-6">
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={form.is_approved}
+                    onCheckedChange={(checked) => setForm({ ...form, is_approved: checked })}
+                  />
+                  <Label>معتمد</Label>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={form.is_active}
+                    onCheckedChange={(checked) => setForm({ ...form, is_active: checked })}
+                  />
+                  <Label>مفعل</Label>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                إلغاء
+              </Button>
+              <Button type="submit" disabled={updateStoreMutation.isPending}>
+                {updateStoreMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : null}
+                حفظ التغييرات
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }
