@@ -27,13 +27,27 @@ serve(async (req) => {
     let longitude: number | null = null;
     let address = "";
 
-    // Try different payload structures
-    // Format 1: Direct fields
+    // Try different phone sources
+    // Format: darcoom.com/wsender uses "sender"
+    if (rawPayload.sender) phone = rawPayload.sender;
     if (rawPayload.phone) phone = rawPayload.phone;
     if (rawPayload.data?.phone) phone = rawPayload.data.phone;
+    if (rawPayload.from) phone = rawPayload.from;
+    
+    console.log("Phone extracted:", phone);
+
+    // Try different location structures
+    // Format 1: darcoom.com/wsender uses raw_message.locationMessage
+    if (rawPayload.raw_message?.locationMessage) {
+      const loc = rawPayload.raw_message.locationMessage;
+      latitude = loc.degreesLatitude || loc.latitude;
+      longitude = loc.degreesLongitude || loc.longitude;
+      address = loc.address || loc.name || "";
+      console.log("Found location in raw_message.locationMessage:", { latitude, longitude });
+    }
     
     // Format 2: WhatsApp message structure
-    if (rawPayload.message?.locationMessage) {
+    if (latitude === null && rawPayload.message?.locationMessage) {
       const loc = rawPayload.message.locationMessage;
       latitude = loc.degreesLatitude || loc.latitude;
       longitude = loc.degreesLongitude || loc.longitude;
@@ -111,7 +125,7 @@ serve(async (req) => {
         JSON.stringify({ 
           error: "Invalid coordinates. Please send valid latitude and longitude values (not 0,0).",
           received: { latitude, longitude },
-          help: "Make sure your n8n workflow extracts the actual coordinates from the WhatsApp location message. Check for fields like: message.locationMessage.degreesLatitude, message.locationMessage.degreesLongitude"
+          help: "Make sure your webhook sends location data. Check for fields like: raw_message.locationMessage.degreesLatitude"
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
