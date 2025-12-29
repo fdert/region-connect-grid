@@ -51,63 +51,47 @@ serve(async (req) => {
 
     // Check location action - poll for location from WhatsApp
     if (action === "check_location") {
-      // First try active session
-      let { data: otpSession } = await supabase
+      console.log(`Checking location for phone: ${formattedPhone}`);
+      
+      // Find ANY session with location data for this phone (most recently updated)
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      
+      const { data: sessionWithLocation } = await supabase
         .from("otp_sessions")
         .select("*")
         .eq("phone", formattedPhone)
-        .gt("expires_at", new Date().toISOString())
-        .order("created_at", { ascending: false })
+        .not("location_lat", "is", null)
+        .not("location_lng", "is", null)
+        .gt("created_at", twentyFourHoursAgo)
+        .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      // If no active session, check recent sessions (24 hours)
-      if (!otpSession) {
-        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-        const { data: recentSession } = await supabase
-          .from("otp_sessions")
-          .select("*")
-          .eq("phone", formattedPhone)
-          .gt("created_at", twentyFourHoursAgo)
-          .order("updated_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        
-        otpSession = recentSession;
+      if (sessionWithLocation) {
+        // Check if location is valid (not 0,0)
+        const hasValidLocation = 
+          sessionWithLocation.location_lat !== 0 || sessionWithLocation.location_lng !== 0;
+
+        console.log(`Found session with location: lat=${sessionWithLocation.location_lat}, lng=${sessionWithLocation.location_lng}, valid=${hasValidLocation}`);
+
+        if (hasValidLocation) {
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              has_location: true,
+              location: {
+                lat: sessionWithLocation.location_lat,
+                lng: sessionWithLocation.location_lng,
+                address: sessionWithLocation.location_address,
+                url: sessionWithLocation.location_url
+              }
+            }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
       }
 
-      if (!otpSession) {
-        console.log("No session found for location check");
-        return new Response(
-          JSON.stringify({ success: false, has_location: false }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // Check if location exists and is valid (not 0,0)
-      const hasValidLocation = 
-        otpSession.location_lat !== null && 
-        otpSession.location_lng !== null &&
-        (otpSession.location_lat !== 0 || otpSession.location_lng !== 0);
-
-      console.log(`Location check: lat=${otpSession.location_lat}, lng=${otpSession.location_lng}, valid=${hasValidLocation}`);
-
-      if (hasValidLocation) {
-        return new Response(
-          JSON.stringify({ 
-            success: true, 
-            has_location: true,
-            location: {
-              lat: otpSession.location_lat,
-              lng: otpSession.location_lng,
-              address: otpSession.location_address,
-              url: otpSession.location_url
-            }
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
+      console.log("No session with valid location found");
       return new Response(
         JSON.stringify({ success: true, has_location: false }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
