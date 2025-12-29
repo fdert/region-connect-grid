@@ -41,27 +41,6 @@ serve(async (req) => {
       formattedPhone = '+' + formattedPhone;
     }
 
-    // Get ALL active webhooks
-    const { data: webhooks, error: webhookError } = await supabase
-      .from("webhook_settings")
-      .select("*")
-      .eq("is_active", true);
-
-    if (webhookError) {
-      console.error("Error fetching webhooks:", webhookError);
-    }
-
-    console.log("All active webhooks:", webhooks?.length || 0);
-
-    // Filter webhooks that should handle location requests
-    const locationWebhooks = webhooks?.filter(w => 
-      w.events?.includes("location.request") || 
-      w.events?.includes("whatsapp.message") ||
-      w.events?.includes("whatsapp")
-    ) || [];
-
-    console.log("Filtered location webhooks:", locationWebhooks.length);
-
     // Get location request template
     const { data: template } = await supabase
       .from("whatsapp_templates")
@@ -86,82 +65,87 @@ serve(async (req) => {
       message = template.template;
     }
 
-    // Send WhatsApp message via webhook
-    let webhookSent = false;
-    let webhookResponses: string[] = [];
+    // Try to send WhatsApp message directly via API (like OTP)
+    const whatsappAppKey = Deno.env.get("WHATSAPP_APP_KEY");
+    const whatsappAuthKey = Deno.env.get("WHATSAPP_AUTH_KEY");
     
-    if (locationWebhooks.length > 0) {
-      for (const webhook of locationWebhooks) {
-        try {
-          const webhookPayload = {
-            type: "location_request",
-            event: "location.request",
-            phone: formattedPhone,
-            message: message,
-            timestamp: new Date().toISOString(),
-            data: {
-              phone: formattedPhone,
-              message: message
-            }
-          };
+    let whatsappSent = false;
+    
+    if (whatsappAppKey && whatsappAuthKey) {
+      console.log("Sending location request directly via WhatsApp API to:", formattedPhone);
+      
+      try {
+        const formData = new FormData();
+        formData.append("appkey", whatsappAppKey);
+        formData.append("authkey", whatsappAuthKey);
+        formData.append("to", formattedPhone);
+        formData.append("message", message);
 
-          console.log("Sending location request to webhook:", webhook.url, webhook.name);
+        const response = await fetch("https://darcoom.com/wsender/public/api/create-message", {
+          method: "POST",
+          body: formData
+        });
 
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-          const response = await fetch(webhook.url, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "User-Agent": "DeliveryPlatform-Location/1.0",
-              ...(webhook.secret_token && { "X-Webhook-Secret": webhook.secret_token })
-            },
-            body: JSON.stringify(webhookPayload),
-            signal: controller.signal
-          });
-
-          clearTimeout(timeoutId);
-
-          const responseText = await response.text();
-          console.log(`Webhook ${webhook.name} response: ${response.status} - ${responseText}`);
-          webhookResponses.push(`${webhook.name}: ${response.status}`);
-
-          if (response.ok) {
-            webhookSent = true;
-            console.log("Location request sent successfully via webhook:", webhook.name);
-          } else {
-            console.error("Webhook response not ok:", response.status, responseText);
-          }
-        } catch (error: any) {
-          console.error("Error sending to webhook:", webhook.name, error.message || error);
-          webhookResponses.push(`${webhook.name}: error - ${error.message || 'unknown'}`);
+        const responseText = await response.text();
+        console.log("WhatsApp API response:", response.status, responseText);
+        
+        if (response.ok) {
+          whatsappSent = true;
+          console.log("Location request sent successfully via WhatsApp API");
         }
+      } catch (error: any) {
+        console.error("Error sending WhatsApp message directly:", error.message || error);
       }
     } else {
-      console.log("No webhooks configured for location.request");
+      console.log("WhatsApp API credentials not found, falling back to webhook");
+      
+      // Fallback to webhook
+      const { data: webhooks } = await supabase
+        .from("webhook_settings")
+        .select("*")
+        .eq("is_active", true)
+        .contains("events", ["location.request"]);
+
+      if (webhooks && webhooks.length > 0) {
+        for (const webhook of webhooks) {
+          try {
+            const webhookPayload = {
+              type: "location_request",
+              event: "location.request",
+              phone: formattedPhone,
+              message: message,
+              timestamp: new Date().toISOString()
+            };
+
+            const response = await fetch(webhook.url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(webhookPayload)
+            });
+
+            if (response.ok) {
+              whatsappSent = true;
+              console.log("Location request sent via webhook:", webhook.name);
+            }
+          } catch (error: any) {
+            console.error("Webhook error:", error.message);
+          }
+        }
+      }
     }
 
     // Update OTP session to mark that location was requested
-    const { error: updateError } = await supabase
+    await supabase
       .from("otp_sessions")
-      .update({
-        updated_at: new Date().toISOString()
-      })
+      .update({ updated_at: new Date().toISOString() })
       .eq("phone", formattedPhone)
       .gt("expires_at", new Date().toISOString());
-
-    if (updateError) {
-      console.error("Error updating OTP session:", updateError);
-    }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: "Location request sent via WhatsApp",
-        webhook_sent: webhookSent,
-        webhooks_found: locationWebhooks.length,
-        webhook_responses: webhookResponses
+        whatsapp_sent: whatsappSent
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
