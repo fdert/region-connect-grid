@@ -132,16 +132,6 @@ serve(async (req) => {
         console.error("Error storing OTP:", insertError);
       }
       
-      // Get webhook URL for WhatsApp OTP - prioritize whatsapp.otp event
-      const { data: webhooks } = await supabase
-        .from("webhook_settings")
-        .select("*")
-        .eq("is_active", true)
-        .contains("events", ["whatsapp.otp"])
-        .limit(1);
-
-      const webhook = webhooks?.[0];
-
       // Build verification message with location request
       const message = `🔐 رمز التحقق الخاص بك هو: *${otpCode}*
 
@@ -156,50 +146,93 @@ serve(async (req) => {
 
 سوقنا 🛒`;
 
-      let webhookSent = false;
+      let whatsappSent = false;
 
-      if (webhook) {
-        // Send OTP via WhatsApp webhook
-        const webhookPayload = {
-          event: "whatsapp.otp",
-          type: "otp_verification",
-          timestamp: new Date().toISOString(),
-          phone: formattedPhone,
-          message,
-          data: {
-            phone: formattedPhone,
-            message,
-            otp_code: otpCode,
-            expires_at: expiresAt.toISOString()
-          }
-        };
+      // Get WhatsApp API credentials from environment
+      const whatsappAppKey = Deno.env.get("WHATSAPP_APP_KEY");
+      const whatsappAuthKey = Deno.env.get("WHATSAPP_AUTH_KEY");
 
-        console.log(`Sending OTP to webhook: ${webhook.url}`);
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000);
+      if (whatsappAppKey && whatsappAuthKey) {
+        // Send WhatsApp message directly via API
+        console.log(`Sending WhatsApp message directly to: ${formattedPhone}`);
 
         try {
-          const webhookResponse = await fetch(webhook.url, {
+          const formData = new FormData();
+          formData.append("appkey", whatsappAppKey);
+          formData.append("authkey", whatsappAuthKey);
+          formData.append("to", formattedPhone);
+          formData.append("message", message);
+
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+          const whatsappResponse = await fetch("https://darcoom.com/wsender/public/api/create-message", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "User-Agent": "DeliveryPlatform-OTP/1.0",
-              ...(webhook.secret_token && { "X-Webhook-Secret": webhook.secret_token })
-            },
-            body: JSON.stringify(webhookPayload),
+            body: formData,
             signal: controller.signal
           });
 
           clearTimeout(timeoutId);
-          console.log(`Webhook response status: ${webhookResponse.status}`);
-          webhookSent = webhookResponse.ok;
+          const responseText = await whatsappResponse.text();
+          console.log(`WhatsApp API response: ${whatsappResponse.status} - ${responseText}`);
+          whatsappSent = whatsappResponse.ok;
         } catch (fetchError: any) {
-          clearTimeout(timeoutId);
-          console.error("Webhook error:", fetchError);
+          console.error("WhatsApp API error:", fetchError.message || fetchError);
         }
       } else {
-        console.log("No WhatsApp webhook configured for OTP");
+        console.log("WhatsApp API credentials not configured, trying webhook fallback...");
+        
+        // Fallback to webhook if no direct API credentials
+        const { data: webhooks } = await supabase
+          .from("webhook_settings")
+          .select("*")
+          .eq("is_active", true)
+          .contains("events", ["whatsapp.otp"])
+          .limit(1);
+
+        const webhook = webhooks?.[0];
+
+        if (webhook) {
+          const webhookPayload = {
+            event: "whatsapp.otp",
+            type: "otp_verification",
+            timestamp: new Date().toISOString(),
+            phone: formattedPhone,
+            message,
+            data: {
+              phone: formattedPhone,
+              message,
+              otp_code: otpCode,
+              expires_at: expiresAt.toISOString()
+            }
+          };
+
+          console.log(`Sending OTP to webhook: ${webhook.url}`);
+
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+            const webhookResponse = await fetch(webhook.url, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "User-Agent": "DeliveryPlatform-OTP/1.0",
+                ...(webhook.secret_token && { "X-Webhook-Secret": webhook.secret_token })
+              },
+              body: JSON.stringify(webhookPayload),
+              signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+            console.log(`Webhook response status: ${webhookResponse.status}`);
+            whatsappSent = webhookResponse.ok;
+          } catch (fetchError: any) {
+            console.error("Webhook error:", fetchError);
+          }
+        } else {
+          console.log("No WhatsApp webhook configured for OTP");
+        }
       }
 
       return new Response(
@@ -207,7 +240,7 @@ serve(async (req) => {
           success: true, 
           message: "تم إرسال رمز التحقق إلى واتساب",
           expires_at: expiresAt.toISOString(),
-          webhook_sent: webhookSent,
+          whatsapp_sent: whatsappSent,
           // For demo - remove in production
           demo_code: otpCode
         }),
