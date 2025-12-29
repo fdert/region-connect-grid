@@ -24,18 +24,32 @@ serve(async (req) => {
       },
     });
 
-    // Verify the requesting user is an admin
+    // Get the JWT from the Authorization header
     const authHeader = req.headers.get("Authorization");
+    console.log("Auth header present:", !!authHeader);
+    
     if (!authHeader) {
+      console.log("No authorization header found");
       throw new Error("Missing authorization header");
     }
 
     const token = authHeader.replace("Bearer ", "");
+    console.log("Token length:", token.length);
+    
+    // Verify the user using the token
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
     
-    if (authError || !user) {
+    if (authError) {
+      console.log("Auth error:", authError.message);
+      throw new Error("Unauthorized: " + authError.message);
+    }
+    
+    if (!user) {
+      console.log("No user found from token");
       throw new Error("Unauthorized");
     }
+    
+    console.log("User authenticated:", user.id);
 
     // Check if user is admin
     const { data: roleData, error: roleError } = await supabaseAdmin
