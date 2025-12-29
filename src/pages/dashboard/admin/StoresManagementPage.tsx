@@ -33,8 +33,9 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { 
   Search, Store, Star, MapPin, CheckCircle, XCircle, 
-  Edit, Navigation, Loader2, Truck, Phone, DollarSign 
+  Edit, Navigation, Loader2, Truck, Phone, DollarSign, Link 
 } from "lucide-react";
+import { parseCoordinatesFromUrl } from "@/lib/distance";
 
 interface StoreFormData {
   name: string;
@@ -48,6 +49,7 @@ interface StoreFormData {
   is_approved: boolean;
   location_lat: number | null;
   location_lng: number | null;
+  location_url: string;
   base_delivery_fee: number;
   price_per_km: number;
   free_delivery_radius_km: number;
@@ -71,6 +73,7 @@ export default function StoresManagementPage() {
     is_approved: false,
     location_lat: null,
     location_lng: null,
+    location_url: "",
     base_delivery_fee: 5,
     price_per_km: 2,
     free_delivery_radius_km: 0,
@@ -121,6 +124,7 @@ export default function StoresManagementPage() {
         is_approved: editingStore.is_approved || false,
         location_lat: editingStore.location_lat || null,
         location_lng: editingStore.location_lng || null,
+        location_url: editingStore.location_url || "",
         base_delivery_fee: editingStore.base_delivery_fee || 5,
         price_per_km: editingStore.price_per_km || 2,
         free_delivery_radius_km: editingStore.free_delivery_radius_km || 0,
@@ -190,10 +194,13 @@ export default function StoresManagementPage() {
     setLocationLoading(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
         setForm({
           ...form,
-          location_lat: position.coords.latitude,
-          location_lng: position.coords.longitude,
+          location_lat: lat,
+          location_lng: lng,
+          location_url: `https://www.google.com/maps?q=${lat},${lng}`,
         });
         setLocationLoading(false);
         toast({ title: "تم تحديد الموقع بنجاح" });
@@ -507,63 +514,97 @@ export default function StoresManagementPage() {
                 <Navigation className="w-4 h-4" />
                 موقع المتجر
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>خط العرض (Latitude)</Label>
-                  <Input
-                    type="number"
-                    step="any"
-                    value={form.location_lat || ""}
-                    onChange={(e) => setForm({ ...form, location_lat: e.target.value ? Number(e.target.value) : null })}
-                    placeholder="24.7136"
-                    dir="ltr"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>خط الطول (Longitude)</Label>
-                  <Input
-                    type="number"
-                    step="any"
-                    value={form.location_lng || ""}
-                    onChange={(e) => setForm({ ...form, location_lng: e.target.value ? Number(e.target.value) : null })}
-                    placeholder="46.6753"
-                    dir="ltr"
-                  />
-                </div>
+              
+              {/* Primary: Location URL input */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Link className="w-4 h-4" />
+                  رابط موقع خرائط جوجل
+                </Label>
+                <Input
+                  type="url"
+                  value={form.location_url}
+                  onChange={(e) => {
+                    const url = e.target.value;
+                    setForm({ ...form, location_url: url });
+                    
+                    // Auto-extract coordinates from URL
+                    if (url) {
+                      const coords = parseCoordinatesFromUrl(url);
+                      if (coords) {
+                        setForm(prev => ({
+                          ...prev,
+                          location_url: url,
+                          location_lat: coords.lat,
+                          location_lng: coords.lng
+                        }));
+                        toast({
+                          title: "تم استخراج الإحداثيات",
+                          description: `خط العرض: ${coords.lat}, خط الطول: ${coords.lng}`,
+                        });
+                      }
+                    }
+                  }}
+                  placeholder="https://www.google.com/maps?q=24.7136,46.6753"
+                  dir="ltr"
+                  className="text-sm"
+                />
+                <p className="text-xs text-muted-foreground">
+                  الصق رابط الموقع من خرائط جوجل وسيتم استخراج الإحداثيات تلقائياً
+                </p>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleGetLocation}
-                disabled={locationLoading}
-                className="gap-2"
-              >
-                {locationLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Navigation className="w-4 h-4" />
-                )}
-                تحديد الموقع من المتصفح
-              </Button>
+
+              {/* Extracted coordinates display */}
               {form.location_lat && form.location_lng && (
-                <>
-                  {/* Validate coordinates before showing link */}
+                <div className="p-3 bg-muted rounded-lg space-y-2">
+                  <p className="text-sm font-medium">الإحداثيات المستخرجة:</p>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">خط العرض: </span>
+                      <span dir="ltr">{form.location_lat}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">خط الطول: </span>
+                      <span dir="ltr">{form.location_lng}</span>
+                    </div>
+                  </div>
                   {Math.abs(form.location_lat) <= 90 && Math.abs(form.location_lng) <= 180 ? (
                     <a
                       href={`https://www.google.com/maps?q=${form.location_lat},${form.location_lng}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sm text-primary hover:underline block"
+                      className="text-sm text-primary hover:underline inline-flex items-center gap-1"
                     >
+                      <MapPin className="w-3 h-3" />
                       عرض على خرائط جوجل
                     </a>
                   ) : (
                     <p className="text-sm text-destructive">
-                      ⚠️ إحداثيات غير صحيحة! خط العرض يجب أن يكون بين -90 و 90، وخط الطول بين -180 و 180
+                      ⚠️ إحداثيات غير صحيحة!
                     </p>
                   )}
-                </>
+                </div>
               )}
+
+              {/* Alternative: Get location from browser */}
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleGetLocation}
+                  disabled={locationLoading}
+                  className="gap-2"
+                >
+                  {locationLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Navigation className="w-4 h-4" />
+                  )}
+                  تحديد الموقع من المتصفح
+                </Button>
+                <span className="text-xs text-muted-foreground">أو</span>
+              </div>
             </div>
 
             {/* Delivery Settings */}
