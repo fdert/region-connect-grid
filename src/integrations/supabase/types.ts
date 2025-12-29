@@ -910,6 +910,7 @@ export type Database = {
       stores: {
         Row: {
           address: string | null
+          base_delivery_fee: number | null
           category_id: string | null
           city: string | null
           cover_url: string | null
@@ -917,14 +918,19 @@ export type Database = {
           delivery_fee: number | null
           delivery_zones: Json | null
           description: string | null
+          free_delivery_radius_km: number | null
           id: string
           is_active: boolean | null
           is_approved: boolean | null
+          location_lat: number | null
+          location_lng: number | null
+          location_url: string | null
           logo_url: string | null
           merchant_id: string
           min_order_amount: number | null
           name: string
           phone: string | null
+          price_per_km: number | null
           rating: number | null
           total_reviews: number | null
           updated_at: string | null
@@ -932,6 +938,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          base_delivery_fee?: number | null
           category_id?: string | null
           city?: string | null
           cover_url?: string | null
@@ -939,14 +946,19 @@ export type Database = {
           delivery_fee?: number | null
           delivery_zones?: Json | null
           description?: string | null
+          free_delivery_radius_km?: number | null
           id?: string
           is_active?: boolean | null
           is_approved?: boolean | null
+          location_lat?: number | null
+          location_lng?: number | null
+          location_url?: string | null
           logo_url?: string | null
           merchant_id: string
           min_order_amount?: number | null
           name: string
           phone?: string | null
+          price_per_km?: number | null
           rating?: number | null
           total_reviews?: number | null
           updated_at?: string | null
@@ -954,6 +966,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          base_delivery_fee?: number | null
           category_id?: string | null
           city?: string | null
           cover_url?: string | null
@@ -961,14 +974,19 @@ export type Database = {
           delivery_fee?: number | null
           delivery_zones?: Json | null
           description?: string | null
+          free_delivery_radius_km?: number | null
           id?: string
           is_active?: boolean | null
           is_approved?: boolean | null
+          location_lat?: number | null
+          location_lng?: number | null
+          location_url?: string | null
           logo_url?: string | null
           merchant_id?: string
           min_order_amount?: number | null
           name?: string
           phone?: string | null
+          price_per_km?: number | null
           rating?: number | null
           total_reviews?: number | null
           updated_at?: string | null

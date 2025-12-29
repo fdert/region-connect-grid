@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Store, Phone, MapPin, Clock, DollarSign, Loader2, Save, Image, Upload, Tag } from "lucide-react";
+import { Store, Phone, MapPin, Clock, DollarSign, Loader2, Save, Image, Upload, Tag, Navigation, Truck } from "lucide-react";
 import { toast } from "sonner";
 
 interface Category {
@@ -30,6 +30,11 @@ interface StoreForm {
   logo_url: string;
   cover_url: string;
   category_id: string;
+  location_lat: number | null;
+  location_lng: number | null;
+  base_delivery_fee: number;
+  price_per_km: number;
+  free_delivery_radius_km: number;
 }
 
 const MerchantSettings = () => {
@@ -46,7 +51,13 @@ const MerchantSettings = () => {
     logo_url: "",
     cover_url: "",
     category_id: "",
+    location_lat: null,
+    location_lng: null,
+    base_delivery_fee: 5,
+    price_per_km: 2,
+    free_delivery_radius_km: 0,
   });
+  const [locationLoading, setLocationLoading] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>("");
   const [coverFile, setCoverFile] = useState<File | null>(null);
@@ -104,11 +115,41 @@ const MerchantSettings = () => {
         logo_url: store.logo_url || "",
         cover_url: store.cover_url || "",
         category_id: (store as any).category_id || "",
+        location_lat: (store as any).location_lat || null,
+        location_lng: (store as any).location_lng || null,
+        base_delivery_fee: (store as any).base_delivery_fee || 5,
+        price_per_km: (store as any).price_per_km || 2,
+        free_delivery_radius_km: (store as any).free_delivery_radius_km || 0,
       });
       setLogoPreview(store.logo_url || "");
       setCoverPreview(store.cover_url || "");
     }
   }, [store]);
+
+  // Get store location from browser
+  const handleGetStoreLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("المتصفح لا يدعم تحديد الموقع");
+      return;
+    }
+    setLocationLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setForm({
+          ...form,
+          location_lat: position.coords.latitude,
+          location_lng: position.coords.longitude,
+        });
+        setLocationLoading(false);
+        toast.success("تم تحديد موقع المتجر بنجاح");
+      },
+      () => {
+        setLocationLoading(false);
+        toast.error("فشل في تحديد الموقع");
+      },
+      { enableHighAccuracy: true }
+    );
+  };
 
   // Upload image to storage
   const uploadImage = async (file: File, folder: string): Promise<string> => {
@@ -190,7 +231,12 @@ const MerchantSettings = () => {
           logo_url: logoUrl || null,
           cover_url: coverUrl || null,
           category_id: data.category_id || null,
-        })
+          location_lat: data.location_lat,
+          location_lng: data.location_lng,
+          base_delivery_fee: data.base_delivery_fee,
+          price_per_km: data.price_per_km,
+          free_delivery_radius_km: data.free_delivery_radius_km,
+        } as any)
         .eq("id", store.id);
       
       if (error) throw error;
@@ -433,25 +479,100 @@ const MerchantSettings = () => {
             </CardContent>
           </Card>
 
+          {/* Store Location */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Navigation className="w-5 h-5" />
+                موقع المتجر
+              </CardTitle>
+              <CardDescription>حدد موقع المتجر لحساب رسوم التوصيل تلقائياً</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-14 gap-3"
+                onClick={handleGetStoreLocation}
+                disabled={locationLoading}
+              >
+                {locationLoading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Navigation className="w-5 h-5" />
+                )}
+                تحديد موقع المتجر من المتصفح
+              </Button>
+              
+              {form.location_lat && form.location_lng && (
+                <div className="p-4 bg-success/10 border border-success/30 rounded-xl">
+                  <p className="text-sm text-success font-medium">✅ تم تحديد موقع المتجر</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    الإحداثيات: {form.location_lat.toFixed(6)}, {form.location_lng.toFixed(6)}
+                  </p>
+                  <a 
+                    href={`https://maps.google.com/?q=${form.location_lat},${form.location_lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-primary hover:underline"
+                  >
+                    عرض على الخريطة
+                  </a>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Delivery Settings */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <DollarSign className="w-5 h-5" />
+                <Truck className="w-5 h-5" />
                 إعدادات التوصيل
               </CardTitle>
               <CardDescription>رسوم التوصيل والحد الأدنى للطلب</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label>رسوم التوصيل الأساسية (ر.س)</Label>
+                  <Input
+                    type="number"
+                    value={form.base_delivery_fee}
+                    onChange={(e) => setForm({ ...form, base_delivery_fee: Number(e.target.value) })}
+                    placeholder="5"
+                  />
+                </div>
+                <div>
+                  <Label>سعر الكيلومتر (ر.س)</Label>
+                  <Input
+                    type="number"
+                    step="0.5"
+                    value={form.price_per_km}
+                    onChange={(e) => setForm({ ...form, price_per_km: Number(e.target.value) })}
+                    placeholder="2"
+                  />
+                </div>
+                <div>
+                  <Label>نطاق التوصيل المجاني (كم)</Label>
+                  <Input
+                    type="number"
+                    value={form.free_delivery_radius_km}
+                    onChange={(e) => setForm({ ...form, free_delivery_radius_km: Number(e.target.value) })}
+                    placeholder="0"
+                  />
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label>رسوم التوصيل (ر.س)</Label>
+                  <Label>رسوم التوصيل الثابتة (ر.س) - اختياري</Label>
                   <Input
                     type="number"
                     value={form.delivery_fee}
                     onChange={(e) => setForm({ ...form, delivery_fee: Number(e.target.value) })}
                     placeholder="0"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">تُستخدم إذا لم يتم تحديد موقع المتجر</p>
                 </div>
                 <div>
                   <Label>الحد الأدنى للطلب (ر.س)</Label>
