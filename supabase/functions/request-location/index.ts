@@ -41,7 +41,7 @@ serve(async (req) => {
       formattedPhone = '+' + formattedPhone;
     }
 
-    // Get active webhook for location requests - check for both event types
+    // Get ALL active webhooks
     const { data: webhooks, error: webhookError } = await supabase
       .from("webhook_settings")
       .select("*")
@@ -51,17 +51,19 @@ serve(async (req) => {
       console.error("Error fetching webhooks:", webhookError);
     }
 
-    // Filter webhooks that contain location.request OR whatsapp.message
+    console.log("All active webhooks:", webhooks?.length || 0);
+
+    // Filter webhooks that should handle location requests
     const locationWebhooks = webhooks?.filter(w => 
       w.events?.includes("location.request") || 
       w.events?.includes("whatsapp.message") ||
       w.events?.includes("whatsapp")
     ) || [];
 
-    console.log("Found webhooks for location request:", locationWebhooks.length);
+    console.log("Filtered location webhooks:", locationWebhooks.length);
 
     // Get location request template
-    const { data: template, error: templateError } = await supabase
+    const { data: template } = await supabase
       .from("whatsapp_templates")
       .select("*")
       .eq("name", "location_request")
@@ -96,19 +98,30 @@ serve(async (req) => {
             event: "location.request",
             phone: formattedPhone,
             message: message,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            data: {
+              phone: formattedPhone,
+              message: message
+            }
           };
 
-          console.log("Sending location request to webhook:", webhook.url);
+          console.log("Sending location request to webhook:", webhook.url, webhook.name);
+
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 15000);
 
           const response = await fetch(webhook.url, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
+              "User-Agent": "DeliveryPlatform-Location/1.0",
               ...(webhook.secret_token && { "X-Webhook-Secret": webhook.secret_token })
             },
-            body: JSON.stringify(webhookPayload)
+            body: JSON.stringify(webhookPayload),
+            signal: controller.signal
           });
+
+          clearTimeout(timeoutId);
 
           const responseText = await response.text();
           console.log(`Webhook ${webhook.name} response: ${response.status} - ${responseText}`);
@@ -120,9 +133,9 @@ serve(async (req) => {
           } else {
             console.error("Webhook response not ok:", response.status, responseText);
           }
-        } catch (error) {
-          console.error("Error sending to webhook:", webhook.name, error);
-          webhookResponses.push(`${webhook.name}: error`);
+        } catch (error: any) {
+          console.error("Error sending to webhook:", webhook.name, error.message || error);
+          webhookResponses.push(`${webhook.name}: error - ${error.message || 'unknown'}`);
         }
       }
     } else {
