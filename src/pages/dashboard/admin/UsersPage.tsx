@@ -99,18 +99,10 @@ export default function UsersPage() {
   const { data: usersData, isLoading } = useQuery({
     queryKey: ["admin-users-full", roleFilter],
     queryFn: async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        throw new Error("Not authenticated");
-      }
-
-      const { data, error } = await supabase.functions.invoke("admin-get-users", {
-        headers: {
-          Authorization: `Bearer ${sessionData.session.access_token}`,
-        },
-      });
+      const { data, error } = await supabase.functions.invoke("admin-get-users");
 
       if (error) throw error;
+      if (data.error) throw new Error(data.error);
       return data.users as UserData[];
     },
   });
@@ -136,11 +128,6 @@ export default function UsersPage() {
 
   const updateUserMutation = useMutation({
     mutationFn: async ({ userId, data }: { userId: string; data: typeof editForm }) => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        throw new Error("Not authenticated");
-      }
-
       const updatePayload: any = {
         userId,
         fullName: data.fullName,
@@ -154,13 +141,11 @@ export default function UsersPage() {
       }
 
       const { data: result, error } = await supabase.functions.invoke("admin-update-user", {
-        headers: {
-          Authorization: `Bearer ${sessionData.session.access_token}`,
-        },
         body: updatePayload,
       });
 
       if (error) throw error;
+      if (result.error) throw new Error(result.error);
       return result;
     },
     onSuccess: () => {
@@ -179,16 +164,8 @@ export default function UsersPage() {
 
   const sendPasswordMutation = useMutation({
     mutationFn: async ({ userId, password, phone }: { userId: string; password: string; phone: string }) => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        throw new Error("Not authenticated");
-      }
-
       // First, update the password using admin function
-      const { error: updateError } = await supabase.functions.invoke("admin-update-user", {
-        headers: {
-          Authorization: `Bearer ${sessionData.session.access_token}`,
-        },
+      const { error: updateError, data: updateResult } = await supabase.functions.invoke("admin-update-user", {
         body: {
           userId,
           password,
@@ -196,6 +173,7 @@ export default function UsersPage() {
       });
 
       if (updateError) throw updateError;
+      if (updateResult.error) throw new Error(updateResult.error);
 
       // Set force_password_change flag
       const { error: profileError } = await supabase
