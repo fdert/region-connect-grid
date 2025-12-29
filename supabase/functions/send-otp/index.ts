@@ -132,20 +132,15 @@ serve(async (req) => {
         console.error("Error storing OTP:", insertError);
       }
       
-      // Get webhook URL for WhatsApp OTP
+      // Get webhook URL for WhatsApp OTP - prioritize whatsapp.otp event
       const { data: webhooks } = await supabase
         .from("webhook_settings")
         .select("*")
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .contains("events", ["whatsapp.otp"])
+        .limit(1);
 
-      // Filter for webhooks that handle WhatsApp or OTP events
-      const otpWebhooks = webhooks?.filter(w => 
-        w.events?.includes("whatsapp.otp") || 
-        w.events?.includes("whatsapp.message") ||
-        w.events?.includes("whatsapp")
-      ) || [];
-
-      const webhook = otpWebhooks[0];
+      const webhook = webhooks?.[0];
 
       // Build verification message with location request
       const message = `🔐 رمز التحقق الخاص بك هو: *${otpCode}*
