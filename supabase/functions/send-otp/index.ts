@@ -53,15 +53,15 @@ serve(async (req) => {
     if (action === "check_location") {
       console.log(`Checking location for phone: ${formattedPhone}`);
       
-      // Find the CURRENT VERIFIED session for this phone (created in last 10 minutes)
-      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      // Find the CURRENT VERIFIED session for this phone (created in last 5 seconds)
+      const fiveSecondsAgo = new Date(Date.now() - 5 * 1000).toISOString();
       
       const { data: currentSession } = await supabase
         .from("otp_sessions")
         .select("*")
         .eq("phone", formattedPhone)
         .eq("is_verified", true)
-        .gt("created_at", tenMinutesAgo)
+        .gt("created_at", fiveSecondsAgo)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
