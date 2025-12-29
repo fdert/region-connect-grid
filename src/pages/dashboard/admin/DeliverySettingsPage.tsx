@@ -10,9 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { Truck, DollarSign, MapPin, Save, Loader2, Info } from "lucide-react";
 
 interface DeliverySettings {
-  default_base_fee: number;
   default_price_per_km: number;
-  default_free_radius_km: number;
   min_delivery_fee: number;
   max_delivery_fee: number;
   platform_delivery_commission: number;
@@ -22,9 +20,7 @@ export default function DeliverySettingsPage() {
   const queryClient = useQueryClient();
   
   const [settings, setSettings] = useState<DeliverySettings>({
-    default_base_fee: 5,
     default_price_per_km: 2,
-    default_free_radius_km: 0,
     min_delivery_fee: 5,
     max_delivery_fee: 50,
     platform_delivery_commission: 0,
@@ -100,9 +96,7 @@ export default function DeliverySettingsPage() {
       const { error } = await supabase
         .from("stores")
         .update({
-          base_delivery_fee: settings.default_base_fee,
           price_per_km: settings.default_price_per_km,
-          free_delivery_radius_km: settings.default_free_radius_km,
         })
         .in("id", storeIds);
       
@@ -152,40 +146,16 @@ export default function DeliverySettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>رسوم التوصيل الأساسية (ر.س)</Label>
-                  <Input
-                    type="number"
-                    step="0.5"
-                    value={settings.default_base_fee}
-                    onChange={(e) => setSettings({ ...settings, default_base_fee: Number(e.target.value) })}
-                    placeholder="5"
-                  />
-                  <p className="text-xs text-muted-foreground">الرسوم الثابتة لكل طلب</p>
-                </div>
-                <div className="space-y-2">
-                  <Label>سعر الكيلومتر (ر.س)</Label>
-                  <Input
-                    type="number"
-                    step="0.5"
-                    value={settings.default_price_per_km}
-                    onChange={(e) => setSettings({ ...settings, default_price_per_km: Number(e.target.value) })}
-                    placeholder="2"
-                  />
-                  <p className="text-xs text-muted-foreground">السعر لكل كيلومتر من المسافة</p>
-                </div>
-                <div className="space-y-2">
-                  <Label>نطاق التوصيل المجاني (كم)</Label>
-                  <Input
-                    type="number"
-                    step="0.5"
-                    value={settings.default_free_radius_km}
-                    onChange={(e) => setSettings({ ...settings, default_free_radius_km: Number(e.target.value) })}
-                    placeholder="0"
-                  />
-                  <p className="text-xs text-muted-foreground">المسافة المجانية من المتجر</p>
-                </div>
+              <div className="space-y-2">
+                <Label>سعر الكيلومتر (ر.س)</Label>
+                <Input
+                  type="number"
+                  step="0.5"
+                  value={settings.default_price_per_km}
+                  onChange={(e) => setSettings({ ...settings, default_price_per_km: Number(e.target.value) })}
+                  placeholder="2"
+                />
+                <p className="text-xs text-muted-foreground">السعر لكل كيلومتر من المسافة بين المتجر ومكان التوصيل</p>
               </div>
 
               <div className="bg-muted/50 rounded-lg p-4">
@@ -194,10 +164,10 @@ export default function DeliverySettingsPage() {
                   <div className="text-sm">
                     <p className="font-medium">معادلة حساب رسوم التوصيل:</p>
                     <p className="text-muted-foreground mt-1">
-                      رسوم التوصيل = الرسوم الأساسية + (المسافة - نطاق التوصيل المجاني) × سعر الكيلومتر
+                      رسوم التوصيل = سعر الكيلومتر × المسافة
                     </p>
                     <p className="text-muted-foreground mt-1">
-                      مثال: إذا كانت المسافة 5 كم → {settings.default_base_fee} + ({Math.max(5 - settings.default_free_radius_km, 0)} × {settings.default_price_per_km}) = {settings.default_base_fee + (Math.max(5 - settings.default_free_radius_km, 0) * settings.default_price_per_km)} ر.س
+                      مثال: إذا كانت المسافة 5 كم → {settings.default_price_per_km} × 5 = {settings.default_price_per_km * 5} ر.س
                     </p>
                   </div>
                 </div>

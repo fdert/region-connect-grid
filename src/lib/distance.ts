@@ -25,18 +25,25 @@ const toRad = (deg: number): number => {
 };
 
 // Calculate delivery fee based on distance
+// Formula: Delivery Fee = Price per km × Distance
 export const calculateDeliveryFee = (
   distanceKm: number,
-  baseDeliveryFee: number = 5,
   pricePerKm: number = 2,
-  freeDeliveryRadiusKm: number = 0
+  minDeliveryFee: number = 0,
+  maxDeliveryFee: number = 0
 ): number => {
-  if (distanceKm <= freeDeliveryRadiusKm) {
-    return 0;
+  // Simple formula: price per km × distance
+  let fee = distanceKm * pricePerKm;
+  
+  // Apply minimum fee if set
+  if (minDeliveryFee > 0 && fee < minDeliveryFee) {
+    fee = minDeliveryFee;
   }
   
-  const chargeableDistance = distanceKm - freeDeliveryRadiusKm;
-  const fee = baseDeliveryFee + (chargeableDistance * pricePerKm);
+  // Apply maximum fee if set
+  if (maxDeliveryFee > 0 && fee > maxDeliveryFee) {
+    fee = maxDeliveryFee;
+  }
   
   return Math.round(fee * 100) / 100; // Round to 2 decimal places
 };

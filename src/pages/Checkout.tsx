@@ -99,12 +99,10 @@ const Checkout = () => {
               customerLocation.lng
             );
 
-            // Calculate delivery fee based on distance
+            // Calculate delivery fee: price_per_km × distance
             fee = calculateDeliveryFee(
               distance,
-              Number(store.base_delivery_fee) || 5,
-              Number(store.price_per_km) || 2,
-              Number(store.free_delivery_radius_km) || 0
+              Number(store.price_per_km) || 2
             );
           }
 
