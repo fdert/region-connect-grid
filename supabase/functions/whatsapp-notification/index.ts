@@ -12,7 +12,7 @@ interface NotificationRequest {
   order_id?: string;
   special_order_id?: string;
   variables?: Record<string, string>;
-  webhook_url?: string;
+  recipient_type?: 'customer' | 'merchant' | 'courier' | 'all';
 }
 
 function replaceVariables(template: string, variables: Record<string, string>): string {
@@ -25,13 +25,65 @@ function replaceVariables(template: string, variables: Record<string, string>): 
   return message.trim();
 }
 
+// Format phone number to international format
+function formatPhoneNumber(phone: string): string {
+  if (!phone) return '';
+  let cleaned = phone.replace(/\D/g, '');
+  if (cleaned.startsWith('0')) {
+    cleaned = '966' + cleaned.substring(1);
+  }
+  if (!cleaned.startsWith('966') && cleaned.length === 9) {
+    cleaned = '966' + cleaned;
+  }
+  return '+' + cleaned;
+}
+
+// Send WhatsApp message using the same API as OTP
+async function sendWhatsAppMessage(phone: string, message: string): Promise<{ success: boolean; error?: string }> {
+  const appKey = Deno.env.get("WHATSAPP_APP_KEY");
+  const authKey = Deno.env.get("WHATSAPP_AUTH_KEY");
+
+  if (!appKey || !authKey) {
+    console.error("WhatsApp API credentials not configured");
+    return { success: false, error: "WhatsApp API credentials not configured" };
+  }
+
+  const formattedPhone = formatPhoneNumber(phone);
+  console.log(`Sending WhatsApp message to: ${formattedPhone}`);
+
+  try {
+    const formData = new FormData();
+    formData.append("appkey", appKey);
+    formData.append("authkey", authKey);
+    formData.append("to", formattedPhone);
+    formData.append("message", message);
+
+    const response = await fetch("https://darcoom.com/wsender/public/api/create-message", {
+      method: "POST",
+      body: formData,
+    });
+
+    const responseText = await response.text();
+    console.log(`WhatsApp API response: ${response.status} - ${responseText}`);
+
+    if (!response.ok) {
+      return { success: false, error: `API returned ${response.status}: ${responseText}` };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error sending WhatsApp message:", error);
+    return { success: false, error: error.message };
+  }
+}
+
 // Helper function to get order details with related data
 async function getOrderDetails(supabase: any, orderId: string) {
   const { data: order, error } = await supabase
     .from("orders")
     .select(`
       *,
-      stores:store_id (id, name, phone, address)
+      stores:store_id (id, name, phone, address, merchant_id)
     `)
     .eq("id", orderId)
     .maybeSingle();
@@ -59,10 +111,22 @@ async function getOrderDetails(supabase: any, orderId: string) {
     courierProfile = courier;
   }
 
+  // Get merchant profile
+  let merchantProfile = null;
+  if (order.stores?.merchant_id) {
+    const { data: merchant } = await supabase
+      .from("profiles")
+      .select("full_name, phone")
+      .eq("user_id", order.stores.merchant_id)
+      .maybeSingle();
+    merchantProfile = merchant;
+  }
+
   return {
     ...order,
     customer: customerProfile,
-    courier: courierProfile
+    courier: courierProfile,
+    merchant: merchantProfile
   };
 }
 
@@ -82,7 +146,21 @@ async function getSpecialOrderDetails(supabase: any, orderId: string) {
     return null;
   }
 
-  return order;
+  // Get courier profile if assigned
+  let courierProfile = null;
+  if (order.courier_id) {
+    const { data: courier } = await supabase
+      .from("profiles")
+      .select("full_name, phone")
+      .eq("user_id", order.courier_id)
+      .maybeSingle();
+    courierProfile = courier;
+  }
+
+  return {
+    ...order,
+    courier: courierProfile
+  };
 }
 
 // Build variables from order data
@@ -100,6 +178,19 @@ function buildOrderVariables(order: any): Record<string, string> {
     'failed': 'فشل التوصيل'
   };
 
+  // Parse items to get count and list
+  let itemsCount = 0;
+  let itemsList = '';
+  try {
+    const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+    if (Array.isArray(items)) {
+      itemsCount = items.length;
+      itemsList = items.map((item: any) => `${item.name || item.product_name} x${item.quantity || 1}`).join('\n');
+    }
+  } catch (e) {
+    console.error("Error parsing items:", e);
+  }
+
   return {
     order_number: order.order_number || '',
     order_status: statusLabels[order.status] || order.status || '',
@@ -114,8 +205,13 @@ function buildOrderVariables(order: any): Record<string, string> {
     store_name: order.stores?.name || '',
     store_phone: order.stores?.phone || '',
     store_address: order.stores?.address || '',
+    merchant_name: order.merchant?.full_name || '',
+    merchant_phone: order.merchant?.phone || '',
     courier_name: order.courier?.full_name || '',
     courier_phone: order.courier?.phone || '',
+    items_count: itemsCount.toString(),
+    items_list: itemsList,
+    order_date: order.created_at ? new Date(order.created_at).toLocaleString('ar-SA') : '',
     created_at: order.created_at ? new Date(order.created_at).toLocaleString('ar-SA') : '',
     updated_at: order.updated_at ? new Date(order.updated_at).toLocaleString('ar-SA') : ''
   };
@@ -151,9 +247,69 @@ function buildSpecialOrderVariables(order: any): Record<string, string> {
     distance_km: order.distance_km?.toString() || '',
     notes: order.notes || '',
     verification_code: order.verification_code || '',
+    courier_name: order.courier?.full_name || '',
+    courier_phone: order.courier?.phone || '',
     payment_method: order.payment_method === 'cash' ? 'نقداً عند التوصيل' : order.payment_method || '',
     created_at: order.created_at ? new Date(order.created_at).toLocaleString('ar-SA') : ''
   };
+}
+
+// Get recipient phones based on recipient_type
+function getRecipientPhones(
+  order: any, 
+  recipientType: string, 
+  isSpecialOrder: boolean
+): string[] {
+  const phones: string[] = [];
+
+  if (isSpecialOrder) {
+    // Special order recipients
+    switch (recipientType) {
+      case 'customer':
+        if (order.sender_phone) phones.push(order.sender_phone);
+        break;
+      case 'recipient':
+        if (order.recipient_phone) phones.push(order.recipient_phone);
+        break;
+      case 'courier':
+        if (order.courier?.phone) phones.push(order.courier.phone);
+        break;
+      case 'all':
+        if (order.sender_phone) phones.push(order.sender_phone);
+        if (order.recipient_phone) phones.push(order.recipient_phone);
+        if (order.courier?.phone) phones.push(order.courier.phone);
+        break;
+      default:
+        if (order.sender_phone) phones.push(order.sender_phone);
+    }
+  } else {
+    // Regular order recipients
+    switch (recipientType) {
+      case 'customer':
+        const customerPhone = order.customer_phone || order.customer?.phone;
+        if (customerPhone) phones.push(customerPhone);
+        break;
+      case 'merchant':
+        if (order.stores?.phone) phones.push(order.stores.phone);
+        if (order.merchant?.phone) phones.push(order.merchant.phone);
+        break;
+      case 'courier':
+        if (order.courier?.phone) phones.push(order.courier.phone);
+        break;
+      case 'all':
+        const custPhone = order.customer_phone || order.customer?.phone;
+        if (custPhone) phones.push(custPhone);
+        if (order.stores?.phone) phones.push(order.stores.phone);
+        if (order.courier?.phone) phones.push(order.courier.phone);
+        break;
+      default:
+        const defaultPhone = order.customer_phone || order.customer?.phone;
+        if (defaultPhone) phones.push(defaultPhone);
+    }
+  }
+
+  // Remove duplicates and empty values
+  return [...new Set(phones.filter(p => p && p.trim()))];
 }
 
 serve(async (req) => {
@@ -172,8 +328,8 @@ serve(async (req) => {
       template_name, 
       order_id, 
       special_order_id, 
-      variables: customVariables, 
-      webhook_url 
+      variables: customVariables,
+      recipient_type = 'customer'
     }: NotificationRequest = await req.json();
 
     if (!template_name) {
@@ -183,39 +339,39 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Processing WhatsApp notification with template ${template_name}`);
+    console.log(`Processing WhatsApp notification: template=${template_name}, recipient_type=${recipient_type}`);
 
-    // Determine target phone and build variables based on order type
-    let targetPhone = phone;
+    // Determine target phones and build variables based on order type
+    let targetPhones: string[] = phone ? [phone] : [];
     let variables: Record<string, string> = customVariables || {};
+    let isSpecialOrder = false;
 
     // Fetch real order data if order_id is provided
     if (order_id) {
       const orderDetails = await getOrderDetails(supabase, order_id);
       if (orderDetails) {
         variables = { ...buildOrderVariables(orderDetails), ...customVariables };
-        // Use customer phone from order if not provided
-        if (!targetPhone) {
-          targetPhone = orderDetails.customer_phone || orderDetails.customer?.phone;
+        if (targetPhones.length === 0) {
+          targetPhones = getRecipientPhones(orderDetails, recipient_type, false);
         }
-        console.log(`Loaded order data for ${orderDetails.order_number}`);
+        console.log(`Loaded order data for ${orderDetails.order_number}, recipients: ${targetPhones.join(', ')}`);
       }
     }
 
     // Fetch real special order data if special_order_id is provided
     if (special_order_id) {
+      isSpecialOrder = true;
       const specialOrderDetails = await getSpecialOrderDetails(supabase, special_order_id);
       if (specialOrderDetails) {
         variables = { ...buildSpecialOrderVariables(specialOrderDetails), ...customVariables };
-        // Use sender or recipient phone from special order if not provided
-        if (!targetPhone) {
-          targetPhone = specialOrderDetails.sender_phone;
+        if (targetPhones.length === 0) {
+          targetPhones = getRecipientPhones(specialOrderDetails, recipient_type, true);
         }
-        console.log(`Loaded special order data for ${specialOrderDetails.order_number}`);
+        console.log(`Loaded special order data for ${specialOrderDetails.order_number}, recipients: ${targetPhones.join(', ')}`);
       }
     }
 
-    if (!targetPhone) {
+    if (targetPhones.length === 0) {
       return new Response(
         JSON.stringify({ error: "No phone number provided or found in order data" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -236,109 +392,50 @@ serve(async (req) => {
     }
 
     if (!templateData) {
+      console.log(`Template '${template_name}' not found or inactive`);
       return new Response(
-        JSON.stringify({ error: `Template '${template_name}' not found or inactive` }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ 
+          success: false, 
+          error: `Template '${template_name}' not found or inactive`,
+          template_name 
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     // Replace variables in template
     const message = replaceVariables(templateData.template, variables);
 
-    console.log(`Message prepared for ${targetPhone}: ${message.substring(0, 100)}...`);
+    console.log(`Message prepared: ${message.substring(0, 100)}...`);
 
-    // Get webhook URL from webhook_settings if not provided
-    let targetWebhookUrl = webhook_url;
+    // Send to all recipient phones
+    const results: { phone: string; success: boolean; error?: string }[] = [];
     
-    if (!targetWebhookUrl) {
-      const { data: webhooks } = await supabase
-        .from("webhook_settings")
-        .select("url, secret_token")
-        .eq("is_active", true)
-        .contains("events", ["whatsapp"])
-        .limit(1);
-
-      if (webhooks && webhooks.length > 0) {
-        targetWebhookUrl = webhooks[0].url;
-      }
-    }
-
-    if (!targetWebhookUrl) {
-      console.log("No webhook URL configured for WhatsApp");
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: "No WhatsApp webhook URL configured",
-          message_preview: message,
-          target_phone: targetPhone
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Format phone number
-    const formattedPhone = targetPhone.startsWith("+") ? targetPhone : `+${targetPhone}`;
-
-    // Send to n8n webhook for WhatsApp delivery
-    const webhookPayload = {
-      event: "whatsapp_notification",
-      timestamp: new Date().toISOString(),
-      data: {
-        phone: formattedPhone,
-        message,
-        template_name,
-        order_id: order_id || null,
-        special_order_id: special_order_id || null,
-        variables
-      }
-    };
-
-    console.log(`Sending to webhook: ${targetWebhookUrl}`);
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-    try {
-      const webhookResponse = await fetch(targetWebhookUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "User-Agent": "DeliveryPlatform-WhatsApp/1.0"
-        },
-        body: JSON.stringify(webhookPayload),
-        signal: controller.signal
-      });
-
-      clearTimeout(timeoutId);
-
-      console.log(`Webhook response status: ${webhookResponse.status}`);
-
-      return new Response(
-        JSON.stringify({ 
-          success: webhookResponse.ok, 
-          message: webhookResponse.ok ? "Notification sent to WhatsApp webhook" : "Webhook returned error",
-          webhook_status: webhookResponse.status,
-          target_phone: formattedPhone,
-          message_preview: message.substring(0, 100)
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    } catch (fetchError: any) {
-      clearTimeout(timeoutId);
+    for (const targetPhone of targetPhones) {
+      const result = await sendWhatsAppMessage(targetPhone, message);
+      results.push({ phone: targetPhone, ...result });
       
-      if (fetchError.name === "AbortError") {
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: "Webhook request timed out (15s)",
-            target_phone: formattedPhone 
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      // Small delay between messages to avoid rate limiting
+      if (targetPhones.length > 1) {
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
-      
-      throw fetchError;
     }
+
+    const allSuccess = results.every(r => r.success);
+    const successCount = results.filter(r => r.success).length;
+
+    console.log(`Notification sent: ${successCount}/${results.length} successful`);
+
+    return new Response(
+      JSON.stringify({ 
+        success: allSuccess,
+        message: `Sent to ${successCount}/${results.length} recipients`,
+        results,
+        message_preview: message.substring(0, 100)
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("WhatsApp notification error:", error);
