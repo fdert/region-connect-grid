@@ -3,9 +3,10 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/hooks/useAuth";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { CartProvider } from "@/contexts/CartContext";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import ForcePasswordChange from "@/components/auth/ForcePasswordChange";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/auth/Login";
@@ -67,6 +68,92 @@ import CustomerSettings from "./pages/dashboard/customer/CustomerSettings";
 
 const queryClient = new QueryClient();
 
+// Wrapper component to handle force password change
+const AppContent = () => {
+  const { user, forcePasswordChange, clearForcePasswordChange } = useAuth();
+
+  if (user && forcePasswordChange) {
+    return (
+      <ForcePasswordChange 
+        userId={user.id} 
+        onSuccess={clearForcePasswordChange} 
+      />
+    );
+  }
+
+  return (
+    <CartProvider>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/" element={<Index />} />
+        <Route path="/stores" element={<Stores />} />
+        <Route path="/stores/:id" element={<StoreDetails />} />
+        <Route path="/products/:id" element={<ProductDetails />} />
+        <Route path="/cart" element={<Cart />} />
+        <Route path="/checkout" element={<Checkout />} />
+        <Route path="/categories" element={<Categories />} />
+        <Route path="/categories/:id" element={<CategoryDetails />} />
+        <Route path="/offers" element={<Offers />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsConditions />} />
+        
+        {/* Auth Routes */}
+        <Route path="/auth/login" element={<Login />} />
+        <Route path="/auth/register" element={<Register />} />
+        
+        {/* Admin Dashboard */}
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin/banners" element={<BannersPage />} />
+        <Route path="/admin/theme" element={<ThemePage />} />
+        <Route path="/admin/webhooks" element={<WebhooksPage />} />
+        <Route path="/admin/whatsapp" element={<WhatsAppTemplatesPage />} />
+        <Route path="/admin/support" element={<SupportPage />} />
+        <Route path="/admin/rewards" element={<RewardsPage />} />
+        <Route path="/admin/users" element={<UsersPage />} />
+        <Route path="/admin/stores" element={<StoresManagementPage />} />
+        <Route path="/admin/orders" element={<OrdersManagementPage />} />
+        <Route path="/admin/wallets" element={<WalletsPage />} />
+        <Route path="/admin/categories" element={<CategoriesPage />} />
+        <Route path="/admin/special-services" element={<SpecialServicesPage />} />
+        <Route path="/admin/special-orders" element={<SpecialOrdersPage />} />
+        <Route path="/admin/home-content" element={<HomeContentPage />} />
+        <Route path="/admin/static-pages" element={<StaticPagesPage />} />
+        <Route path="/admin/delivery-settings" element={<DeliverySettingsPage />} />
+        
+        {/* Special Services */}
+        <Route path="/special-services/:id" element={<SpecialServiceOrder />} />
+        
+        {/* Merchant Dashboard */}
+        <Route path="/merchant" element={<MerchantDashboard />} />
+        <Route path="/merchant/create-store" element={<CreateStore />} />
+        <Route path="/merchant/orders" element={<MerchantOrders />} />
+        <Route path="/merchant/products" element={<MerchantProducts />} />
+        <Route path="/merchant/reports" element={<MerchantReports />} />
+        <Route path="/merchant/settings" element={<MerchantSettings />} />
+        <Route path="/merchant/support" element={<MerchantSupport />} />
+        
+        {/* Courier Dashboard */}
+        <Route path="/courier" element={<CourierDashboard />} />
+        <Route path="/courier/orders" element={<CourierOrders />} />
+        <Route path="/courier/earnings" element={<CourierEarnings />} />
+        <Route path="/courier/settings" element={<CourierSettings />} />
+        
+        {/* Customer Dashboard */}
+        <Route path="/customer" element={<CustomerDashboard />} />
+        <Route path="/customer/orders" element={<CustomerOrders />} />
+        <Route path="/customer/orders/:id" element={<CustomerOrderDetails />} />
+        <Route path="/customer/wallet" element={<CustomerWallet />} />
+        <Route path="/customer/support" element={<CustomerSupport />} />
+        <Route path="/customer/settings" element={<CustomerSettings />} />
+        
+        {/* Catch All */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </CartProvider>
+  );
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -75,77 +162,9 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
-            <CartProvider>
-              <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={<Index />} />
-              <Route path="/stores" element={<Stores />} />
-              <Route path="/stores/:id" element={<StoreDetails />} />
-              <Route path="/products/:id" element={<ProductDetails />} />
-              <Route path="/cart" element={<Cart />} />
-              <Route path="/checkout" element={<Checkout />} />
-              <Route path="/categories" element={<Categories />} />
-              <Route path="/categories/:id" element={<CategoryDetails />} />
-              <Route path="/offers" element={<Offers />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/privacy" element={<PrivacyPolicy />} />
-              <Route path="/terms" element={<TermsConditions />} />
-              
-              {/* Auth Routes */}
-              <Route path="/auth/login" element={<Login />} />
-              <Route path="/auth/register" element={<Register />} />
-              
-              {/* Admin Dashboard */}
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/admin/banners" element={<BannersPage />} />
-              <Route path="/admin/theme" element={<ThemePage />} />
-              <Route path="/admin/webhooks" element={<WebhooksPage />} />
-              <Route path="/admin/whatsapp" element={<WhatsAppTemplatesPage />} />
-              <Route path="/admin/support" element={<SupportPage />} />
-              <Route path="/admin/rewards" element={<RewardsPage />} />
-              <Route path="/admin/users" element={<UsersPage />} />
-              <Route path="/admin/stores" element={<StoresManagementPage />} />
-              <Route path="/admin/orders" element={<OrdersManagementPage />} />
-              <Route path="/admin/wallets" element={<WalletsPage />} />
-              <Route path="/admin/categories" element={<CategoriesPage />} />
-              <Route path="/admin/special-services" element={<SpecialServicesPage />} />
-              <Route path="/admin/special-orders" element={<SpecialOrdersPage />} />
-              <Route path="/admin/home-content" element={<HomeContentPage />} />
-              <Route path="/admin/static-pages" element={<StaticPagesPage />} />
-              <Route path="/admin/delivery-settings" element={<DeliverySettingsPage />} />
-              
-              {/* Special Services */}
-              <Route path="/special-services/:id" element={<SpecialServiceOrder />} />
-              
-              {/* Merchant Dashboard */}
-              <Route path="/merchant" element={<MerchantDashboard />} />
-              <Route path="/merchant/create-store" element={<CreateStore />} />
-              <Route path="/merchant/orders" element={<MerchantOrders />} />
-              <Route path="/merchant/products" element={<MerchantProducts />} />
-              <Route path="/merchant/reports" element={<MerchantReports />} />
-              <Route path="/merchant/settings" element={<MerchantSettings />} />
-              <Route path="/merchant/support" element={<MerchantSupport />} />
-              
-              {/* Courier Dashboard */}
-              <Route path="/courier" element={<CourierDashboard />} />
-              <Route path="/courier/orders" element={<CourierOrders />} />
-              <Route path="/courier/earnings" element={<CourierEarnings />} />
-              <Route path="/courier/settings" element={<CourierSettings />} />
-              
-              {/* Customer Dashboard */}
-              <Route path="/customer" element={<CustomerDashboard />} />
-              <Route path="/customer/orders" element={<CustomerOrders />} />
-              <Route path="/customer/orders/:id" element={<CustomerOrderDetails />} />
-              <Route path="/customer/wallet" element={<CustomerWallet />} />
-              <Route path="/customer/support" element={<CustomerSupport />} />
-              <Route path="/customer/settings" element={<CustomerSettings />} />
-              
-              {/* Catch All */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </CartProvider>
-        </AuthProvider>
-      </BrowserRouter>
+            <AppContent />
+          </AuthProvider>
+        </BrowserRouter>
       </ThemeProvider>
     </TooltipProvider>
   </QueryClientProvider>

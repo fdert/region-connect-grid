@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
 type AppRole = "admin" | "merchant" | "customer" | "courier";
@@ -11,9 +10,11 @@ interface AuthContextType {
   session: Session | null;
   role: AppRole | null;
   isLoading: boolean;
+  forcePasswordChange: boolean;
   signUp: (email: string, password: string, fullName: string, phone: string, role: AppRole) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  clearForcePasswordChange: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,6 +24,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [forcePasswordChange, setForcePasswordChange] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -36,9 +38,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (session?.user) {
           setTimeout(() => {
             fetchUserRole(session.user.id);
+            checkForcePasswordChange(session.user.id);
           }, 0);
         } else {
           setRole(null);
+          setForcePasswordChange(false);
         }
       }
     );
@@ -50,6 +54,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (session?.user) {
         fetchUserRole(session.user.id);
+        checkForcePasswordChange(session.user.id);
       }
       setIsLoading(false);
     });
@@ -76,6 +81,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error("Error fetching role:", error);
     }
+  };
+
+  const checkForcePasswordChange = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("force_password_change")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error checking force password change:", error);
+        return;
+      }
+
+      if (data?.force_password_change) {
+        setForcePasswordChange(true);
+      }
+    } catch (error) {
+      console.error("Error checking force password change:", error);
+    }
+  };
+
+  const clearForcePasswordChange = () => {
+    setForcePasswordChange(false);
   };
 
   const signUp = async (
@@ -133,10 +163,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
     setSession(null);
     setRole(null);
+    setForcePasswordChange(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, role, isLoading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      session, 
+      role, 
+      isLoading, 
+      forcePasswordChange,
+      signUp, 
+      signIn, 
+      signOut,
+      clearForcePasswordChange
+    }}>
       {children}
     </AuthContext.Provider>
   );
