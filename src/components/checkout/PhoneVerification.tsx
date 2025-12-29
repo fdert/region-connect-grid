@@ -45,16 +45,26 @@ const PhoneVerification = ({ onVerified, onBack }: PhoneVerificationProps) => {
     }
   }, [countdown]);
 
-  // Poll for WhatsApp location after location request is sent
+  // Poll for WhatsApp location after step changes to location
   useEffect(() => {
     let interval: NodeJS.Timeout;
+    let pollCount = 0;
+    const maxPolls = 60; // Poll for max 3 minutes
     
-    if (step === "location" && waitingForWhatsAppLocation) {
-      interval = setInterval(async () => {
+    // Start polling when we reach location step (even without explicit waiting flag)
+    if (step === "location" && phone) {
+      console.log("Starting location polling for phone:", phone);
+      
+      const checkLocation = async () => {
+        pollCount++;
+        console.log(`Polling for location (attempt ${pollCount}/${maxPolls})...`);
+        
         try {
-          const { data } = await supabase.functions.invoke("send-otp", {
+          const { data, error } = await supabase.functions.invoke("send-otp", {
             body: { phone, action: "check_location" }
           });
+          
+          console.log("Location check response:", data, error);
           
           if (data?.has_location && data?.location) {
             const loc = data.location;
@@ -68,18 +78,30 @@ const PhoneVerification = ({ onVerified, onBack }: PhoneVerificationProps) => {
               description: "تم استلام موقعك من الواتساب بنجاح"
             });
             
-            clearInterval(interval);
+            if (interval) clearInterval(interval);
+          } else if (pollCount >= maxPolls) {
+            console.log("Max polls reached, stopping");
+            if (interval) clearInterval(interval);
           }
         } catch (error) {
           console.error("Error checking location:", error);
         }
-      }, 3000); // Check every 3 seconds
+      };
+      
+      // Check immediately
+      checkLocation();
+      
+      // Then check every 3 seconds
+      interval = setInterval(checkLocation, 3000);
     }
     
     return () => {
-      if (interval) clearInterval(interval);
+      if (interval) {
+        console.log("Clearing location polling interval");
+        clearInterval(interval);
+      }
     };
-  }, [step, phone, waitingForWhatsAppLocation, toast]);
+  }, [step, phone, toast]);
 
   const handleSendOTP = async () => {
     if (phone.length < 10) {
