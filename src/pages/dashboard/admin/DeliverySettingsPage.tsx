@@ -84,13 +84,28 @@ export default function DeliverySettingsPage() {
   // Apply to all stores mutation
   const applyToAllMutation = useMutation({
     mutationFn: async () => {
+      // First get all store IDs
+      const { data: stores, error: fetchError } = await supabase
+        .from("stores")
+        .select("id");
+      
+      if (fetchError) throw fetchError;
+      
+      if (!stores || stores.length === 0) {
+        throw new Error("لا توجد متاجر لتحديثها");
+      }
+
+      // Update each store with the new delivery settings
+      const storeIds = stores.map(s => s.id);
       const { error } = await supabase
         .from("stores")
         .update({
           base_delivery_fee: settings.default_base_fee,
           price_per_km: settings.default_price_per_km,
           free_delivery_radius_km: settings.default_free_radius_km,
-        } as any);
+        })
+        .in("id", storeIds);
+      
       if (error) throw error;
     },
     onSuccess: () => {
