@@ -24,53 +24,210 @@ interface WhatsAppTemplate {
 
 // Template types based on webhook events
 const templateTypes = [
+  // Customer notifications
   { 
     value: "order_created", 
-    label: "إنشاء طلب جديد", 
+    label: "طلب جديد - للعميل", 
     event: "order.created",
-    description: "يُرسل عند إنشاء طلب جديد"
+    description: "يُرسل للعميل عند إنشاء طلب جديد",
+    category: "customer"
   },
+  { 
+    value: "order_accepted_customer", 
+    label: "تم قبول الطلب - للعميل", 
+    event: "order.accepted",
+    description: "يُرسل للعميل عند قبول الطلب من التاجر",
+    category: "customer"
+  },
+  { 
+    value: "order_preparing_customer", 
+    label: "جاري التحضير - للعميل", 
+    event: "order.preparing",
+    description: "يُرسل للعميل عند بدء تحضير الطلب",
+    category: "customer"
+  },
+  { 
+    value: "order_ready_customer", 
+    label: "الطلب جاهز - للعميل", 
+    event: "order.ready",
+    description: "يُرسل للعميل عندما يكون الطلب جاهزاً",
+    category: "customer"
+  },
+  { 
+    value: "courier_assigned", 
+    label: "تعيين مندوب - للعميل", 
+    event: "courier.assigned",
+    description: "يُرسل للعميل عند تعيين مندوب للطلب",
+    category: "customer"
+  },
+  { 
+    value: "order_picked_up_customer", 
+    label: "تم الاستلام - للعميل", 
+    event: "order.picked_up",
+    description: "يُرسل للعميل عندما يستلم المندوب الطلب",
+    category: "customer"
+  },
+  { 
+    value: "order_on_way_customer", 
+    label: "في الطريق - للعميل", 
+    event: "order.on_the_way",
+    description: "يُرسل للعميل عندما يكون الطلب في الطريق",
+    category: "customer"
+  },
+  { 
+    value: "order_delivered", 
+    label: "تم التوصيل - للعميل", 
+    event: "order.delivered",
+    description: "يُرسل للعميل عند اكتمال توصيل الطلب",
+    category: "customer"
+  },
+  { 
+    value: "order_cancelled_customer", 
+    label: "تم الإلغاء - للعميل", 
+    event: "order.cancelled",
+    description: "يُرسل للعميل عند إلغاء الطلب",
+    category: "customer"
+  },
+  
+  // Merchant notifications
+  { 
+    value: "order_new_merchant", 
+    label: "طلب جديد - للتاجر", 
+    event: "order.new_merchant",
+    description: "يُرسل للتاجر عند استلام طلب جديد",
+    category: "merchant"
+  },
+  { 
+    value: "order_courier_assigned_merchant", 
+    label: "تعيين مندوب - للتاجر", 
+    event: "courier.assigned_merchant",
+    description: "يُرسل للتاجر عند تعيين مندوب للطلب",
+    category: "merchant"
+  },
+  { 
+    value: "order_picked_up_merchant", 
+    label: "تم الاستلام - للتاجر", 
+    event: "order.picked_up_merchant",
+    description: "يُرسل للتاجر عندما يستلم المندوب الطلب",
+    category: "merchant"
+  },
+  { 
+    value: "order_delivered_merchant", 
+    label: "تم التوصيل - للتاجر", 
+    event: "order.delivered_merchant",
+    description: "يُرسل للتاجر عند اكتمال توصيل الطلب",
+    category: "merchant"
+  },
+  
+  // Courier notifications
+  { 
+    value: "order_assigned_courier", 
+    label: "طلب جديد - للمندوب", 
+    event: "order.assigned_courier",
+    description: "يُرسل للمندوب عند تعيينه لطلب",
+    category: "courier"
+  },
+  { 
+    value: "order_ready_courier", 
+    label: "الطلب جاهز - للمندوب", 
+    event: "order.ready_courier",
+    description: "يُرسل للمندوب عندما يكون الطلب جاهزاً للاستلام",
+    category: "courier"
+  },
+  
+  // Special orders
+  { 
+    value: "special_order_created", 
+    label: "طلب خاص جديد", 
+    event: "special_order.created",
+    description: "يُرسل عند إنشاء طلب توصيل خاص",
+    category: "special"
+  },
+  { 
+    value: "special_order_verified", 
+    label: "تم التحقق - طلب خاص", 
+    event: "special_order.verified",
+    description: "يُرسل عند التحقق من الطلب الخاص",
+    category: "special"
+  },
+  { 
+    value: "special_order_courier_assigned", 
+    label: "تعيين مندوب - طلب خاص", 
+    event: "special_order.courier_assigned",
+    description: "يُرسل عند تعيين مندوب للطلب الخاص",
+    category: "special"
+  },
+  { 
+    value: "special_order_picked_up", 
+    label: "تم الاستلام - طلب خاص", 
+    event: "special_order.picked_up",
+    description: "يُرسل عند استلام الشحنة",
+    category: "special"
+  },
+  { 
+    value: "special_order_on_way", 
+    label: "في الطريق - طلب خاص", 
+    event: "special_order.on_way",
+    description: "يُرسل عندما تكون الشحنة في الطريق",
+    category: "special"
+  },
+  { 
+    value: "special_order_delivered", 
+    label: "تم التوصيل - طلب خاص", 
+    event: "special_order.delivered",
+    description: "يُرسل عند اكتمال توصيل الشحنة",
+    category: "special"
+  },
+  { 
+    value: "special_order_cancelled", 
+    label: "تم الإلغاء - طلب خاص", 
+    event: "special_order.cancelled",
+    description: "يُرسل عند إلغاء الطلب الخاص",
+    category: "special"
+  },
+  
+  // General
   { 
     value: "order_status_changed", 
     label: "تغيير حالة الطلب", 
     event: "order.status_changed",
-    description: "يُرسل عند تغيير حالة الطلب"
+    description: "قالب عام لأي تغيير في حالة الطلب",
+    category: "general"
   },
   { 
-    value: "order_delivered", 
-    label: "تم التوصيل", 
-    event: "order.delivered",
-    description: "يُرسل عند اكتمال توصيل الطلب"
-  },
-  { 
-    value: "courier_assigned", 
-    label: "تعيين مندوب", 
-    event: "courier.assigned",
-    description: "يُرسل عند تعيين مندوب للطلب"
+    value: "special_order_status_changed", 
+    label: "تغيير حالة الطلب الخاص", 
+    event: "special_order.status_changed",
+    description: "قالب عام لأي تغيير في حالة الطلب الخاص",
+    category: "general"
   },
   { 
     value: "support_ticket_created", 
     label: "تذكرة دعم جديدة", 
     event: "support.ticket_created",
-    description: "يُرسل عند إنشاء تذكرة دعم"
+    description: "يُرسل عند إنشاء تذكرة دعم",
+    category: "support"
   },
   { 
     value: "support_ticket_updated", 
     label: "تحديث تذكرة دعم", 
     event: "support.ticket_updated",
-    description: "يُرسل عند تحديث تذكرة الدعم"
+    description: "يُرسل عند تحديث تذكرة الدعم",
+    category: "support"
   },
   { 
     value: "welcome_message", 
     label: "رسالة ترحيب", 
     event: "user.registered",
-    description: "يُرسل عند تسجيل مستخدم جديد"
+    description: "يُرسل عند تسجيل مستخدم جديد",
+    category: "general"
   },
   { 
     value: "custom", 
     label: "مخصص", 
     event: "custom",
-    description: "قالب مخصص لأي استخدام"
+    description: "قالب مخصص لأي استخدام",
+    category: "general"
   },
 ];
 
