@@ -546,14 +546,23 @@ export default function StoresManagementPage() {
                 تحديد الموقع من المتصفح
               </Button>
               {form.location_lat && form.location_lng && (
-                <a
-                  href={`https://maps.google.com/?q=${form.location_lat},${form.location_lng}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-primary hover:underline block"
-                >
-                  عرض على خرائط جوجل
-                </a>
+                <>
+                  {/* Validate coordinates before showing link */}
+                  {Math.abs(form.location_lat) <= 90 && Math.abs(form.location_lng) <= 180 ? (
+                    <a
+                      href={`https://www.google.com/maps?q=${form.location_lat},${form.location_lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:underline block"
+                    >
+                      عرض على خرائط جوجل
+                    </a>
+                  ) : (
+                    <p className="text-sm text-destructive">
+                      ⚠️ إحداثيات غير صحيحة! خط العرض يجب أن يكون بين -90 و 90، وخط الطول بين -180 و 180
+                    </p>
+                  )}
+                </>
               )}
             </div>
 
