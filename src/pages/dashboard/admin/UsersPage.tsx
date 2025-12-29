@@ -99,12 +99,22 @@ export default function UsersPage() {
   const { data: usersData, isLoading } = useQuery({
     queryKey: ["admin-users-full", roleFilter],
     queryFn: async () => {
+      // Ensure we have a session before calling the function
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        throw new Error("Not authenticated");
+      }
+
       const { data, error } = await supabase.functions.invoke("admin-get-users");
 
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
+      if (error) {
+        console.error("Edge function error:", error);
+        throw error;
+      }
+      if (data?.error) throw new Error(data.error);
       return data.users as UserData[];
     },
+    retry: 1,
   });
 
   const users = usersData?.filter(u => roleFilter === "all" || u.role === roleFilter);
