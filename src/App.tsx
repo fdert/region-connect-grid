@@ -39,6 +39,7 @@ import SpecialServicesPage from "./pages/dashboard/admin/SpecialServicesPage";
 import SpecialOrdersPage from "./pages/dashboard/admin/SpecialOrdersPage";
 import HomeContentPage from "./pages/dashboard/admin/HomeContentPage";
 import StaticPagesPage from "./pages/dashboard/admin/StaticPagesPage";
+import DeliverySettingsPage from "./pages/dashboard/admin/DeliverySettingsPage";
 import SpecialServiceOrder from "./pages/SpecialServiceOrder";
 
 // Merchant Dashboard Pages
@@ -111,6 +112,7 @@ const App = () => (
               <Route path="/admin/special-orders" element={<SpecialOrdersPage />} />
               <Route path="/admin/home-content" element={<HomeContentPage />} />
               <Route path="/admin/static-pages" element={<StaticPagesPage />} />
+              <Route path="/admin/delivery-settings" element={<DeliverySettingsPage />} />
               
               {/* Special Services */}
               <Route path="/special-services/:id" element={<SpecialServiceOrder />} />
