@@ -53,52 +53,47 @@ serve(async (req) => {
     if (action === "check_location") {
       console.log(`Checking location for phone: ${formattedPhone}`);
       
-      // Find the CURRENT VERIFIED session for this phone (created in last 5 seconds)
-      const fiveSecondsAgo = new Date(Date.now() - 5 * 1000).toISOString();
+      // Find verified session with location updated in last 2 minutes
+      const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
       
-      const { data: currentSession } = await supabase
+      const { data: sessionWithLocation } = await supabase
         .from("otp_sessions")
         .select("*")
         .eq("phone", formattedPhone)
         .eq("is_verified", true)
-        .gt("created_at", fiveSecondsAgo)
-        .order("created_at", { ascending: false })
+        .not("location_lat", "is", null)
+        .not("location_lng", "is", null)
+        .gt("updated_at", twoMinutesAgo)
+        .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (currentSession) {
-        console.log(`Found current verified session: ${currentSession.id}, created: ${currentSession.created_at}`);
-        
-        // Check if THIS session has valid location data
+      if (sessionWithLocation) {
+        // Check if location is valid (not 0,0)
         const hasValidLocation = 
-          currentSession.location_lat !== null && 
-          currentSession.location_lng !== null &&
-          (currentSession.location_lat !== 0 || currentSession.location_lng !== 0);
+          sessionWithLocation.location_lat !== 0 || sessionWithLocation.location_lng !== 0;
 
-        console.log(`Session location: lat=${currentSession.location_lat}, lng=${currentSession.location_lng}, valid=${hasValidLocation}`);
+        console.log(`Found session with location: id=${sessionWithLocation.id}, lat=${sessionWithLocation.location_lat}, lng=${sessionWithLocation.location_lng}, updated=${sessionWithLocation.updated_at}`);
 
         if (hasValidLocation) {
           return new Response(
             JSON.stringify({ 
               success: true, 
               has_location: true,
-              session_id: currentSession.id,
+              session_id: sessionWithLocation.id,
               location: {
-                lat: currentSession.location_lat,
-                lng: currentSession.location_lng,
-                address: currentSession.location_address,
-                url: currentSession.location_url
+                lat: sessionWithLocation.location_lat,
+                lng: sessionWithLocation.location_lng,
+                address: sessionWithLocation.location_address,
+                url: sessionWithLocation.location_url
               }
             }),
             { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
-        } else {
-          console.log("Current session has no location yet, waiting for WhatsApp...");
         }
-      } else {
-        console.log("No current verified session found");
       }
 
+      console.log("No session with recent location found");
       return new Response(
         JSON.stringify({ success: true, has_location: false }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
