@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
@@ -11,15 +11,26 @@ import {
   Loader2,
   ShoppingBag,
   Store,
-  ArrowRight
+  ArrowRight,
+  MapPin,
+  Truck
 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import PhoneVerification from "@/components/checkout/PhoneVerification";
+import PhoneVerification, { LocationInfo } from "@/components/checkout/PhoneVerification";
+import { calculateDistance, calculateDeliveryFee } from "@/lib/distance";
 
 type CheckoutStep = "verification" | "payment";
+
+interface StoreDeliveryInfo {
+  store_id: string;
+  store_name: string;
+  distance_km: number;
+  delivery_fee: number;
+  store_location: { lat: number; lng: number } | null;
+}
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -34,10 +45,17 @@ const Checkout = () => {
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [verifiedPhone, setVerifiedPhone] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [customerLocation, setCustomerLocation] = useState<LocationInfo | null>(null);
   const [notes, setNotes] = useState("");
+  const [storeDeliveryInfo, setStoreDeliveryInfo] = useState<StoreDeliveryInfo[]>([]);
+  const [isCalculatingDelivery, setIsCalculatingDelivery] = useState(false);
 
-  const deliveryFee = 15;
-  const total = subtotal + deliveryFee;
+  // Get unique store IDs from cart items
+  const storeIds = [...new Set(items.map(item => item.store_id))];
+
+  // Calculate total delivery fee
+  const totalDeliveryFee = storeDeliveryInfo.reduce((acc, store) => acc + store.delivery_fee, 0);
+  const total = subtotal + totalDeliveryFee;
 
   // Group items by store
   const itemsByStore = items.reduce((acc, item) => {
@@ -52,10 +70,106 @@ const Checkout = () => {
     return acc;
   }, {} as Record<string, { store_name: string; items: typeof items }>);
 
-  const handleVerificationComplete = (phone: string, address: string) => {
+  // Fetch store locations and calculate delivery fees when customer location is set
+  useEffect(() => {
+    const calculateDeliveryForStores = async () => {
+      if (!customerLocation || storeIds.length === 0) return;
+
+      setIsCalculatingDelivery(true);
+      
+      try {
+        // Fetch store information including location
+        const { data: stores, error } = await supabase
+          .from("stores")
+          .select("id, name, location_lat, location_lng, base_delivery_fee, price_per_km, free_delivery_radius_km, delivery_fee")
+          .in("id", storeIds);
+
+        if (error) throw error;
+
+        const deliveryInfo: StoreDeliveryInfo[] = (stores || []).map(store => {
+          let distance = 0;
+          let fee = Number(store.delivery_fee) || 15; // Default fee if no location
+
+          if (store.location_lat && store.location_lng) {
+            // Calculate distance
+            distance = calculateDistance(
+              store.location_lat,
+              store.location_lng,
+              customerLocation.lat,
+              customerLocation.lng
+            );
+
+            // Calculate delivery fee based on distance
+            fee = calculateDeliveryFee(
+              distance,
+              Number(store.base_delivery_fee) || 5,
+              Number(store.price_per_km) || 2,
+              Number(store.free_delivery_radius_km) || 0
+            );
+          }
+
+          return {
+            store_id: store.id,
+            store_name: store.name,
+            distance_km: distance,
+            delivery_fee: fee,
+            store_location: store.location_lat && store.location_lng 
+              ? { lat: store.location_lat, lng: store.location_lng }
+              : null
+          };
+        });
+
+        setStoreDeliveryInfo(deliveryInfo);
+      } catch (error) {
+        console.error("Error calculating delivery:", error);
+        // Set default delivery fees if calculation fails
+        const defaultInfo: StoreDeliveryInfo[] = storeIds.map(storeId => ({
+          store_id: storeId,
+          store_name: itemsByStore[storeId]?.store_name || "",
+          distance_km: 0,
+          delivery_fee: 15,
+          store_location: null
+        }));
+        setStoreDeliveryInfo(defaultInfo);
+      } finally {
+        setIsCalculatingDelivery(false);
+      }
+    };
+
+    calculateDeliveryForStores();
+  }, [customerLocation, storeIds.join(",")]);
+
+  // Set default delivery fee if no customer location
+  useEffect(() => {
+    if (!customerLocation && storeDeliveryInfo.length === 0 && storeIds.length > 0) {
+      const defaultInfo: StoreDeliveryInfo[] = storeIds.map(storeId => ({
+        store_id: storeId,
+        store_name: itemsByStore[storeId]?.store_name || "",
+        distance_km: 0,
+        delivery_fee: 15,
+        store_location: null
+      }));
+      setStoreDeliveryInfo(defaultInfo);
+    }
+  }, [storeIds.length]);
+
+  const handleVerificationComplete = (phone: string, address: string, location?: LocationInfo) => {
     setVerifiedPhone(phone);
     setDeliveryAddress(address);
+    if (location) {
+      setCustomerLocation(location);
+    }
     setStep("payment");
+  };
+
+  const getStoreDeliveryFee = (storeId: string): number => {
+    const info = storeDeliveryInfo.find(s => s.store_id === storeId);
+    return info?.delivery_fee || 15;
+  };
+
+  const getStoreDistance = (storeId: string): number => {
+    const info = storeDeliveryInfo.find(s => s.store_id === storeId);
+    return info?.distance_km || 0;
   };
 
   const handleSubmit = async () => {
@@ -84,6 +198,7 @@ const Checkout = () => {
       // Create orders for each store
       for (const [storeId, { items: storeItems }] of Object.entries(itemsByStore)) {
         const storeSubtotal = storeItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
+        const storeDeliveryFee = getStoreDeliveryFee(storeId);
         const storeCommission = storeSubtotal * 0.05;
 
         const orderData = {
@@ -98,9 +213,9 @@ const Checkout = () => {
             image: item.image
           })),
           subtotal: storeSubtotal,
-          delivery_fee: deliveryFee,
+          delivery_fee: storeDeliveryFee,
           platform_commission: storeCommission,
-          total: storeSubtotal + deliveryFee,
+          total: storeSubtotal + storeDeliveryFee,
           delivery_address: deliveryAddress,
           delivery_notes: notes,
           customer_phone: verifiedPhone,
@@ -253,7 +368,7 @@ const Checkout = () => {
                 {/* Delivery Address */}
                 <div className="bg-card rounded-2xl border p-6">
                   <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                    <ArrowRight className="w-5 h-5 text-primary" />
+                    <MapPin className="w-5 h-5 text-primary" />
                     عنوان التوصيل
                   </h2>
                   <div className="bg-muted/50 rounded-xl p-4">
@@ -268,6 +383,45 @@ const Checkout = () => {
                     />
                   </div>
                 </div>
+
+                {/* Delivery Fees by Store */}
+                {storeDeliveryInfo.length > 0 && (
+                  <div className="bg-card rounded-2xl border p-6">
+                    <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+                      <Truck className="w-5 h-5 text-primary" />
+                      تفاصيل التوصيل
+                    </h2>
+                    
+                    {isCalculatingDelivery ? (
+                      <div className="flex items-center justify-center py-4 gap-2">
+                        <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                        <span className="text-muted-foreground">جاري حساب رسوم التوصيل...</span>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {storeDeliveryInfo.map((info) => (
+                          <div key={info.store_id} className="flex items-center justify-between p-3 bg-muted/50 rounded-xl">
+                            <div className="flex items-center gap-3">
+                              <Store className="w-5 h-5 text-muted-foreground" />
+                              <div>
+                                <p className="font-medium">{info.store_name}</p>
+                                {info.distance_km > 0 && (
+                                  <p className="text-xs text-muted-foreground">
+                                    المسافة: {info.distance_km.toFixed(1)} كم
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-left">
+                              <p className="font-bold text-primary">{info.delivery_fee.toFixed(2)} ر.س</p>
+                              <p className="text-xs text-muted-foreground">رسوم التوصيل</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Payment Method */}
                 <div className="bg-card rounded-2xl border p-6">
@@ -315,9 +469,16 @@ const Checkout = () => {
                   
                   {Object.entries(itemsByStore).map(([storeId, { store_name, items: storeItems }]) => (
                     <div key={storeId}>
-                      <div className="px-6 py-3 bg-muted/30 flex items-center gap-2 text-sm">
-                        <Store className="w-4 h-4" />
-                        <span className="font-medium">{store_name}</span>
+                      <div className="px-6 py-3 bg-muted/30 flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <Store className="w-4 h-4" />
+                          <span className="font-medium">{store_name}</span>
+                        </div>
+                        {getStoreDistance(storeId) > 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            {getStoreDistance(storeId).toFixed(1)} كم
+                          </span>
+                        )}
                       </div>
                       <div className="divide-y">
                         {storeItems.map((item) => (
@@ -353,15 +514,30 @@ const Checkout = () => {
               
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between text-muted-foreground">
-                  <span>المجموع الفرعي</span>
+                  <span>مبلغ الطلبات</span>
                   <span>{subtotal.toFixed(2)} ر.س</span>
                 </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>رسوم التوصيل</span>
-                  <span>{deliveryFee.toFixed(2)} ر.س</span>
-                </div>
+                
+                {storeDeliveryInfo.length > 0 && (
+                  <>
+                    <div className="border-t pt-3">
+                      <p className="text-sm font-medium text-muted-foreground mb-2">رسوم التوصيل:</p>
+                      {storeDeliveryInfo.map((info) => (
+                        <div key={info.store_id} className="flex justify-between text-sm text-muted-foreground py-1">
+                          <span className="truncate max-w-[150px]">{info.store_name}</span>
+                          <span>{info.delivery_fee.toFixed(2)} ر.س</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex justify-between text-muted-foreground font-medium">
+                      <span>إجمالي التوصيل</span>
+                      <span>{totalDeliveryFee.toFixed(2)} ر.س</span>
+                    </div>
+                  </>
+                )}
+                
                 <div className="border-t pt-3 flex justify-between font-bold text-lg">
-                  <span>الإجمالي</span>
+                  <span>الإجمالي المطلوب</span>
                   <span className="text-primary">{total.toFixed(2)} ر.س</span>
                 </div>
               </div>
@@ -371,7 +547,7 @@ const Checkout = () => {
                   variant="hero" 
                   size="xl" 
                   className="w-full gap-2"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isCalculatingDelivery}
                   onClick={handleSubmit}
                 >
                   {isSubmitting ? (

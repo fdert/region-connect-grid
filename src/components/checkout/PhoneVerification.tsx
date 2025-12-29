@@ -18,8 +18,14 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+export interface LocationInfo {
+  lat: number;
+  lng: number;
+  address: string;
+}
+
 interface PhoneVerificationProps {
-  onVerified: (phone: string, address: string) => void;
+  onVerified: (phone: string, address: string, location?: LocationInfo) => void;
   onBack: () => void;
 }
 
@@ -31,12 +37,12 @@ const PhoneVerification = ({ onVerified, onBack }: PhoneVerificationProps) => {
   const [phone, setPhone] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [address, setAddress] = useState("");
+  const [locationInfo, setLocationInfo] = useState<LocationInfo | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [locationLoading, setLocationLoading] = useState(false);
   const [waitingForWhatsAppLocation, setWaitingForWhatsAppLocation] = useState(false);
   const [locationRequestSent, setLocationRequestSent] = useState(false);
-  const [locationCheckCount, setLocationCheckCount] = useState(0);
 
   useEffect(() => {
     if (countdown > 0) {
@@ -71,6 +77,14 @@ const PhoneVerification = ({ onVerified, onBack }: PhoneVerificationProps) => {
             const locationAddress = loc.address || `${loc.lat}, ${loc.lng}`;
             const fullAddress = `${locationAddress}\n\n📍 رابط الموقع: ${loc.url}`;
             setAddress(fullAddress);
+            
+            // Store location info with coordinates
+            setLocationInfo({
+              lat: loc.lat,
+              lng: loc.lng,
+              address: locationAddress
+            });
+            
             setWaitingForWhatsAppLocation(false);
             
             toast({
@@ -150,8 +164,6 @@ const PhoneVerification = ({ onVerified, onBack }: PhoneVerificationProps) => {
       return;
     }
 
-    // Verify OTP via backend - real validation
-
     setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("send-otp", {
@@ -225,13 +237,24 @@ const PhoneVerification = ({ onVerified, onBack }: PhoneVerificationProps) => {
           );
           const data = await response.json();
           
-          if (data.display_name) {
-            setAddress(`${data.display_name}\n\n📍 رابط الموقع: ${mapsUrl}`);
-          } else {
-            setAddress(`الموقع: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}\n\n📍 رابط الموقع: ${mapsUrl}`);
-          }
+          const addressText = data.display_name || `الموقع: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+          setAddress(`${addressText}\n\n📍 رابط الموقع: ${mapsUrl}`);
+          
+          // Store location info
+          setLocationInfo({
+            lat: latitude,
+            lng: longitude,
+            address: addressText
+          });
         } catch {
-          setAddress(`الموقع: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}\n\n📍 رابط الموقع: ${mapsUrl}`);
+          const addressText = `الموقع: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+          setAddress(`${addressText}\n\n📍 رابط الموقع: ${mapsUrl}`);
+          
+          setLocationInfo({
+            lat: latitude,
+            lng: longitude,
+            address: addressText
+          });
         }
         
         setLocationLoading(false);
@@ -262,7 +285,7 @@ const PhoneVerification = ({ onVerified, onBack }: PhoneVerificationProps) => {
       });
       return;
     }
-    onVerified(phone, address);
+    onVerified(phone, address, locationInfo || undefined);
   };
 
   return (
@@ -494,7 +517,13 @@ const PhoneVerification = ({ onVerified, onBack }: PhoneVerificationProps) => {
               placeholder="أدخل عنوان التوصيل بالتفصيل (الحي، الشارع، رقم المبنى)"
               className="flex min-h-[120px] w-full rounded-xl border border-input bg-background px-4 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
+              onChange={(e) => {
+                setAddress(e.target.value);
+                // Clear location info if user manually edits the address
+                if (locationInfo) {
+                  setLocationInfo(null);
+                }
+              }}
             />
           </div>
 
