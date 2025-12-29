@@ -6,13 +6,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface LocationWebhookPayload {
-  phone: string;
-  latitude: number | string;
-  longitude: number | string;
-  address?: string;
-}
-
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -25,42 +18,100 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const rawPayload = await req.json();
-    console.log("Raw received payload:", JSON.stringify(rawPayload));
+    console.log("=== RECEIVE LOCATION ===");
+    console.log("Full payload received:", JSON.stringify(rawPayload, null, 2));
     
-    // Extract location data - handle different payload formats from n8n
-    let phone = rawPayload.phone || rawPayload.data?.phone || "";
-    let latitude = rawPayload.latitude ?? rawPayload.data?.latitude ?? rawPayload.lat ?? rawPayload.data?.lat;
-    let longitude = rawPayload.longitude ?? rawPayload.data?.longitude ?? rawPayload.lng ?? rawPayload.data?.lng;
-    let address = rawPayload.address || rawPayload.data?.address || "";
+    // Try to extract location from various common WhatsApp/n8n payload formats
+    let phone = "";
+    let latitude: number | null = null;
+    let longitude: number | null = null;
+    let address = "";
 
-    // Convert to numbers if strings
-    latitude = typeof latitude === 'string' ? parseFloat(latitude) : latitude;
-    longitude = typeof longitude === 'string' ? parseFloat(longitude) : longitude;
+    // Try different payload structures
+    // Format 1: Direct fields
+    if (rawPayload.phone) phone = rawPayload.phone;
+    if (rawPayload.data?.phone) phone = rawPayload.data.phone;
+    
+    // Format 2: WhatsApp message structure
+    if (rawPayload.message?.locationMessage) {
+      const loc = rawPayload.message.locationMessage;
+      latitude = loc.degreesLatitude || loc.latitude;
+      longitude = loc.degreesLongitude || loc.longitude;
+      address = loc.address || loc.name || "";
+      console.log("Found location in message.locationMessage:", { latitude, longitude });
+    }
+    
+    // Format 3: Direct latitude/longitude
+    if (latitude === null && rawPayload.latitude !== undefined) {
+      latitude = typeof rawPayload.latitude === 'string' ? parseFloat(rawPayload.latitude) : rawPayload.latitude;
+    }
+    if (longitude === null && rawPayload.longitude !== undefined) {
+      longitude = typeof rawPayload.longitude === 'string' ? parseFloat(rawPayload.longitude) : rawPayload.longitude;
+    }
+    
+    // Format 4: Nested in data object
+    if (latitude === null && rawPayload.data?.latitude !== undefined) {
+      latitude = typeof rawPayload.data.latitude === 'string' ? parseFloat(rawPayload.data.latitude) : rawPayload.data.latitude;
+    }
+    if (longitude === null && rawPayload.data?.longitude !== undefined) {
+      longitude = typeof rawPayload.data.longitude === 'string' ? parseFloat(rawPayload.data.longitude) : rawPayload.data.longitude;
+    }
+    
+    // Format 5: lat/lng short names
+    if (latitude === null && rawPayload.lat !== undefined) {
+      latitude = typeof rawPayload.lat === 'string' ? parseFloat(rawPayload.lat) : rawPayload.lat;
+    }
+    if (longitude === null && rawPayload.lng !== undefined) {
+      longitude = typeof rawPayload.lng === 'string' ? parseFloat(rawPayload.lng) : rawPayload.lng;
+    }
+    
+    // Format 6: Location object
+    if (rawPayload.location) {
+      const loc = rawPayload.location;
+      if (latitude === null) latitude = loc.latitude || loc.lat;
+      if (longitude === null) longitude = loc.longitude || loc.lng;
+      address = loc.address || address;
+    }
+    
+    // Format 7: Coordinates array [lat, lng]
+    if (rawPayload.coordinates && Array.isArray(rawPayload.coordinates)) {
+      if (latitude === null) latitude = rawPayload.coordinates[0];
+      if (longitude === null) longitude = rawPayload.coordinates[1];
+    }
 
-    console.log("Parsed location data:", { phone, latitude, longitude, address });
+    // Get address from various sources
+    if (!address) {
+      address = rawPayload.address || rawPayload.data?.address || "";
+    }
+
+    console.log("Extracted data:", { phone, latitude, longitude, address });
 
     if (!phone) {
       console.error("Missing phone number");
       return new Response(
-        JSON.stringify({ error: "Missing required field: phone" }),
+        JSON.stringify({ 
+          error: "Missing required field: phone",
+          received_payload: rawPayload 
+        }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Validate coordinates - must be valid numbers and not just zeros
-    const isValidCoordinates = 
-      typeof latitude === 'number' && 
-      typeof longitude === 'number' && 
+    // Validate coordinates
+    const hasValidCoordinates = 
+      latitude !== null && 
+      longitude !== null && 
       !isNaN(latitude) && 
       !isNaN(longitude) &&
-      (latitude !== 0 || longitude !== 0); // At least one should be non-zero
+      (latitude !== 0 || longitude !== 0);
 
-    if (!isValidCoordinates) {
-      console.error("Invalid coordinates:", { latitude, longitude });
+    if (!hasValidCoordinates) {
+      console.error("Invalid or missing coordinates:", { latitude, longitude });
       return new Response(
         JSON.stringify({ 
-          error: "Invalid coordinates. Please send valid latitude and longitude values.",
-          received: { latitude, longitude }
+          error: "Invalid coordinates. Please send valid latitude and longitude values (not 0,0).",
+          received: { latitude, longitude },
+          help: "Make sure your n8n workflow extracts the actual coordinates from the WhatsApp location message. Check for fields like: message.locationMessage.degreesLatitude, message.locationMessage.degreesLongitude"
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -76,12 +127,13 @@ serve(async (req) => {
     }
 
     console.log("Formatted phone:", formattedPhone);
+    console.log("Valid coordinates:", { latitude, longitude });
 
     // Generate Google Maps URL
     const locationUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
 
     // First try to find an active OTP session
-    let { data: otpSession, error: fetchError } = await supabase
+    let { data: otpSession } = await supabase
       .from("otp_sessions")
       .select("*")
       .eq("phone", formattedPhone)
@@ -90,11 +142,11 @@ serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    console.log("Active session search result:", otpSession ? `Found: ${otpSession.id}` : "Not found");
+    console.log("Active session search:", otpSession ? `Found: ${otpSession.id}` : "Not found");
 
     // If no active session, try to find any recent session within last 24 hours
     if (!otpSession) {
-      console.log("No active session found, checking for recent sessions...");
+      console.log("Checking for recent sessions...");
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       
       const { data: recentSession } = await supabase
@@ -112,9 +164,9 @@ serve(async (req) => {
       }
     }
 
-    // If still no session, create a new one to store the location
+    // If still no session, create a new one
     if (!otpSession) {
-      console.log("No session found, creating new session for location storage...");
+      console.log("Creating new session for location storage...");
       
       const { data: newSession, error: createError } = await supabase
         .from("otp_sessions")
@@ -132,27 +184,28 @@ serve(async (req) => {
         .single();
 
       if (createError) {
-        console.error("Error creating session for location:", createError);
+        console.error("Error creating session:", createError);
         return new Response(
           JSON.stringify({ error: "Failed to store location", details: createError.message }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      console.log("Created new session with location:", newSession.id);
+      console.log("SUCCESS: Created new session with location:", newSession.id);
       
       return new Response(
         JSON.stringify({ 
           success: true, 
           message: "Location stored in new session",
           location_url: locationUrl,
-          session_id: newSession.id
+          session_id: newSession.id,
+          coordinates: { latitude, longitude }
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Update the OTP session with location data
+    // Update the existing OTP session with location data
     const { error: updateError } = await supabase
       .from("otp_sessions")
       .update({
@@ -165,22 +218,22 @@ serve(async (req) => {
       .eq("id", otpSession.id);
 
     if (updateError) {
-      console.error("Error updating OTP session:", updateError);
+      console.error("Error updating session:", updateError);
       return new Response(
         JSON.stringify({ error: "Failed to update location", details: updateError.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`Location updated for phone ${formattedPhone}: ${locationUrl}`);
+    console.log(`SUCCESS: Location updated for ${formattedPhone}: ${locationUrl}`);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: "Location received and stored",
         location_url: locationUrl,
-        latitude,
-        longitude
+        session_id: otpSession.id,
+        coordinates: { latitude, longitude }
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
