@@ -47,24 +47,73 @@ serve(async (req) => {
     // Generate Google Maps URL
     const locationUrl = `https://www.google.com/maps?q=${payload.latitude},${payload.longitude}`;
 
-    // Find the most recent active OTP session for this phone
-    const { data: otpSession, error: fetchError } = await supabase
+    // First try to find an active OTP session
+    let { data: otpSession, error: fetchError } = await supabase
       .from("otp_sessions")
       .select("*")
       .eq("phone", formattedPhone)
       .gt("expires_at", new Date().toISOString())
       .order("created_at", { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
-    if (fetchError || !otpSession) {
-      console.log(`No active OTP session found for phone: ${formattedPhone}`);
+    // If no active session, try to find any recent session (even expired) within last 24 hours
+    if (!otpSession) {
+      console.log(`No active session found, checking for recent sessions...`);
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      
+      const { data: recentSession, error: recentError } = await supabase
+        .from("otp_sessions")
+        .select("*")
+        .eq("phone", formattedPhone)
+        .gt("created_at", twentyFourHoursAgo)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (recentSession) {
+        otpSession = recentSession;
+        console.log(`Found recent session: ${recentSession.id}`);
+      }
+    }
+
+    // If still no session, create a new one to store the location
+    if (!otpSession) {
+      console.log(`No session found, creating new session for location storage...`);
+      
+      const { data: newSession, error: createError } = await supabase
+        .from("otp_sessions")
+        .insert({
+          phone: formattedPhone,
+          otp_code: "LOCATION",
+          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          is_verified: true,
+          location_lat: payload.latitude,
+          location_lng: payload.longitude,
+          location_address: payload.address || null,
+          location_url: locationUrl
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        console.error("Error creating session for location:", createError);
+        return new Response(
+          JSON.stringify({ error: "Failed to store location" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log(`Created new session with location: ${newSession.id}`);
+      
       return new Response(
         JSON.stringify({ 
-          success: false, 
-          error: "No active OTP session found for this phone number" 
+          success: true, 
+          message: "Location stored in new session",
+          location_url: locationUrl,
+          session_id: newSession.id
         }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
