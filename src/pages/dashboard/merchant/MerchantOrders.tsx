@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useMerchantNotifications } from "@/hooks/useMerchantNotifications";
@@ -28,13 +28,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, Package, Clock, CheckCircle, XCircle, Eye, Loader2, Navigation } from "lucide-react";
+import { Search, Package, Clock, CheckCircle, XCircle, Eye, Loader2, Navigation, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Database } from "@/integrations/supabase/types";
 import { parseCoordinatesFromUrl } from "@/lib/distance";
-
-// Lazy load the map component
-const OrderTrackingMap = lazy(() => import("@/components/tracking/OrderTrackingMap"));
 
 type OrderStatus = Database["public"]["Enums"]["order_status"];
 
@@ -323,25 +320,43 @@ const MerchantOrders = () => {
             </DialogHeader>
             {selectedOrder && (
               <div className="space-y-4">
-                {/* Live Tracking Map */}
+                {/* Tracking Links */}
                 {['assigned_to_courier', 'picked_up', 'on_the_way'].includes(selectedOrder.status) && (
                   <div className="bg-muted/50 rounded-xl p-4">
                     <h4 className="font-bold mb-3 flex items-center gap-2">
                       <Navigation className="w-4 h-4 text-primary" />
-                      تتبع الطلب مباشرة
+                      تتبع الطلب
                     </h4>
-                    <Suspense fallback={
-                      <div className="h-[250px] rounded-xl bg-muted flex items-center justify-center">
-                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                      </div>
-                    }>
-                      <OrderTrackingMap
-                        orderId={selectedOrder.id}
-                        storeLocation={store?.location_lat && store?.location_lng ? { lat: Number(store.location_lat), lng: Number(store.location_lng) } : null}
-                        customerLocation={selectedOrder.delivery_address ? parseCoordinatesFromUrl(selectedOrder.delivery_address) : null}
-                        storeName={store?.name}
-                      />
-                    </Suspense>
+                    <div className="flex flex-wrap gap-2">
+                      {store?.location_lat && store?.location_lng && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-2"
+                          onClick={() => window.open(`https://www.google.com/maps?q=${store.location_lat},${store.location_lng}`, '_blank')}
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                          موقع المتجر
+                        </Button>
+                      )}
+                      {selectedOrder.delivery_address && (() => {
+                        const coords = parseCoordinatesFromUrl(selectedOrder.delivery_address);
+                        if (coords) {
+                          return (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-2"
+                              onClick={() => window.open(`https://www.google.com/maps?q=${coords.lat},${coords.lng}`, '_blank')}
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                              موقع العميل
+                            </Button>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
                   </div>
                 )}
 
