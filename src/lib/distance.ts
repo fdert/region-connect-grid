@@ -69,21 +69,41 @@ export const calculateDeliveryFee = (
 // Parse coordinates from address string or location URL
 export const parseCoordinatesFromUrl = (url: string): { lat: number; lng: number } | null => {
   try {
-    // Google Maps URL patterns
-    const patterns = [
-      /[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/,
-      /@(-?\d+\.?\d*),(-?\d+\.?\d*)/,
-      /\/place\/.*\/@(-?\d+\.?\d*),(-?\d+\.?\d*)/,
-    ];
-    
-    for (const pattern of patterns) {
-      const match = url.match(pattern);
-      if (match) {
-        return {
-          lat: parseFloat(match[1]),
-          lng: parseFloat(match[2])
-        };
-      }
+    // Priority 1: Extract from !3d (lat) and !4d (lng) parameters - these are the actual place coordinates
+    const place3dMatch = url.match(/!3d(-?\d+\.?\d*)/);
+    const place4dMatch = url.match(/!4d(-?\d+\.?\d*)/);
+    if (place3dMatch && place4dMatch) {
+      return {
+        lat: parseFloat(place3dMatch[1]),
+        lng: parseFloat(place4dMatch[1])
+      };
+    }
+
+    // Priority 2: Extract from q= parameter (direct coordinates)
+    const qMatch = url.match(/[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+    if (qMatch) {
+      return {
+        lat: parseFloat(qMatch[1]),
+        lng: parseFloat(qMatch[2])
+      };
+    }
+
+    // Priority 3: Extract from ll= parameter
+    const llMatch = url.match(/[?&]ll=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+    if (llMatch) {
+      return {
+        lat: parseFloat(llMatch[1]),
+        lng: parseFloat(llMatch[2])
+      };
+    }
+
+    // Priority 4: Extract from @ symbol (view coordinates - less accurate for places)
+    const atMatch = url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+    if (atMatch) {
+      return {
+        lat: parseFloat(atMatch[1]),
+        lng: parseFloat(atMatch[2])
+      };
     }
     
     return null;
