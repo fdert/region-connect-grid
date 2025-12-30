@@ -257,6 +257,9 @@ export type Database = {
       orders: {
         Row: {
           courier_id: string | null
+          courier_location_lat: number | null
+          courier_location_lng: number | null
+          courier_location_updated_at: string | null
           created_at: string | null
           customer_id: string
           customer_phone: string | null
@@ -277,6 +280,9 @@ export type Database = {
         }
         Insert: {
           courier_id?: string | null
+          courier_location_lat?: number | null
+          courier_location_lng?: number | null
+          courier_location_updated_at?: string | null
           created_at?: string | null
           customer_id: string
           customer_phone?: string | null
@@ -297,6 +303,9 @@ export type Database = {
         }
         Update: {
           courier_id?: string | null
+          courier_location_lat?: number | null
+          courier_location_lng?: number | null
+          courier_location_updated_at?: string | null
           created_at?: string | null
           customer_id?: string
           customer_phone?: string | null

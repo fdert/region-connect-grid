@@ -10,7 +10,8 @@ import {
   Phone,
   CheckCircle,
   Star,
-  Truck
+  Truck,
+  Navigation
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,11 +20,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import { Progress } from "@/components/ui/progress";
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { parseCoordinatesFromUrl } from "@/lib/distance";
+
+// Lazy load the map component
+const OrderTrackingMap = lazy(() => import("@/components/tracking/OrderTrackingMap"));
 
 const statusLabels: Record<string, string> = {
   "new": "جديد",
@@ -84,7 +89,7 @@ const CustomerOrderDetails = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('orders')
-        .select(`*, store:stores(id, name, logo_url, address, phone)`)
+        .select(`*, store:stores(id, name, logo_url, address, phone, location_lat, location_lng)`)
         .eq('id', id)
         .eq('customer_id', user?.id)
         .single();
@@ -171,6 +176,19 @@ const CustomerOrderDetails = () => {
   const canRate = order.status === 'delivered' && !existingReview;
   const isActive = !['delivered', 'cancelled', 'failed'].includes(order.status || '');
   const items = Array.isArray(order.items) ? order.items : [];
+  
+  // Check if order is in delivery status (courier assigned and on the way)
+  const isInDelivery = ['assigned_to_courier', 'picked_up', 'on_the_way'].includes(order.status || '');
+  
+  // Get store location
+  const storeLocation = order.store?.location_lat && order.store?.location_lng
+    ? { lat: Number(order.store.location_lat), lng: Number(order.store.location_lng) }
+    : null;
+  
+  // Parse customer location from delivery address if it contains coordinates URL
+  const customerLocation = order.delivery_address 
+    ? parseCoordinatesFromUrl(order.delivery_address) 
+    : null;
 
   return (
     <DashboardLayout role="customer">
@@ -189,6 +207,28 @@ const CustomerOrderDetails = () => {
             <h3 className="font-bold mb-4">حالة الطلب</h3>
             <Progress value={getOrderProgress(order.status || 'new')} className="h-3 mb-3" />
             <div className="flex justify-between text-xs text-muted-foreground"><span>تم الطلب</span><span>قيد التحضير</span><span>في الطريق</span><span>تم التسليم</span></div>
+          </div>
+        )}
+
+        {/* Live Tracking Map - Show when courier is assigned */}
+        {isInDelivery && (storeLocation || customerLocation) && (
+          <div className="bg-card rounded-2xl border border-border/50 p-6">
+            <h3 className="font-bold mb-4 flex items-center gap-2">
+              <Navigation className="w-5 h-5 text-primary" />
+              تتبع الطلب مباشرة
+            </h3>
+            <Suspense fallback={
+              <div className="h-[300px] rounded-xl bg-muted flex items-center justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            }>
+              <OrderTrackingMap
+                orderId={order.id}
+                storeLocation={storeLocation}
+                customerLocation={customerLocation}
+                storeName={order.store?.name}
+              />
+            </Suspense>
           </div>
         )}
 

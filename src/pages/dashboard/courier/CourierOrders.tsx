@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +20,9 @@ import { ar } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { Database } from "@/integrations/supabase/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+// Lazy load courier location updater
+const CourierLocationUpdater = lazy(() => import("@/components/tracking/CourierLocationUpdater"));
 
 type OrderStatus = Database['public']['Enums']['order_status'];
 
@@ -225,6 +228,13 @@ const CourierOrders = () => {
                         </div>
                       </div>
                     </div>
+
+                    {/* Location Tracking for on_the_way orders */}
+                    {order.status === 'on_the_way' && (
+                      <Suspense fallback={<div className="h-20 bg-muted animate-pulse rounded-xl" />}>
+                        <CourierLocationUpdater orderId={order.id} isActive={true} />
+                      </Suspense>
+                    )}
 
                     <div className="flex gap-3">
                       {(order.status === 'assigned_to_courier' || order.status === 'ready') && (
