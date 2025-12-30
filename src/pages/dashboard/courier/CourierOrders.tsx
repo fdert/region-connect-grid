@@ -229,9 +229,9 @@ const CourierOrders = () => {
                       </div>
                     </div>
 
-                    {/* Location Tracking for on_the_way orders */}
-                    {order.status === 'on_the_way' && (
-                      <Suspense fallback={<div className="h-20 bg-muted animate-pulse rounded-xl" />}>
+                    {/* Location Tracking for active delivery orders */}
+                    {(order.status === 'picked_up' || order.status === 'on_the_way') && (
+                      <Suspense fallback={<div className="h-24 bg-muted animate-pulse rounded-xl mb-4" />}>
                         <CourierLocationUpdater orderId={order.id} isActive={true} />
                       </Suspense>
                     )}
