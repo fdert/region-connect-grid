@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Store, Phone, MapPin, Clock, DollarSign, Loader2, Save, Image, Upload, Tag, Navigation, Truck } from "lucide-react";
+import { Store, Phone, MapPin, Clock, DollarSign, Loader2, Save, Image, Upload, Tag, Navigation, Truck, Link } from "lucide-react";
+import { parseCoordinatesFromUrl } from "@/lib/distance";
 import { toast } from "sonner";
 
 interface Category {
@@ -32,6 +33,7 @@ interface StoreForm {
   category_id: string;
   location_lat: number | null;
   location_lng: number | null;
+  location_url: string;
   base_delivery_fee: number;
   price_per_km: number;
   free_delivery_radius_km: number;
@@ -53,11 +55,11 @@ const MerchantSettings = () => {
     category_id: "",
     location_lat: null,
     location_lng: null,
+    location_url: "",
     base_delivery_fee: 5,
     price_per_km: 2,
     free_delivery_radius_km: 0,
   });
-  const [locationLoading, setLocationLoading] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>("");
   const [coverFile, setCoverFile] = useState<File | null>(null);
@@ -117,6 +119,7 @@ const MerchantSettings = () => {
         category_id: (store as any).category_id || "",
         location_lat: (store as any).location_lat || null,
         location_lng: (store as any).location_lng || null,
+        location_url: (store as any).location_url || "",
         base_delivery_fee: (store as any).base_delivery_fee || 5,
         price_per_km: (store as any).price_per_km || 2,
         free_delivery_radius_km: (store as any).free_delivery_radius_km || 0,
@@ -126,29 +129,29 @@ const MerchantSettings = () => {
     }
   }, [store]);
 
-  // Get store location from browser
-  const handleGetStoreLocation = () => {
-    if (!navigator.geolocation) {
-      toast.error("المتصفح لا يدعم تحديد الموقع");
-      return;
+  // Parse location from URL
+  const handleLocationUrlChange = (url: string) => {
+    setForm({ ...form, location_url: url });
+    
+    if (url) {
+      const coords = parseCoordinatesFromUrl(url);
+      if (coords) {
+        setForm(prev => ({
+          ...prev,
+          location_url: url,
+          location_lat: coords.lat,
+          location_lng: coords.lng,
+        }));
+        toast.success("تم استخراج الإحداثيات من الرابط بنجاح");
+      }
+    } else {
+      setForm(prev => ({
+        ...prev,
+        location_url: "",
+        location_lat: null,
+        location_lng: null,
+      }));
     }
-    setLocationLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setForm({
-          ...form,
-          location_lat: position.coords.latitude,
-          location_lng: position.coords.longitude,
-        });
-        setLocationLoading(false);
-        toast.success("تم تحديد موقع المتجر بنجاح");
-      },
-      () => {
-        setLocationLoading(false);
-        toast.error("فشل في تحديد الموقع");
-      },
-      { enableHighAccuracy: true }
-    );
   };
 
   // Upload image to storage
@@ -233,6 +236,7 @@ const MerchantSettings = () => {
           category_id: data.category_id || null,
           location_lat: data.location_lat,
           location_lng: data.location_lng,
+          location_url: data.location_url || null,
           base_delivery_fee: data.base_delivery_fee,
           price_per_km: data.price_per_km,
           free_delivery_radius_km: data.free_delivery_radius_km,
@@ -489,20 +493,34 @@ const MerchantSettings = () => {
               <CardDescription>حدد موقع المتجر لحساب رسوم التوصيل تلقائياً</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full h-14 gap-3"
-                onClick={handleGetStoreLocation}
-                disabled={locationLoading}
-              >
-                {locationLoading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Navigation className="w-5 h-5" />
-                )}
-                تحديد موقع المتجر من المتصفح
-              </Button>
+              <div>
+                <Label>رابط موقع المتجر (Google Maps)</Label>
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    value={form.location_url}
+                    onChange={(e) => handleLocationUrlChange(e.target.value)}
+                    placeholder="الصق رابط Google Maps هنا"
+                    dir="ltr"
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      if (form.location_url) {
+                        window.open(form.location_url, '_blank');
+                      }
+                    }}
+                    disabled={!form.location_url}
+                  >
+                    <Link className="w-4 h-4" />
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  انسخ رابط الموقع من تطبيق Google Maps والصقه هنا
+                </p>
+              </div>
               
               {form.location_lat && form.location_lng && (
                 <div className="p-4 bg-success/10 border border-success/30 rounded-xl">
