@@ -69,9 +69,9 @@ export const calculateDeliveryFee = (
 // Parse coordinates from address string or location URL
 export const parseCoordinatesFromUrl = (url: string): { lat: number; lng: number } | null => {
   try {
-    // Helper to validate Saudi Arabia coordinates
-    const isValidSaudiCoord = (lat: number, lng: number) => {
-      return lat >= 15 && lat <= 33 && lng >= 34 && lng <= 56;
+    // Helper to validate coordinates (basic validation for reasonable lat/lng)
+    const isValidCoord = (lat: number, lng: number) => {
+      return !isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
     };
 
     // Priority 1: Extract from !3d (lat) and !4d (lng) parameters - these are the actual place coordinates
@@ -80,7 +80,7 @@ export const parseCoordinatesFromUrl = (url: string): { lat: number; lng: number
     if (place3dMatch && place4dMatch) {
       const lat = parseFloat(place3dMatch[1]);
       const lng = parseFloat(place4dMatch[1]);
-      if (isValidSaudiCoord(lat, lng)) {
+      if (isValidCoord(lat, lng)) {
         return { lat, lng };
       }
     }
@@ -90,7 +90,7 @@ export const parseCoordinatesFromUrl = (url: string): { lat: number; lng: number
     if (qMatch) {
       const lat = parseFloat(qMatch[1]);
       const lng = parseFloat(qMatch[2]);
-      if (isValidSaudiCoord(lat, lng)) {
+      if (isValidCoord(lat, lng)) {
         return { lat, lng };
       }
     }
@@ -100,7 +100,7 @@ export const parseCoordinatesFromUrl = (url: string): { lat: number; lng: number
     if (llMatch) {
       const lat = parseFloat(llMatch[1]);
       const lng = parseFloat(llMatch[2]);
-      if (isValidSaudiCoord(lat, lng)) {
+      if (isValidCoord(lat, lng)) {
         return { lat, lng };
       }
     }
@@ -110,7 +110,7 @@ export const parseCoordinatesFromUrl = (url: string): { lat: number; lng: number
     if (atMatch) {
       const lat = parseFloat(atMatch[1]);
       const lng = parseFloat(atMatch[2]);
-      if (isValidSaudiCoord(lat, lng)) {
+      if (isValidCoord(lat, lng)) {
         return { lat, lng };
       }
     }

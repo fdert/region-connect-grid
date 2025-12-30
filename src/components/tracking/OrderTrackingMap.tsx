@@ -185,9 +185,9 @@ export default function OrderTrackingMap({
     };
   }, [orderId]);
 
-  // Validate coordinates
+  // Validate coordinates (basic validation for reasonable lat/lng)
   const isValidCoord = (lat: number, lng: number) => {
-    return lat >= 15 && lat <= 33 && lng >= 34 && lng <= 56;
+    return !isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
   };
 
   const points: [number, number][] = [];
