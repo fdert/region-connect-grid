@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
 import L from "leaflet";
-import "leaflet/dist/leaflet.css";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, MapPin, Store, Truck } from "lucide-react";
+import { Loader2, MapPin, Store, Truck, AlertCircle } from "lucide-react";
 
 // Fix for default marker icons in Leaflet with Vite
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -116,11 +115,21 @@ export default function OrderTrackingMap({
     };
   }, [orderId]);
 
-  // Calculate bounds
+  // Validate coordinates - check if they're within reasonable bounds for Saudi Arabia
+  const isValidCoord = (lat: number, lng: number) => {
+    return lat >= 15 && lat <= 33 && lng >= 34 && lng <= 56;
+  };
+
   const points: [number, number][] = [];
-  if (storeLocation) points.push([storeLocation.lat, storeLocation.lng]);
-  if (customerLocation) points.push([customerLocation.lat, customerLocation.lng]);
-  if (courierLocation) points.push([courierLocation.lat, courierLocation.lng]);
+  if (storeLocation && isValidCoord(storeLocation.lat, storeLocation.lng)) {
+    points.push([storeLocation.lat, storeLocation.lng]);
+  }
+  if (customerLocation && isValidCoord(customerLocation.lat, customerLocation.lng)) {
+    points.push([customerLocation.lat, customerLocation.lng]);
+  }
+  if (courierLocation && isValidCoord(courierLocation.lat, courierLocation.lng)) {
+    points.push([courierLocation.lat, courierLocation.lng]);
+  }
 
   // Default center (Saudi Arabia)
   const defaultCenter: [number, number] = points.length > 0 
@@ -135,10 +144,21 @@ export default function OrderTrackingMap({
     );
   }
 
+  // Show message if no valid locations
+  if (points.length === 0) {
+    return (
+      <div className="h-[300px] rounded-xl bg-muted flex flex-col items-center justify-center gap-3">
+        <AlertCircle className="w-8 h-8 text-muted-foreground" />
+        <p className="text-muted-foreground text-center">لا تتوفر إحداثيات صحيحة للخريطة</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2">
       <div className="h-[300px] rounded-xl overflow-hidden border">
         <MapContainer
+          key={`map-${orderId}`}
           center={defaultCenter}
           zoom={13}
           style={{ height: "100%", width: "100%" }}

@@ -69,41 +69,50 @@ export const calculateDeliveryFee = (
 // Parse coordinates from address string or location URL
 export const parseCoordinatesFromUrl = (url: string): { lat: number; lng: number } | null => {
   try {
+    // Helper to validate Saudi Arabia coordinates
+    const isValidSaudiCoord = (lat: number, lng: number) => {
+      return lat >= 15 && lat <= 33 && lng >= 34 && lng <= 56;
+    };
+
     // Priority 1: Extract from !3d (lat) and !4d (lng) parameters - these are the actual place coordinates
     const place3dMatch = url.match(/!3d(-?\d+\.?\d*)/);
     const place4dMatch = url.match(/!4d(-?\d+\.?\d*)/);
     if (place3dMatch && place4dMatch) {
-      return {
-        lat: parseFloat(place3dMatch[1]),
-        lng: parseFloat(place4dMatch[1])
-      };
+      const lat = parseFloat(place3dMatch[1]);
+      const lng = parseFloat(place4dMatch[1]);
+      if (isValidSaudiCoord(lat, lng)) {
+        return { lat, lng };
+      }
     }
 
     // Priority 2: Extract from q= parameter (direct coordinates)
     const qMatch = url.match(/[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
     if (qMatch) {
-      return {
-        lat: parseFloat(qMatch[1]),
-        lng: parseFloat(qMatch[2])
-      };
+      const lat = parseFloat(qMatch[1]);
+      const lng = parseFloat(qMatch[2]);
+      if (isValidSaudiCoord(lat, lng)) {
+        return { lat, lng };
+      }
     }
 
     // Priority 3: Extract from ll= parameter
     const llMatch = url.match(/[?&]ll=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
     if (llMatch) {
-      return {
-        lat: parseFloat(llMatch[1]),
-        lng: parseFloat(llMatch[2])
-      };
+      const lat = parseFloat(llMatch[1]);
+      const lng = parseFloat(llMatch[2]);
+      if (isValidSaudiCoord(lat, lng)) {
+        return { lat, lng };
+      }
     }
 
     // Priority 4: Extract from @ symbol (view coordinates - less accurate for places)
     const atMatch = url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
     if (atMatch) {
-      return {
-        lat: parseFloat(atMatch[1]),
-        lng: parseFloat(atMatch[2])
-      };
+      const lat = parseFloat(atMatch[1]);
+      const lng = parseFloat(atMatch[2]);
+      if (isValidSaudiCoord(lat, lng)) {
+        return { lat, lng };
+      }
     }
     
     return null;
