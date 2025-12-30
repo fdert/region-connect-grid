@@ -20,15 +20,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import { Progress } from "@/components/ui/progress";
-import { useEffect, useState, lazy, Suspense } from "react";
+import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { parseCoordinatesFromUrl } from "@/lib/distance";
-
-// Lazy load the map component
-const OrderTrackingMap = lazy(() => import("@/components/tracking/OrderTrackingMap"));
+import OrderTrackingMap from "@/components/tracking/OrderTrackingMap";
 
 const statusLabels: Record<string, string> = {
   "new": "جديد",
@@ -217,18 +215,12 @@ const CustomerOrderDetails = () => {
               <Navigation className="w-5 h-5 text-primary" />
               تتبع الطلب مباشرة
             </h3>
-            <Suspense fallback={
-              <div className="h-[300px] rounded-xl bg-muted flex items-center justify-center">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-              </div>
-            }>
-              <OrderTrackingMap
-                orderId={order.id}
-                storeLocation={storeLocation}
-                customerLocation={customerLocation}
-                storeName={order.store?.name}
-              />
-            </Suspense>
+            <OrderTrackingMap
+              orderId={order.id}
+              storeLocation={storeLocation}
+              customerLocation={customerLocation}
+              storeName={order.store?.name}
+            />
           </div>
         )}
 
