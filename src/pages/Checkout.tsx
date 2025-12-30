@@ -30,6 +30,7 @@ interface StoreDeliveryInfo {
   distance_km: number;
   delivery_fee: number;
   store_location: { lat: number; lng: number } | null;
+  error?: string;
 }
 
 const Checkout = () => {
@@ -56,6 +57,9 @@ const Checkout = () => {
   // Calculate total delivery fee
   const totalDeliveryFee = storeDeliveryInfo.reduce((acc, store) => acc + store.delivery_fee, 0);
   const total = subtotal + totalDeliveryFee;
+  
+  // Check if there are any delivery calculation errors
+  const hasDeliveryErrors = storeDeliveryInfo.some(info => info.error);
 
   // Group items by store
   const itemsByStore = items.reduce((acc, item) => {
@@ -89,7 +93,8 @@ const Checkout = () => {
         // Calculate road distance for each store
         const deliveryInfoPromises = (stores || []).map(async (store) => {
           let distance = 0;
-          let fee = Number(store.delivery_fee) || 15; // Default fee if no location
+          let fee = 0;
+          let errorMsg: string | undefined;
 
           if (store.location_lat && store.location_lng) {
             // Calculate road distance using OSRM API
@@ -100,14 +105,21 @@ const Checkout = () => {
               customerLocation.lng
             );
             
-            distance = roadResult.distance_km;
-            console.log(`Road distance from ${store.name}: ${distance} km (source: ${roadResult.source})`);
+            if (roadResult.success) {
+              distance = roadResult.distance_km;
+              console.log(`Road distance from ${store.name}: ${distance} km`);
 
-            // Calculate delivery fee: price_per_km × distance
-            fee = calculateDeliveryFee(
-              distance,
-              Number(store.price_per_km) || 2
-            );
+              // Calculate delivery fee: price_per_km × distance
+              fee = calculateDeliveryFee(
+                distance,
+                Number(store.price_per_km) || 2
+              );
+            } else {
+              console.error(`Failed to calculate distance for ${store.name}:`, 'error' in roadResult ? roadResult.error : 'Unknown error');
+              errorMsg = 'error' in roadResult ? roadResult.error : 'فشل في حساب المسافة';
+            }
+          } else {
+            errorMsg = "موقع المتجر غير محدد";
           }
 
           return {
@@ -117,7 +129,8 @@ const Checkout = () => {
             delivery_fee: fee,
             store_location: store.location_lat && store.location_lng 
               ? { lat: store.location_lat, lng: store.location_lng }
-              : null
+              : null,
+            error: errorMsg
           };
         });
 
@@ -190,6 +203,15 @@ const Checkout = () => {
       toast({
         title: "خطأ",
         description: "يجب التحقق من رقم الجوال وإدخال عنوان التوصيل",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (hasDeliveryErrors) {
+      toast({
+        title: "خطأ في حساب رسوم التوصيل",
+        description: "لا يمكن إتمام الطلب بسبب خطأ في حساب رسوم التوصيل. تأكد من صحة موقع التوصيل وموقع المتجر.",
         variant: "destructive"
       });
       return;
@@ -403,21 +425,31 @@ const Checkout = () => {
                     ) : (
                       <div className="space-y-3">
                         {storeDeliveryInfo.map((info) => (
-                          <div key={info.store_id} className="flex items-center justify-between p-3 bg-muted/50 rounded-xl">
+                          <div key={info.store_id} className={`flex items-center justify-between p-3 rounded-xl ${info.error ? 'bg-destructive/10 border border-destructive/30' : 'bg-muted/50'}`}>
                             <div className="flex items-center gap-3">
-                              <Store className="w-5 h-5 text-muted-foreground" />
+                              <Store className={`w-5 h-5 ${info.error ? 'text-destructive' : 'text-muted-foreground'}`} />
                               <div>
                                 <p className="font-medium">{info.store_name}</p>
-                                {info.distance_km > 0 && (
+                                {info.error ? (
+                                  <p className="text-xs text-destructive">
+                                    {info.error}
+                                  </p>
+                                ) : info.distance_km > 0 ? (
                                   <p className="text-xs text-muted-foreground">
                                     المسافة: {info.distance_km.toFixed(1)} كم
                                   </p>
-                                )}
+                                ) : null}
                               </div>
                             </div>
                             <div className="text-left">
-                              <p className="font-bold text-primary">{info.delivery_fee.toFixed(2)} ر.س</p>
-                              <p className="text-xs text-muted-foreground">رسوم التوصيل</p>
+                              {info.error ? (
+                                <p className="font-bold text-destructive">خطأ</p>
+                              ) : (
+                                <>
+                                  <p className="font-bold text-primary">{info.delivery_fee.toFixed(2)} ر.س</p>
+                                  <p className="text-xs text-muted-foreground">رسوم التوصيل</p>
+                                </>
+                              )}
                             </div>
                           </div>
                         ))}
