@@ -1,7 +1,8 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, AlertCircle, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import "leaflet/dist/leaflet.css";
 
 interface OrderTrackingMapProps {
   orderId: string;
@@ -19,35 +20,41 @@ export default function OrderTrackingMap({
   const [courierLocation, setCourierLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [mapReady, setMapReady] = useState(false);
+  const [mapError, setMapError] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
+  const leafletRef = useRef<any>(null);
 
   // Validate coordinates
-  const isValidCoord = (lat: number, lng: number) => {
+  const isValidCoord = useCallback((lat: number, lng: number) => {
     return !isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
-  };
+  }, []);
 
   // Fetch initial courier location
   useEffect(() => {
     const fetchCourierLocation = async () => {
-      const { data, error } = await supabase
-        .from("orders")
-        .select("courier_location_lat, courier_location_lng, courier_location_updated_at")
-        .eq("id", orderId)
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from("orders")
+          .select("courier_location_lat, courier_location_lng, courier_location_updated_at")
+          .eq("id", orderId)
+          .single();
 
-      if (!error && data?.courier_location_lat && data?.courier_location_lng) {
-        setCourierLocation({
-          lat: data.courier_location_lat,
-          lng: data.courier_location_lng
-        });
-        if (data.courier_location_updated_at) {
-          setLastUpdated(new Date(data.courier_location_updated_at));
+        if (!error && data?.courier_location_lat && data?.courier_location_lng) {
+          setCourierLocation({
+            lat: data.courier_location_lat,
+            lng: data.courier_location_lng
+          });
+          if (data.courier_location_updated_at) {
+            setLastUpdated(new Date(data.courier_location_updated_at));
+          }
         }
+      } catch (err) {
+        console.error("Error fetching courier location:", err);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     fetchCourierLocation();
@@ -85,21 +92,97 @@ export default function OrderTrackingMap({
     };
   }, [orderId]);
 
-  // Initialize map with vanilla Leaflet (not react-leaflet to avoid context issues)
-  useEffect(() => {
-    if (isLoading || !mapContainerRef.current) return;
+  // Update markers function
+  const updateMarkers = useCallback((L: any, map: any) => {
+    if (!map) return;
 
+    // Clear existing markers
+    markersRef.current.forEach(marker => {
+      if (marker && marker.remove) marker.remove();
+    });
+    markersRef.current = [];
+
+    const createIcon = (color: string, iconSvg: string) => {
+      return L.divIcon({
+        className: "custom-marker",
+        html: `<div style="background-color: ${color}; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3); border: 3px solid white;">${iconSvg}</div>`,
+        iconSize: [36, 36],
+        iconAnchor: [18, 18],
+      });
+    };
+
+    const storeIcon = createIcon("#10b981", '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></svg>');
+    const courierIcon = createIcon("#3b82f6", '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>');
+    const customerIcon = createIcon("#ef4444", '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>');
+
+    // Add store marker
+    if (storeLocation && isValidCoord(storeLocation.lat, storeLocation.lng)) {
+      const marker = L.marker([storeLocation.lat, storeLocation.lng], { icon: storeIcon })
+        .addTo(map)
+        .bindPopup(`<div style="text-align:center;font-weight:500;">${storeName || "المتجر"}</div>`);
+      markersRef.current.push(marker);
+    }
+
+    // Add customer marker
+    if (customerLocation && isValidCoord(customerLocation.lat, customerLocation.lng)) {
+      const marker = L.marker([customerLocation.lat, customerLocation.lng], { icon: customerIcon })
+        .addTo(map)
+        .bindPopup('<div style="text-align:center;font-weight:500;">موقع التوصيل</div>');
+      markersRef.current.push(marker);
+    }
+
+    // Add courier marker
+    if (courierLocation && isValidCoord(courierLocation.lat, courierLocation.lng)) {
+      const popup = lastUpdated 
+        ? `<div style="text-align:center;"><p style="font-weight:500;">المندوب</p><p style="font-size:12px;color:#666;">آخر تحديث: ${lastUpdated.toLocaleTimeString("ar-SA")}</p></div>`
+        : '<div style="text-align:center;font-weight:500;">المندوب</div>';
+      const marker = L.marker([courierLocation.lat, courierLocation.lng], { icon: courierIcon })
+        .addTo(map)
+        .bindPopup(popup);
+      markersRef.current.push(marker);
+    }
+
+    // Add polyline
+    const linePoints: [number, number][] = [];
+    if (storeLocation && isValidCoord(storeLocation.lat, storeLocation.lng)) {
+      linePoints.push([storeLocation.lat, storeLocation.lng]);
+    }
+    if (courierLocation && isValidCoord(courierLocation.lat, courierLocation.lng)) {
+      linePoints.push([courierLocation.lat, courierLocation.lng]);
+    }
+    if (customerLocation && isValidCoord(customerLocation.lat, customerLocation.lng)) {
+      linePoints.push([customerLocation.lat, customerLocation.lng]);
+    }
+
+    if (linePoints.length >= 2) {
+      const polyline = L.polyline(linePoints, {
+        color: "#3b82f6",
+        weight: 3,
+        opacity: 0.7,
+        dashArray: "10, 10"
+      }).addTo(map);
+      markersRef.current.push(polyline);
+    }
+  }, [storeLocation, customerLocation, courierLocation, storeName, lastUpdated, isValidCoord]);
+
+  // Initialize map
+  useEffect(() => {
+    if (isLoading) return;
+    
     const initMap = async () => {
+      if (!mapContainerRef.current) return;
+
       try {
         const L = await import("leaflet");
+        leafletRef.current = L.default;
 
-        // If map already exists, just update it
+        // Clean up existing map
         if (mapInstanceRef.current) {
-          updateMarkers(L.default);
-          return;
+          mapInstanceRef.current.remove();
+          mapInstanceRef.current = null;
         }
 
-        // Calculate center and bounds
+        // Calculate valid points
         const points: [number, number][] = [];
         if (storeLocation && isValidCoord(storeLocation.lat, storeLocation.lng)) {
           points.push([storeLocation.lat, storeLocation.lng]);
@@ -112,30 +195,32 @@ export default function OrderTrackingMap({
         }
 
         if (points.length === 0) {
-          setMapReady(true);
+          setMapError(true);
           return;
         }
 
-        const center: [number, number] = points.length > 0 
-          ? [points[0][0], points[0][1]] 
-          : [24.7136, 46.6753];
+        // Calculate center
+        const avgLat = points.reduce((sum, p) => sum + p[0], 0) / points.length;
+        const avgLng = points.reduce((sum, p) => sum + p[1], 0) / points.length;
 
         // Create map
         const map = L.default.map(mapContainerRef.current, {
-          center: center,
-          zoom: 13,
-          scrollWheelZoom: false
+          center: [avgLat, avgLng],
+          zoom: 14,
+          scrollWheelZoom: false,
+          zoomControl: true
         });
 
         // Add tile layer
         L.default.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          attribution: '&copy; OpenStreetMap',
+          maxZoom: 19
         }).addTo(map);
 
         mapInstanceRef.current = map;
 
         // Add markers
-        updateMarkers(L.default);
+        updateMarkers(L.default, map);
 
         // Fit bounds if multiple points
         if (points.length > 1) {
@@ -143,80 +228,28 @@ export default function OrderTrackingMap({
           map.fitBounds(bounds, { padding: [50, 50] });
         }
 
-        setMapReady(true);
+        // Fix map size after a delay to ensure container is fully rendered
+        setTimeout(() => {
+          if (map && map.invalidateSize) {
+            map.invalidateSize();
+          }
+        }, 100);
+
+        // Also fix on window resize
+        const handleResize = () => {
+          if (map && map.invalidateSize) {
+            map.invalidateSize();
+          }
+        };
+        window.addEventListener('resize', handleResize);
+
+        return () => {
+          window.removeEventListener('resize', handleResize);
+        };
+
       } catch (error) {
         console.error("Failed to initialize map:", error);
-        setMapReady(true);
-      }
-    };
-
-    const updateMarkers = (L: any) => {
-      if (!mapInstanceRef.current) return;
-
-      // Clear existing markers
-      markersRef.current.forEach(marker => marker.remove());
-      markersRef.current = [];
-
-      const createIcon = (color: string, iconSvg: string) => {
-        return L.divIcon({
-          className: "custom-marker",
-          html: `<div style="background-color: ${color}; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3); border: 3px solid white;">${iconSvg}</div>`,
-          iconSize: [36, 36],
-          iconAnchor: [18, 18],
-        });
-      };
-
-      const storeIcon = createIcon("#10b981", '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></svg>');
-      const courierIcon = createIcon("#3b82f6", '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>');
-      const customerIcon = createIcon("#ef4444", '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>');
-
-      // Add store marker
-      if (storeLocation && isValidCoord(storeLocation.lat, storeLocation.lng)) {
-        const marker = L.marker([storeLocation.lat, storeLocation.lng], { icon: storeIcon })
-          .addTo(mapInstanceRef.current)
-          .bindPopup(`<div style="text-align:center;font-weight:500;">${storeName || "المتجر"}</div>`);
-        markersRef.current.push(marker);
-      }
-
-      // Add customer marker
-      if (customerLocation && isValidCoord(customerLocation.lat, customerLocation.lng)) {
-        const marker = L.marker([customerLocation.lat, customerLocation.lng], { icon: customerIcon })
-          .addTo(mapInstanceRef.current)
-          .bindPopup('<div style="text-align:center;font-weight:500;">موقع التوصيل</div>');
-        markersRef.current.push(marker);
-      }
-
-      // Add courier marker
-      if (courierLocation && isValidCoord(courierLocation.lat, courierLocation.lng)) {
-        const popup = lastUpdated 
-          ? `<div style="text-align:center;"><p style="font-weight:500;">المندوب</p><p style="font-size:12px;color:#666;">آخر تحديث: ${lastUpdated.toLocaleTimeString("ar-SA")}</p></div>`
-          : '<div style="text-align:center;font-weight:500;">المندوب</div>';
-        const marker = L.marker([courierLocation.lat, courierLocation.lng], { icon: courierIcon })
-          .addTo(mapInstanceRef.current)
-          .bindPopup(popup);
-        markersRef.current.push(marker);
-      }
-
-      // Add polyline
-      const linePoints: [number, number][] = [];
-      if (storeLocation && isValidCoord(storeLocation.lat, storeLocation.lng)) {
-        linePoints.push([storeLocation.lat, storeLocation.lng]);
-      }
-      if (courierLocation && isValidCoord(courierLocation.lat, courierLocation.lng)) {
-        linePoints.push([courierLocation.lat, courierLocation.lng]);
-      }
-      if (customerLocation && isValidCoord(customerLocation.lat, customerLocation.lng)) {
-        linePoints.push([customerLocation.lat, customerLocation.lng]);
-      }
-
-      if (linePoints.length >= 2) {
-        const polyline = L.polyline(linePoints, {
-          color: "#3b82f6",
-          weight: 3,
-          opacity: 0.7,
-          dashArray: "10, 10"
-        }).addTo(mapInstanceRef.current);
-        markersRef.current.push(polyline);
+        setMapError(true);
       }
     };
 
@@ -228,7 +261,14 @@ export default function OrderTrackingMap({
         mapInstanceRef.current = null;
       }
     };
-  }, [isLoading, storeLocation, customerLocation, courierLocation, storeName, lastUpdated]);
+  }, [isLoading, storeLocation, customerLocation, courierLocation, isValidCoord, updateMarkers]);
+
+  // Update markers when courier location changes
+  useEffect(() => {
+    if (mapInstanceRef.current && leafletRef.current && courierLocation) {
+      updateMarkers(leafletRef.current, mapInstanceRef.current);
+    }
+  }, [courierLocation, updateMarkers]);
 
   // Open in Google Maps
   const openInGoogleMaps = (lat: number, lng: number) => {
@@ -250,8 +290,8 @@ export default function OrderTrackingMap({
     );
   }
 
-  // Show fallback with buttons if no valid locations
-  if (!hasValidPoints) {
+  // Show fallback with buttons if no valid locations or map error
+  if (!hasValidPoints || mapError) {
     return (
       <div className="space-y-4">
         <div className="h-[200px] rounded-xl bg-muted flex flex-col items-center justify-center gap-3">
@@ -277,14 +317,14 @@ export default function OrderTrackingMap({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div 
         ref={mapContainerRef} 
-        className="h-[300px] rounded-xl overflow-hidden border"
-        style={{ minHeight: "300px" }}
+        className="h-[300px] w-full rounded-xl overflow-hidden border bg-muted"
+        style={{ minHeight: "300px", position: "relative", zIndex: 0 }}
       />
 
-      {/* Legend and quick links */}
+      {/* Legend */}
       <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 rounded-full bg-emerald-500" />
