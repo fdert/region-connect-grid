@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, AlertCircle, ExternalLink } from "lucide-react";
+import { Loader2, AlertCircle, ExternalLink, Clock, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { calculateRoadDistance } from "@/lib/distance";
 import "leaflet/dist/leaflet.css";
 
 interface OrderTrackingMapProps {
@@ -21,15 +22,68 @@ export default function OrderTrackingMap({
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [mapError, setMapError] = useState(false);
+  const [estimatedMinutes, setEstimatedMinutes] = useState<number | null>(null);
+  const [remainingSeconds, setRemainingSeconds] = useState<number>(0);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
   const leafletRef = useRef<any>(null);
+  const etaIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Validate coordinates
   const isValidCoord = useCallback((lat: number, lng: number) => {
     return !isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
   }, []);
+
+  // Calculate ETA based on courier and customer locations
+  const calculateETA = useCallback(async (courierLat: number, courierLng: number) => {
+    if (!customerLocation || !isValidCoord(customerLocation.lat, customerLocation.lng)) {
+      return;
+    }
+
+    try {
+      const result = await calculateRoadDistance(
+        courierLat,
+        courierLng,
+        customerLocation.lat,
+        customerLocation.lng
+      );
+
+      if (result.success) {
+        const minutes = Math.ceil(result.duration_minutes);
+        setEstimatedMinutes(minutes);
+        setRemainingSeconds(minutes * 60);
+      }
+    } catch (error) {
+      console.error("Error calculating ETA:", error);
+    }
+  }, [customerLocation, isValidCoord]);
+
+  // Countdown timer for remaining time
+  useEffect(() => {
+    if (remainingSeconds > 0) {
+      etaIntervalRef.current = setInterval(() => {
+        setRemainingSeconds(prev => Math.max(0, prev - 1));
+      }, 1000);
+    }
+
+    return () => {
+      if (etaIntervalRef.current) {
+        clearInterval(etaIntervalRef.current);
+      }
+    };
+  }, [remainingSeconds > 0]);
+
+  // Format remaining time
+  const formatRemainingTime = (seconds: number) => {
+    if (seconds <= 0) return "وصل";
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins > 0) {
+      return `${mins} دقيقة ${secs > 0 ? `و ${secs} ثانية` : ''}`;
+    }
+    return `${secs} ثانية`;
+  };
 
   // Fetch initial courier location
   useEffect(() => {
@@ -42,13 +96,16 @@ export default function OrderTrackingMap({
           .single();
 
         if (!error && data?.courier_location_lat && data?.courier_location_lng) {
-          setCourierLocation({
-            lat: data.courier_location_lat,
-            lng: data.courier_location_lng
-          });
+          const newLocation = {
+            lat: Number(data.courier_location_lat),
+            lng: Number(data.courier_location_lng)
+          };
+          setCourierLocation(newLocation);
           if (data.courier_location_updated_at) {
             setLastUpdated(new Date(data.courier_location_updated_at));
           }
+          // Calculate initial ETA
+          await calculateETA(newLocation.lat, newLocation.lng);
         }
       } catch (err) {
         console.error("Error fetching courier location:", err);
@@ -58,12 +115,12 @@ export default function OrderTrackingMap({
     };
 
     fetchCourierLocation();
-  }, [orderId]);
+  }, [orderId, calculateETA]);
 
   // Subscribe to realtime updates
   useEffect(() => {
     const channel = supabase
-      .channel(`order-tracking-${orderId}`)
+      .channel(`order-tracking-live-${orderId}`)
       .on(
         "postgres_changes",
         {
@@ -72,16 +129,19 @@ export default function OrderTrackingMap({
           table: "orders",
           filter: `id=eq.${orderId}`
         },
-        (payload) => {
+        async (payload) => {
           const newData = payload.new as any;
           if (newData.courier_location_lat && newData.courier_location_lng) {
-            setCourierLocation({
-              lat: newData.courier_location_lat,
-              lng: newData.courier_location_lng
-            });
+            const newLocation = {
+              lat: Number(newData.courier_location_lat),
+              lng: Number(newData.courier_location_lng)
+            };
+            setCourierLocation(newLocation);
             if (newData.courier_location_updated_at) {
               setLastUpdated(new Date(newData.courier_location_updated_at));
             }
+            // Recalculate ETA on courier location update
+            await calculateETA(newLocation.lat, newLocation.lng);
           }
         }
       )
@@ -90,7 +150,7 @@ export default function OrderTrackingMap({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [orderId]);
+  }, [orderId, calculateETA]);
 
   // Update markers function
   const updateMarkers = useCallback((L: any, map: any) => {
@@ -105,21 +165,21 @@ export default function OrderTrackingMap({
     const createIcon = (color: string, iconSvg: string) => {
       return L.divIcon({
         className: "custom-marker",
-        html: `<div style="background-color: ${color}; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3); border: 3px solid white;">${iconSvg}</div>`,
-        iconSize: [36, 36],
-        iconAnchor: [18, 18],
+        html: `<div style="background-color: ${color}; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.4); border: 3px solid white;">${iconSvg}</div>`,
+        iconSize: [40, 40],
+        iconAnchor: [20, 20],
       });
     };
 
-    const storeIcon = createIcon("#10b981", '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></svg>');
-    const courierIcon = createIcon("#3b82f6", '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>');
-    const customerIcon = createIcon("#ef4444", '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>');
+    const storeIcon = createIcon("#10b981", '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></svg>');
+    const courierIcon = createIcon("#3b82f6", '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>');
+    const customerIcon = createIcon("#ef4444", '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>');
 
     // Add store marker
     if (storeLocation && isValidCoord(storeLocation.lat, storeLocation.lng)) {
       const marker = L.marker([storeLocation.lat, storeLocation.lng], { icon: storeIcon })
         .addTo(map)
-        .bindPopup(`<div style="text-align:center;font-weight:500;">${storeName || "المتجر"}</div>`);
+        .bindPopup(`<div style="text-align:center;font-weight:600;font-size:14px;">${storeName || "المتجر"}</div>`);
       markersRef.current.push(marker);
     }
 
@@ -127,22 +187,22 @@ export default function OrderTrackingMap({
     if (customerLocation && isValidCoord(customerLocation.lat, customerLocation.lng)) {
       const marker = L.marker([customerLocation.lat, customerLocation.lng], { icon: customerIcon })
         .addTo(map)
-        .bindPopup('<div style="text-align:center;font-weight:500;">موقع التوصيل</div>');
+        .bindPopup('<div style="text-align:center;font-weight:600;font-size:14px;">موقع التوصيل</div>');
       markersRef.current.push(marker);
     }
 
     // Add courier marker
     if (courierLocation && isValidCoord(courierLocation.lat, courierLocation.lng)) {
       const popup = lastUpdated 
-        ? `<div style="text-align:center;"><p style="font-weight:500;">المندوب</p><p style="font-size:12px;color:#666;">آخر تحديث: ${lastUpdated.toLocaleTimeString("ar-SA")}</p></div>`
-        : '<div style="text-align:center;font-weight:500;">المندوب</div>';
+        ? `<div style="text-align:center;"><p style="font-weight:600;font-size:14px;">🚴 المندوب</p><p style="font-size:12px;color:#666;">آخر تحديث: ${lastUpdated.toLocaleTimeString("ar-SA")}</p></div>`
+        : '<div style="text-align:center;font-weight:600;font-size:14px;">🚴 المندوب</div>';
       const marker = L.marker([courierLocation.lat, courierLocation.lng], { icon: courierIcon })
         .addTo(map)
         .bindPopup(popup);
       markersRef.current.push(marker);
     }
 
-    // Add polyline
+    // Add polyline from store to courier to customer
     const linePoints: [number, number][] = [];
     if (storeLocation && isValidCoord(storeLocation.lat, storeLocation.lng)) {
       linePoints.push([storeLocation.lat, storeLocation.lng]);
@@ -157,11 +217,17 @@ export default function OrderTrackingMap({
     if (linePoints.length >= 2) {
       const polyline = L.polyline(linePoints, {
         color: "#3b82f6",
-        weight: 3,
-        opacity: 0.7,
-        dashArray: "10, 10"
+        weight: 4,
+        opacity: 0.8,
+        dashArray: "12, 8"
       }).addTo(map);
       markersRef.current.push(polyline);
+    }
+
+    // Fit bounds to show all markers
+    if (linePoints.length > 1) {
+      const bounds = L.latLngBounds(linePoints);
+      map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15 });
     }
   }, [storeLocation, customerLocation, courierLocation, storeName, lastUpdated, isValidCoord]);
 
@@ -222,18 +288,12 @@ export default function OrderTrackingMap({
         // Add markers
         updateMarkers(L.default, map);
 
-        // Fit bounds if multiple points
-        if (points.length > 1) {
-          const bounds = L.default.latLngBounds(points);
-          map.fitBounds(bounds, { padding: [50, 50] });
-        }
-
-        // Fix map size after a delay to ensure container is fully rendered
+        // Fix map size after a delay
         setTimeout(() => {
           if (map && map.invalidateSize) {
             map.invalidateSize();
           }
-        }, 100);
+        }, 200);
 
         // Also fix on window resize
         const handleResize = () => {
@@ -261,11 +321,11 @@ export default function OrderTrackingMap({
         mapInstanceRef.current = null;
       }
     };
-  }, [isLoading, storeLocation, customerLocation, courierLocation, isValidCoord, updateMarkers]);
+  }, [isLoading, storeLocation, customerLocation, isValidCoord]);
 
   // Update markers when courier location changes
   useEffect(() => {
-    if (mapInstanceRef.current && leafletRef.current && courierLocation) {
+    if (mapInstanceRef.current && leafletRef.current) {
       updateMarkers(leafletRef.current, mapInstanceRef.current);
     }
   }, [courierLocation, updateMarkers]);
@@ -284,7 +344,7 @@ export default function OrderTrackingMap({
 
   if (isLoading) {
     return (
-      <div className="h-[300px] rounded-xl bg-muted flex items-center justify-center">
+      <div className="h-[350px] rounded-xl bg-muted flex items-center justify-center">
         <Loader2 className="w-6 h-6 animate-spin text-primary" />
       </div>
     );
@@ -318,29 +378,50 @@ export default function OrderTrackingMap({
 
   return (
     <div className="space-y-3">
+      {/* ETA Display */}
+      {courierLocation && remainingSeconds > 0 && (
+        <div className="bg-primary/10 rounded-xl p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
+              <Clock className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">الوقت المتبقي للوصول</p>
+              <p className="text-xl font-bold text-primary">{formatRemainingTime(remainingSeconds)}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Navigation className="w-4 h-4" />
+            <span>المندوب في الطريق</span>
+          </div>
+        </div>
+      )}
+
+      {/* Map Container */}
       <div 
         ref={mapContainerRef} 
-        className="h-[300px] w-full rounded-xl overflow-hidden border bg-muted"
-        style={{ minHeight: "300px", position: "relative", zIndex: 0 }}
+        className="h-[350px] w-full rounded-xl overflow-hidden border-2 border-border bg-muted"
+        style={{ minHeight: "350px", position: "relative", zIndex: 0 }}
       />
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded-full bg-emerald-500" />
-          <span>المتجر</span>
+      <div className="flex flex-wrap gap-4 text-sm">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded-full bg-emerald-500 shadow-sm" />
+          <span className="font-medium">المتجر</span>
         </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded-full bg-blue-500" />
-          <span>المندوب</span>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded-full bg-blue-500 shadow-sm" />
+          <span className="font-medium">المندوب</span>
+          {!courierLocation && <span className="text-xs text-muted-foreground">(في انتظار التحديث)</span>}
         </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded-full bg-red-500" />
-          <span>موقع التوصيل</span>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded-full bg-red-500 shadow-sm" />
+          <span className="font-medium">موقع التوصيل</span>
         </div>
         {lastUpdated && (
-          <div className="mr-auto">
-            آخر تحديث: {lastUpdated.toLocaleTimeString("ar-SA")}
+          <div className="mr-auto text-xs text-muted-foreground">
+            آخر تحديث للموقع: {lastUpdated.toLocaleTimeString("ar-SA")}
           </div>
         )}
       </div>
@@ -348,20 +429,20 @@ export default function OrderTrackingMap({
       {/* Quick links to Google Maps */}
       <div className="flex flex-wrap gap-2">
         {storeLocation && isValidCoord(storeLocation.lat, storeLocation.lng) && (
-          <Button variant="ghost" size="sm" className="gap-1 text-xs h-7" onClick={() => openInGoogleMaps(storeLocation.lat, storeLocation.lng)}>
-            <ExternalLink className="w-3 h-3" />
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => openInGoogleMaps(storeLocation.lat, storeLocation.lng)}>
+            <ExternalLink className="w-4 h-4" />
             فتح موقع المتجر
           </Button>
         )}
         {customerLocation && isValidCoord(customerLocation.lat, customerLocation.lng) && (
-          <Button variant="ghost" size="sm" className="gap-1 text-xs h-7" onClick={() => openInGoogleMaps(customerLocation.lat, customerLocation.lng)}>
-            <ExternalLink className="w-3 h-3" />
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => openInGoogleMaps(customerLocation.lat, customerLocation.lng)}>
+            <ExternalLink className="w-4 h-4" />
             فتح موقع التوصيل
           </Button>
         )}
         {courierLocation && isValidCoord(courierLocation.lat, courierLocation.lng) && (
-          <Button variant="ghost" size="sm" className="gap-1 text-xs h-7" onClick={() => openInGoogleMaps(courierLocation.lat, courierLocation.lng)}>
-            <ExternalLink className="w-3 h-3" />
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => openInGoogleMaps(courierLocation.lat, courierLocation.lng)}>
+            <ExternalLink className="w-4 h-4" />
             فتح موقع المندوب
           </Button>
         )}
