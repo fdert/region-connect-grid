@@ -20,7 +20,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import PhoneVerification, { LocationInfo } from "@/components/checkout/PhoneVerification";
-import { calculateDistance, calculateDeliveryFee } from "@/lib/distance";
+import { calculateRoadDistance, calculateDeliveryFee } from "@/lib/distance";
 
 type CheckoutStep = "verification" | "payment";
 
@@ -86,18 +86,22 @@ const Checkout = () => {
 
         if (error) throw error;
 
-        const deliveryInfo: StoreDeliveryInfo[] = (stores || []).map(store => {
+        // Calculate road distance for each store
+        const deliveryInfoPromises = (stores || []).map(async (store) => {
           let distance = 0;
           let fee = Number(store.delivery_fee) || 15; // Default fee if no location
 
           if (store.location_lat && store.location_lng) {
-            // Calculate distance
-            distance = calculateDistance(
+            // Calculate road distance using OSRM API
+            const roadResult = await calculateRoadDistance(
               store.location_lat,
               store.location_lng,
               customerLocation.lat,
               customerLocation.lng
             );
+            
+            distance = roadResult.distance_km;
+            console.log(`Road distance from ${store.name}: ${distance} km (source: ${roadResult.source})`);
 
             // Calculate delivery fee: price_per_km × distance
             fee = calculateDeliveryFee(
@@ -117,6 +121,7 @@ const Checkout = () => {
           };
         });
 
+        const deliveryInfo = await Promise.all(deliveryInfoPromises);
         setStoreDeliveryInfo(deliveryInfo);
       } catch (error) {
         console.error("Error calculating delivery:", error);
