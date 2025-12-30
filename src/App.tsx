@@ -52,11 +52,11 @@ import MerchantSettings from "./pages/dashboard/merchant/MerchantSettings";
 import MerchantSupport from "./pages/dashboard/merchant/MerchantSupport";
 import CreateStore from "./pages/dashboard/merchant/CreateStore";
 
-// Courier Dashboard Pages
-import CourierDashboard from "./pages/dashboard/courier/CourierDashboard";
-import CourierOrders from "./pages/dashboard/courier/CourierOrders";
-import CourierEarnings from "./pages/dashboard/courier/CourierEarnings";
-import CourierSettings from "./pages/dashboard/courier/CourierSettings";
+// Courier Dashboard Pages - Mobile Optimized
+import MobileDashboard from "./pages/courier/MobileDashboard";
+import MobileOrders from "./pages/courier/MobileOrders";
+import MobileEarnings from "./pages/courier/MobileEarnings";
+import MobileSettings from "./pages/courier/MobileSettings";
 
 // Customer Dashboard Pages
 import CustomerDashboard from "./pages/dashboard/customer/CustomerDashboard";
@@ -133,11 +133,11 @@ const AppContent = () => {
         <Route path="/merchant/settings" element={<MerchantSettings />} />
         <Route path="/merchant/support" element={<MerchantSupport />} />
         
-        {/* Courier Dashboard */}
-        <Route path="/courier" element={<CourierDashboard />} />
-        <Route path="/courier/orders" element={<CourierOrders />} />
-        <Route path="/courier/earnings" element={<CourierEarnings />} />
-        <Route path="/courier/settings" element={<CourierSettings />} />
+        {/* Courier Dashboard - Mobile Optimized */}
+        <Route path="/courier" element={<MobileDashboard />} />
+        <Route path="/courier/orders" element={<MobileOrders />} />
+        <Route path="/courier/earnings" element={<MobileEarnings />} />
+        <Route path="/courier/settings" element={<MobileSettings />} />
         
         {/* Customer Dashboard */}
         <Route path="/customer" element={<CustomerDashboard />} />
