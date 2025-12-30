@@ -29,10 +29,14 @@ serve(async (req) => {
   try {
     const { origin_lat, origin_lng, destination_lat, destination_lng }: RouteRequest = await req.json();
 
+    console.log('Received coordinates:', { origin_lat, origin_lng, destination_lat, destination_lng });
+
     // Validate coordinates
-    if (!origin_lat || !origin_lng || !destination_lat || !destination_lng) {
+    if (origin_lat === undefined || origin_lng === undefined || 
+        destination_lat === undefined || destination_lng === undefined) {
+      console.error('Missing coordinates');
       return new Response(
-        JSON.stringify({ error: 'Missing coordinates' }),
+        JSON.stringify({ success: false, error: 'الإحداثيات غير مكتملة' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -40,8 +44,9 @@ serve(async (req) => {
     // Validate coordinate ranges
     if (Math.abs(origin_lat) > 90 || Math.abs(destination_lat) > 90 ||
         Math.abs(origin_lng) > 180 || Math.abs(destination_lng) > 180) {
+      console.error('Invalid coordinate ranges:', { origin_lat, origin_lng, destination_lat, destination_lng });
       return new Response(
-        JSON.stringify({ error: 'Invalid coordinates' }),
+        JSON.stringify({ success: false, error: 'الإحداثيات غير صحيحة - خارج النطاق المسموح' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -54,32 +59,39 @@ serve(async (req) => {
     const response = await fetch(osrmUrl);
     
     if (!response.ok) {
-      console.error('OSRM API error:', response.status, response.statusText);
-      // Fallback to Haversine formula if OSRM fails
-      const haversineDistance = calculateHaversineDistance(origin_lat, origin_lng, destination_lat, destination_lng);
+      console.error('OSRM API HTTP error:', response.status, response.statusText);
       return new Response(
         JSON.stringify({ 
-          distance_km: haversineDistance,
-          duration_minutes: 0,
-          source: 'haversine_fallback'
+          success: false, 
+          error: `فشل في الاتصال بخدمة حساب المسافة (HTTP ${response.status})` 
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const data: OSRMResponse = await response.json();
     
-    if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
-      console.error('OSRM returned no routes:', data);
-      // Fallback to Haversine formula
-      const haversineDistance = calculateHaversineDistance(origin_lat, origin_lng, destination_lat, destination_lng);
+    console.log('OSRM response code:', data.code);
+    
+    if (data.code !== 'Ok') {
+      console.error('OSRM returned error code:', data.code);
       return new Response(
         JSON.stringify({ 
-          distance_km: haversineDistance,
-          duration_minutes: 0,
-          source: 'haversine_fallback'
+          success: false, 
+          error: `لا يمكن حساب المسافة عبر الطريق - تأكد من صحة المواقع (${data.code})` 
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    if (!data.routes || data.routes.length === 0) {
+      console.error('OSRM returned no routes');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'لا يوجد طريق متاح بين الموقعين' 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -91,9 +103,9 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ 
+        success: true,
         distance_km: distanceKm,
-        duration_minutes: durationMinutes,
-        source: 'osrm'
+        duration_minutes: durationMinutes
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -101,29 +113,8 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error calculating road distance:', error);
     return new Response(
-      JSON.stringify({ error: 'Failed to calculate distance' }),
+      JSON.stringify({ success: false, error: 'فشل في حساب المسافة - حدث خطأ غير متوقع' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
-
-// Haversine formula as fallback
-function calculateHaversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371; // Earth's radius in kilometers
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-    Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const distance = R * c;
-  
-  return Math.round(distance * 100) / 100;
-}
-
-function toRad(deg: number): number {
-  return deg * (Math.PI / 180);
-}

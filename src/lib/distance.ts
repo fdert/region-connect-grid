@@ -1,30 +1,17 @@
 import { supabase } from "@/integrations/supabase/client";
 
-// Calculate distance between two coordinates using Haversine formula (fallback)
-export const calculateHaversineDistance = (
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number
-): number => {
-  const R = 6371; // Earth's radius in kilometers
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-    Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const distance = R * c;
-  
-  return Math.round(distance * 100) / 100; // Round to 2 decimal places
-};
+export interface RoadDistanceResult {
+  success: true;
+  distance_km: number;
+  duration_minutes: number;
+}
 
-const toRad = (deg: number): number => {
-  return deg * (Math.PI / 180);
-};
+export interface RoadDistanceError {
+  success: false;
+  error: string;
+}
+
+export type RoadDistanceResponse = RoadDistanceResult | RoadDistanceError;
 
 // Calculate road distance using OSRM API via edge function
 export const calculateRoadDistance = async (
@@ -32,7 +19,7 @@ export const calculateRoadDistance = async (
   originLng: number,
   destLat: number,
   destLng: number
-): Promise<{ distance_km: number; duration_minutes: number; source: string }> => {
+): Promise<RoadDistanceResponse> => {
   try {
     const { data, error } = await supabase.functions.invoke('calculate-road-distance', {
       body: {
@@ -45,28 +32,14 @@ export const calculateRoadDistance = async (
 
     if (error) {
       console.error('Error calling road distance function:', error);
-      // Fallback to Haversine
-      const distance = calculateHaversineDistance(originLat, originLng, destLat, destLng);
-      return { distance_km: distance, duration_minutes: 0, source: 'haversine_fallback' };
+      return { success: false, error: 'فشل في الاتصال بخدمة حساب المسافة' };
     }
 
     return data;
   } catch (error) {
     console.error('Error calculating road distance:', error);
-    // Fallback to Haversine
-    const distance = calculateHaversineDistance(originLat, originLng, destLat, destLng);
-    return { distance_km: distance, duration_minutes: 0, source: 'haversine_fallback' };
+    return { success: false, error: 'فشل في حساب المسافة - حدث خطأ غير متوقع' };
   }
-};
-
-// Legacy sync function for backwards compatibility
-export const calculateDistance = (
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number
-): number => {
-  return calculateHaversineDistance(lat1, lng1, lat2, lng2);
 };
 
 // Calculate delivery fee based on distance
@@ -97,11 +70,6 @@ export const calculateDeliveryFee = (
 export const parseCoordinatesFromUrl = (url: string): { lat: number; lng: number } | null => {
   try {
     // Google Maps URL patterns
-    // https://www.google.com/maps?q=24.7136,46.6753
-    // https://maps.google.com/?q=24.7136,46.6753
-    // https://goo.gl/maps/...
-    // https://www.google.com/maps/@24.7136,46.6753,15z
-    
     const patterns = [
       /[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/,
       /@(-?\d+\.?\d*),(-?\d+\.?\d*)/,
