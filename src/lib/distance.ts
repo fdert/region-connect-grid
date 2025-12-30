@@ -1,5 +1,7 @@
-// Calculate distance between two coordinates using Haversine formula
-export const calculateDistance = (
+import { supabase } from "@/integrations/supabase/client";
+
+// Calculate distance between two coordinates using Haversine formula (fallback)
+export const calculateHaversineDistance = (
   lat1: number,
   lng1: number,
   lat2: number,
@@ -22,6 +24,49 @@ export const calculateDistance = (
 
 const toRad = (deg: number): number => {
   return deg * (Math.PI / 180);
+};
+
+// Calculate road distance using OSRM API via edge function
+export const calculateRoadDistance = async (
+  originLat: number,
+  originLng: number,
+  destLat: number,
+  destLng: number
+): Promise<{ distance_km: number; duration_minutes: number; source: string }> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('calculate-road-distance', {
+      body: {
+        origin_lat: originLat,
+        origin_lng: originLng,
+        destination_lat: destLat,
+        destination_lng: destLng
+      }
+    });
+
+    if (error) {
+      console.error('Error calling road distance function:', error);
+      // Fallback to Haversine
+      const distance = calculateHaversineDistance(originLat, originLng, destLat, destLng);
+      return { distance_km: distance, duration_minutes: 0, source: 'haversine_fallback' };
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error calculating road distance:', error);
+    // Fallback to Haversine
+    const distance = calculateHaversineDistance(originLat, originLng, destLat, destLng);
+    return { distance_km: distance, duration_minutes: 0, source: 'haversine_fallback' };
+  }
+};
+
+// Legacy sync function for backwards compatibility
+export const calculateDistance = (
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): number => {
+  return calculateHaversineDistance(lat1, lng1, lat2, lng2);
 };
 
 // Calculate delivery fee based on distance
