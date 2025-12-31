@@ -112,10 +112,22 @@ export const calculateDeliveryFee = (
 // Parse coordinates from address string or location URL
 export const parseCoordinatesFromUrl = (url: string): { lat: number; lng: number } | null => {
   try {
+    if (!url || typeof url !== 'string') return null;
+    
     // Helper to validate coordinates (basic validation for reasonable lat/lng)
     const isValidCoord = (lat: number, lng: number) => {
       return !isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
     };
+
+    // Priority 0: Check if it's just raw coordinates "lat,lng" or "lat, lng"
+    const rawCoordsMatch = url.trim().match(/^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/);
+    if (rawCoordsMatch) {
+      const lat = parseFloat(rawCoordsMatch[1]);
+      const lng = parseFloat(rawCoordsMatch[2]);
+      if (isValidCoord(lat, lng)) {
+        return { lat, lng };
+      }
+    }
 
     // Priority 1: Extract from !3d (lat) and !4d (lng) parameters - these are the actual place coordinates
     const place3dMatch = url.match(/!3d(-?\d+\.?\d*)/);
@@ -138,7 +150,17 @@ export const parseCoordinatesFromUrl = (url: string): { lat: number; lng: number
       }
     }
 
-    // Priority 3: Extract from ll= parameter
+    // Priority 3: Extract from place/ path in Google Maps
+    const placeMatch = url.match(/place\/(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+    if (placeMatch) {
+      const lat = parseFloat(placeMatch[1]);
+      const lng = parseFloat(placeMatch[2]);
+      if (isValidCoord(lat, lng)) {
+        return { lat, lng };
+      }
+    }
+
+    // Priority 4: Extract from ll= parameter
     const llMatch = url.match(/[?&]ll=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
     if (llMatch) {
       const lat = parseFloat(llMatch[1]);
@@ -148,11 +170,31 @@ export const parseCoordinatesFromUrl = (url: string): { lat: number; lng: number
       }
     }
 
-    // Priority 4: Extract from @ symbol (view coordinates - less accurate for places)
+    // Priority 5: Extract from /dir/ path with coordinates
+    const dirMatch = url.match(/\/dir\/.*?\/(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+    if (dirMatch) {
+      const lat = parseFloat(dirMatch[1]);
+      const lng = parseFloat(dirMatch[2]);
+      if (isValidCoord(lat, lng)) {
+        return { lat, lng };
+      }
+    }
+
+    // Priority 6: Extract from @ symbol (view coordinates - less accurate for places)
     const atMatch = url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
     if (atMatch) {
       const lat = parseFloat(atMatch[1]);
       const lng = parseFloat(atMatch[2]);
+      if (isValidCoord(lat, lng)) {
+        return { lat, lng };
+      }
+    }
+
+    // Priority 7: Extract any pair of decimal numbers that look like coordinates
+    const generalMatch = url.match(/(-?\d{1,3}\.\d{4,}),\s*(-?\d{1,3}\.\d{4,})/);
+    if (generalMatch) {
+      const lat = parseFloat(generalMatch[1]);
+      const lng = parseFloat(generalMatch[2]);
       if (isValidCoord(lat, lng)) {
         return { lat, lng };
       }
