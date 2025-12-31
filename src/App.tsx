@@ -41,6 +41,7 @@ import SpecialOrdersPage from "./pages/dashboard/admin/SpecialOrdersPage";
 import HomeContentPage from "./pages/dashboard/admin/HomeContentPage";
 import StaticPagesPage from "./pages/dashboard/admin/StaticPagesPage";
 import DeliverySettingsPage from "./pages/dashboard/admin/DeliverySettingsPage";
+import AccountingPage from "./pages/dashboard/admin/AccountingPage";
 import SpecialServiceOrder from "./pages/SpecialServiceOrder";
 
 // Merchant Dashboard Pages
@@ -48,6 +49,7 @@ import MerchantDashboard from "./pages/dashboard/merchant/MerchantDashboard";
 import MerchantOrders from "./pages/dashboard/merchant/MerchantOrders";
 import MerchantProducts from "./pages/dashboard/merchant/MerchantProducts";
 import MerchantReports from "./pages/dashboard/merchant/MerchantReports";
+import MerchantFinance from "./pages/dashboard/merchant/MerchantFinance";
 import MerchantSettings from "./pages/dashboard/merchant/MerchantSettings";
 import MerchantSupport from "./pages/dashboard/merchant/MerchantSupport";
 import CreateStore from "./pages/dashboard/merchant/CreateStore";
@@ -123,6 +125,7 @@ const AppContent = () => {
         <Route path="/admin/home-content" element={<HomeContentPage />} />
         <Route path="/admin/static-pages" element={<StaticPagesPage />} />
         <Route path="/admin/delivery-settings" element={<DeliverySettingsPage />} />
+        <Route path="/admin/accounting" element={<AccountingPage />} />
         
         {/* Special Services */}
         <Route path="/special-services/:id" element={<SpecialServiceOrder />} />
@@ -133,6 +136,7 @@ const AppContent = () => {
         <Route path="/merchant/orders" element={<MerchantOrders />} />
         <Route path="/merchant/products" element={<MerchantProducts />} />
         <Route path="/merchant/reports" element={<MerchantReports />} />
+        <Route path="/merchant/finance" element={<MerchantFinance />} />
         <Route path="/merchant/settings" element={<MerchantSettings />} />
         <Route path="/merchant/support" element={<MerchantSupport />} />
         
