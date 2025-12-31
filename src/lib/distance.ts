@@ -42,6 +42,49 @@ export const calculateRoadDistance = async (
   }
 };
 
+// Get route geometry (actual road path) from OSRM
+export interface RouteGeometryResult {
+  success: true;
+  coordinates: [number, number][];
+  distance_km: number;
+  duration_minutes: number;
+}
+
+export interface RouteGeometryError {
+  success: false;
+  error: string;
+}
+
+export type RouteGeometryResponse = RouteGeometryResult | RouteGeometryError;
+
+export const getRouteGeometry = async (
+  originLat: number,
+  originLng: number,
+  destLat: number,
+  destLng: number
+): Promise<RouteGeometryResponse> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('get-route-geometry', {
+      body: {
+        origin_lat: originLat,
+        origin_lng: originLng,
+        destination_lat: destLat,
+        destination_lng: destLng
+      }
+    });
+
+    if (error) {
+      console.error('Error calling route geometry function:', error);
+      return { success: false, error: 'فشل في تحميل مسار الطريق' };
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error getting route geometry:', error);
+    return { success: false, error: 'فشل في تحميل مسار الطريق' };
+  }
+};
+
 // Calculate delivery fee based on distance
 // Formula: Delivery Fee = Price per km × Distance
 export const calculateDeliveryFee = (

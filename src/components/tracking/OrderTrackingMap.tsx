@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, AlertCircle, ExternalLink, Clock, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { calculateRoadDistance } from "@/lib/distance";
+import { calculateRoadDistance, getRouteGeometry } from "@/lib/distance";
 import "leaflet/dist/leaflet.css";
 
 interface OrderTrackingMapProps {
@@ -24,9 +24,11 @@ export default function OrderTrackingMap({
   const [mapError, setMapError] = useState(false);
   const [estimatedMinutes, setEstimatedMinutes] = useState<number | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState<number>(0);
+  const [routeCoordinates, setRouteCoordinates] = useState<[number, number][]>([]);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
+  const routeLineRef = useRef<any>(null);
   const leafletRef = useRef<any>(null);
   const etaIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -35,24 +37,58 @@ export default function OrderTrackingMap({
     return !isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
   }, []);
 
-  // Calculate ETA based on courier and customer locations
-  const calculateETA = useCallback(async (courierLat: number, courierLng: number) => {
+  // Get route geometry between two points
+  const fetchRouteGeometry = useCallback(async (
+    fromLat: number, 
+    fromLng: number, 
+    toLat: number, 
+    toLng: number
+  ) => {
+    try {
+      const result = await getRouteGeometry(fromLat, fromLng, toLat, toLng);
+      if (result.success) {
+        return result.coordinates;
+      }
+    } catch (error) {
+      console.error("Error fetching route geometry:", error);
+    }
+    return null;
+  }, []);
+
+  // Calculate ETA and fetch route based on courier and customer locations
+  const calculateETAAndRoute = useCallback(async (courierLat: number, courierLng: number) => {
     if (!customerLocation || !isValidCoord(customerLocation.lat, customerLocation.lng)) {
       return;
     }
 
     try {
-      const result = await calculateRoadDistance(
+      // First try to get the full route from courier to customer
+      const routeResult = await getRouteGeometry(
         courierLat,
         courierLng,
         customerLocation.lat,
         customerLocation.lng
       );
 
-      if (result.success) {
-        const minutes = Math.ceil(result.duration_minutes);
+      if (routeResult.success) {
+        setRouteCoordinates(routeResult.coordinates);
+        const minutes = Math.ceil(routeResult.duration_minutes);
         setEstimatedMinutes(minutes);
         setRemainingSeconds(minutes * 60);
+      } else {
+        // Fallback to simple distance calculation
+        const result = await calculateRoadDistance(
+          courierLat,
+          courierLng,
+          customerLocation.lat,
+          customerLocation.lng
+        );
+
+        if (result.success) {
+          const minutes = Math.ceil(result.duration_minutes);
+          setEstimatedMinutes(minutes);
+          setRemainingSeconds(minutes * 60);
+        }
       }
     } catch (error) {
       console.error("Error calculating ETA:", error);
@@ -104,8 +140,15 @@ export default function OrderTrackingMap({
           if (data.courier_location_updated_at) {
             setLastUpdated(new Date(data.courier_location_updated_at));
           }
-          // Calculate initial ETA
-          await calculateETA(newLocation.lat, newLocation.lng);
+          // Calculate initial ETA and route
+          await calculateETAAndRoute(newLocation.lat, newLocation.lng);
+        } else if (customerLocation && isValidCoord(customerLocation.lat, customerLocation.lng)) {
+          // If no courier location yet, use customer location as initial courier position
+          // This shows the courier at customer's location when GPS starts
+          setCourierLocation({
+            lat: customerLocation.lat,
+            lng: customerLocation.lng
+          });
         }
       } catch (err) {
         console.error("Error fetching courier location:", err);
@@ -115,7 +158,7 @@ export default function OrderTrackingMap({
     };
 
     fetchCourierLocation();
-  }, [orderId, calculateETA]);
+  }, [orderId, calculateETAAndRoute, customerLocation, isValidCoord]);
 
   // Subscribe to realtime updates
   useEffect(() => {
@@ -140,8 +183,8 @@ export default function OrderTrackingMap({
             if (newData.courier_location_updated_at) {
               setLastUpdated(new Date(newData.courier_location_updated_at));
             }
-            // Recalculate ETA on courier location update
-            await calculateETA(newLocation.lat, newLocation.lng);
+            // Recalculate ETA and route on courier location update
+            await calculateETAAndRoute(newLocation.lat, newLocation.lng);
           }
         }
       )
@@ -150,10 +193,10 @@ export default function OrderTrackingMap({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [orderId, calculateETA]);
+  }, [orderId, calculateETAAndRoute]);
 
-  // Update markers function
-  const updateMarkers = useCallback((L: any, map: any) => {
+  // Update markers and route function
+  const updateMarkersAndRoute = useCallback((L: any, map: any) => {
     if (!map) return;
 
     // Clear existing markers
@@ -161,6 +204,12 @@ export default function OrderTrackingMap({
       if (marker && marker.remove) marker.remove();
     });
     markersRef.current = [];
+
+    // Clear existing route line
+    if (routeLineRef.current) {
+      routeLineRef.current.remove();
+      routeLineRef.current = null;
+    }
 
     const createIcon = (color: string, iconSvg: string) => {
       return L.divIcon({
@@ -175,12 +224,15 @@ export default function OrderTrackingMap({
     const courierIcon = createIcon("#3b82f6", '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>');
     const customerIcon = createIcon("#ef4444", '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>');
 
+    const allPoints: [number, number][] = [];
+
     // Add store marker
     if (storeLocation && isValidCoord(storeLocation.lat, storeLocation.lng)) {
       const marker = L.marker([storeLocation.lat, storeLocation.lng], { icon: storeIcon })
         .addTo(map)
         .bindPopup(`<div style="text-align:center;font-weight:600;font-size:14px;">${storeName || "المتجر"}</div>`);
       markersRef.current.push(marker);
+      allPoints.push([storeLocation.lat, storeLocation.lng]);
     }
 
     // Add customer marker
@@ -189,6 +241,7 @@ export default function OrderTrackingMap({
         .addTo(map)
         .bindPopup('<div style="text-align:center;font-weight:600;font-size:14px;">موقع التوصيل</div>');
       markersRef.current.push(marker);
+      allPoints.push([customerLocation.lat, customerLocation.lng]);
     }
 
     // Add courier marker
@@ -200,36 +253,44 @@ export default function OrderTrackingMap({
         .addTo(map)
         .bindPopup(popup);
       markersRef.current.push(marker);
+      allPoints.push([courierLocation.lat, courierLocation.lng]);
     }
 
-    // Add polyline from store to courier to customer
-    const linePoints: [number, number][] = [];
-    if (storeLocation && isValidCoord(storeLocation.lat, storeLocation.lng)) {
-      linePoints.push([storeLocation.lat, storeLocation.lng]);
-    }
-    if (courierLocation && isValidCoord(courierLocation.lat, courierLocation.lng)) {
-      linePoints.push([courierLocation.lat, courierLocation.lng]);
-    }
-    if (customerLocation && isValidCoord(customerLocation.lat, customerLocation.lng)) {
-      linePoints.push([customerLocation.lat, customerLocation.lng]);
-    }
-
-    if (linePoints.length >= 2) {
-      const polyline = L.polyline(linePoints, {
+    // Draw the actual road route if available
+    if (routeCoordinates.length > 1) {
+      routeLineRef.current = L.polyline(routeCoordinates, {
+        color: "#3b82f6",
+        weight: 5,
+        opacity: 0.9,
+        lineJoin: "round",
+        lineCap: "round"
+      }).addTo(map);
+      
+      // Add route coordinates to bounds
+      routeCoordinates.forEach(coord => {
+        allPoints.push(coord);
+      });
+    } else if (courierLocation && customerLocation && 
+               isValidCoord(courierLocation.lat, courierLocation.lng) &&
+               isValidCoord(customerLocation.lat, customerLocation.lng)) {
+      // Fallback: draw straight dashed line if no route available
+      routeLineRef.current = L.polyline([
+        [courierLocation.lat, courierLocation.lng],
+        [customerLocation.lat, customerLocation.lng]
+      ], {
         color: "#3b82f6",
         weight: 4,
-        opacity: 0.8,
+        opacity: 0.7,
         dashArray: "12, 8"
       }).addTo(map);
-      markersRef.current.push(polyline);
     }
 
-    // Fit bounds to show all markers
-    if (linePoints.length > 1) {
-      const bounds = L.latLngBounds(linePoints);
+    // Fit bounds to show all markers and route
+    if (allPoints.length > 1) {
+      const bounds = L.latLngBounds(allPoints);
       map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15 });
     }
-  }, [storeLocation, customerLocation, courierLocation, storeName, lastUpdated, isValidCoord]);
+  }, [storeLocation, customerLocation, courierLocation, storeName, lastUpdated, isValidCoord, routeCoordinates]);
 
   // Initialize map
   useEffect(() => {
@@ -285,8 +346,8 @@ export default function OrderTrackingMap({
 
         mapInstanceRef.current = map;
 
-        // Add markers
-        updateMarkers(L.default, map);
+        // Add markers and route
+        updateMarkersAndRoute(L.default, map);
 
         // Fix map size after a delay
         setTimeout(() => {
@@ -323,12 +384,12 @@ export default function OrderTrackingMap({
     };
   }, [isLoading, storeLocation, customerLocation, isValidCoord]);
 
-  // Update markers when courier location changes
+  // Update markers when courier location or route changes
   useEffect(() => {
     if (mapInstanceRef.current && leafletRef.current) {
-      updateMarkers(leafletRef.current, mapInstanceRef.current);
+      updateMarkersAndRoute(leafletRef.current, mapInstanceRef.current);
     }
-  }, [courierLocation, updateMarkers]);
+  }, [courierLocation, routeCoordinates, updateMarkersAndRoute]);
 
   // Open in Google Maps
   const openInGoogleMaps = (lat: number, lng: number) => {
@@ -413,7 +474,7 @@ export default function OrderTrackingMap({
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded-full bg-blue-500 shadow-sm" />
           <span className="font-medium">المندوب</span>
-          {!courierLocation && <span className="text-xs text-muted-foreground">(في انتظار التحديث)</span>}
+          {!lastUpdated && courierLocation && <span className="text-xs text-muted-foreground">(موقع مبدئي)</span>}
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded-full bg-red-500 shadow-sm" />
@@ -440,7 +501,7 @@ export default function OrderTrackingMap({
             فتح موقع التوصيل
           </Button>
         )}
-        {courierLocation && isValidCoord(courierLocation.lat, courierLocation.lng) && (
+        {courierLocation && isValidCoord(courierLocation.lat, courierLocation.lng) && lastUpdated && (
           <Button variant="outline" size="sm" className="gap-2" onClick={() => openInGoogleMaps(courierLocation.lat, courierLocation.lng)}>
             <ExternalLink className="w-4 h-4" />
             فتح موقع المندوب
