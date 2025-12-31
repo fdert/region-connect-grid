@@ -21,6 +21,24 @@
   border: none !important;
 }
 
+/* Animated route line for delivery tracking */
+@keyframes routeFlow {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -20;
+  }
+}
+
+.animated-route-line {
+  animation: routeFlow 1s linear infinite;
+}
+
+.leaflet-overlay-pane .animated-route-line {
+  animation: routeFlow 1s linear infinite;
+}
+
 @layer base {
   :root {
     /* Marketplace Brand Colors - Emerald & Gold Theme */
