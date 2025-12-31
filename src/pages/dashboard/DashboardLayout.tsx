@@ -21,7 +21,8 @@ import {
   Truck,
   BarChart3,
   Image,
-  Palette
+  Palette,
+  Calculator
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -48,6 +49,7 @@ const menuItems = {
     { icon: ShoppingBag, label: "المنتجات", href: "/merchant/products" },
     { icon: Package, label: "الطلبات", href: "/merchant/orders" },
     { icon: BarChart3, label: "التقارير", href: "/merchant/reports" },
+    { icon: Calculator, label: "المالية", href: "/merchant/finance" },
     { icon: MessageSquare, label: "الدعم", href: "/merchant/support" },
     { icon: Settings, label: "إعدادات المتجر", href: "/merchant/settings" },
   ],
