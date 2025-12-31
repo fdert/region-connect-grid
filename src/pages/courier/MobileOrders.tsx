@@ -1,4 +1,5 @@
 import MobileLayout from "@/components/courier/MobileLayout";
+import PaymentConfirmationDialog from "@/components/courier/PaymentConfirmationDialog";
 import { 
   Package, 
   MapPin,
@@ -10,7 +11,8 @@ import {
   Phone,
   Truck,
   ArrowUpDown,
-  Filter
+  Filter,
+  CreditCard
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,6 +56,7 @@ const MobileOrders = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -383,17 +386,25 @@ const MobileOrders = () => {
                     {order.status === 'on_the_way' && (
                       <Button 
                         className="w-full h-14 text-lg bg-green-500 hover:bg-green-600"
-                        onClick={() => updateStatusMutation.mutate({ orderId: order.id, newStatus: 'delivered', oldStatus: order.status || undefined })}
+                        onClick={() => {
+                          setSelectedOrder(order);
+                          setShowPaymentDialog(true);
+                        }}
                         disabled={updateStatusMutation.isPending}
                       >
-                        <CheckCircle className="w-5 h-5 ml-2" />
-                        تم التسليم للعميل
+                        <CreditCard className="w-5 h-5 ml-2" />
+                        تأكيد التسليم والدفع
                       </Button>
                     )}
                     {order.status === 'delivered' && (
                       <div className="bg-green-500/10 rounded-xl p-4 text-center">
                         <CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" />
                         <p className="font-medium text-green-600">تم تسليم الطلب بنجاح</p>
+                        {order.payment_confirmed && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            تم استلام {order.amount_received} ر.س - {order.payment_method === 'cash' ? 'نقداً' : 'بالبطاقة'}
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -403,6 +414,19 @@ const MobileOrders = () => {
           </div>
         )}
       </div>
+
+      {/* Payment Confirmation Dialog */}
+      {selectedOrder && (
+        <PaymentConfirmationDialog
+          open={showPaymentDialog}
+          onOpenChange={setShowPaymentDialog}
+          order={selectedOrder}
+          onConfirm={() => {
+            queryClient.invalidateQueries({ queryKey: ['courier-all-orders-mobile'] });
+            setSelectedOrder(null);
+          }}
+        />
+      )}
     </MobileLayout>
   );
 };

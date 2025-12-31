@@ -66,6 +66,8 @@ import CustomerWallet from "./pages/dashboard/customer/CustomerWallet";
 import CustomerSupport from "./pages/dashboard/customer/CustomerSupport";
 import CustomerSettings from "./pages/dashboard/customer/CustomerSettings";
 
+// Review Page
+import ReviewOrder from "./pages/ReviewOrder";
 const queryClient = new QueryClient();
 
 // Wrapper component to handle force password change
@@ -97,6 +99,7 @@ const AppContent = () => {
         <Route path="/about" element={<About />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsConditions />} />
+        <Route path="/review/:orderId" element={<ReviewOrder />} />
         
         {/* Auth Routes */}
         <Route path="/auth/login" element={<Login />} />

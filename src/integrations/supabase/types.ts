@@ -168,6 +168,90 @@ export type Database = {
           },
         ]
       }
+      commission_settings: {
+        Row: {
+          applies_to: string
+          created_at: string | null
+          fixed_amount: number | null
+          id: string
+          is_active: boolean | null
+          name: string
+          name_ar: string
+          percentage: number
+          updated_at: string | null
+        }
+        Insert: {
+          applies_to: string
+          created_at?: string | null
+          fixed_amount?: number | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          name_ar: string
+          percentage?: number
+          updated_at?: string | null
+        }
+        Update: {
+          applies_to?: string
+          created_at?: string | null
+          fixed_amount?: number | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          name_ar?: string
+          percentage?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      courier_reviews: {
+        Row: {
+          comment: string | null
+          courier_id: string
+          created_at: string | null
+          customer_id: string
+          id: string
+          order_id: string | null
+          rating: number
+          special_order_id: string | null
+        }
+        Insert: {
+          comment?: string | null
+          courier_id: string
+          created_at?: string | null
+          customer_id: string
+          id?: string
+          order_id?: string | null
+          rating: number
+          special_order_id?: string | null
+        }
+        Update: {
+          comment?: string | null
+          courier_id?: string
+          created_at?: string | null
+          customer_id?: string
+          id?: string
+          order_id?: string | null
+          rating?: number
+          special_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_reviews_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courier_reviews_special_order_id_fkey"
+            columns: ["special_order_id"]
+            isOneToOne: false
+            referencedRelation: "special_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       home_sections: {
         Row: {
           background_color: string | null
@@ -256,6 +340,8 @@ export type Database = {
       }
       orders: {
         Row: {
+          amount_received: number | null
+          card_transaction_number: string | null
           courier_id: string | null
           courier_location_lat: number | null
           courier_location_lng: number | null
@@ -270,15 +356,21 @@ export type Database = {
           items: Json
           order_number: string
           paid: boolean | null
+          payment_confirmed: boolean | null
+          payment_confirmed_at: string | null
+          payment_confirmed_by: string | null
           payment_method: string | null
           platform_commission: number | null
           status: Database["public"]["Enums"]["order_status"] | null
           store_id: string
           subtotal: number
+          tax_amount: number | null
           total: number
           updated_at: string | null
         }
         Insert: {
+          amount_received?: number | null
+          card_transaction_number?: string | null
           courier_id?: string | null
           courier_location_lat?: number | null
           courier_location_lng?: number | null
@@ -293,15 +385,21 @@ export type Database = {
           items: Json
           order_number: string
           paid?: boolean | null
+          payment_confirmed?: boolean | null
+          payment_confirmed_at?: string | null
+          payment_confirmed_by?: string | null
           payment_method?: string | null
           platform_commission?: number | null
           status?: Database["public"]["Enums"]["order_status"] | null
           store_id: string
           subtotal: number
+          tax_amount?: number | null
           total: number
           updated_at?: string | null
         }
         Update: {
+          amount_received?: number | null
+          card_transaction_number?: string | null
           courier_id?: string | null
           courier_location_lat?: number | null
           courier_location_lng?: number | null
@@ -316,11 +414,15 @@ export type Database = {
           items?: Json
           order_number?: string
           paid?: boolean | null
+          payment_confirmed?: boolean | null
+          payment_confirmed_at?: string | null
+          payment_confirmed_by?: string | null
           payment_method?: string | null
           platform_commission?: number | null
           status?: Database["public"]["Enums"]["order_status"] | null
           store_id?: string
           subtotal?: number
+          tax_amount?: number | null
           total?: number
           updated_at?: string | null
         }
@@ -375,6 +477,70 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      payment_records: {
+        Row: {
+          amount_received: number
+          courier_id: string
+          created_at: string | null
+          customer_phone: string | null
+          id: string
+          order_id: string | null
+          payment_type: string
+          receipt_kept: boolean | null
+          special_order_id: string | null
+          store_id: string | null
+          transaction_number: string | null
+        }
+        Insert: {
+          amount_received: number
+          courier_id: string
+          created_at?: string | null
+          customer_phone?: string | null
+          id?: string
+          order_id?: string | null
+          payment_type: string
+          receipt_kept?: boolean | null
+          special_order_id?: string | null
+          store_id?: string | null
+          transaction_number?: string | null
+        }
+        Update: {
+          amount_received?: number
+          courier_id?: string
+          created_at?: string | null
+          customer_phone?: string | null
+          id?: string
+          order_id?: string | null
+          payment_type?: string
+          receipt_kept?: boolean | null
+          special_order_id?: string | null
+          store_id?: string | null
+          transaction_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_records_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_records_special_order_id_fkey"
+            columns: ["special_order_id"]
+            isOneToOne: false
+            referencedRelation: "special_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_records_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       points_transactions: {
         Row: {
@@ -587,6 +753,112 @@ export type Database = {
         }
         Relationships: []
       }
+      settlement_items: {
+        Row: {
+          created_at: string | null
+          id: string
+          net_amount: number
+          order_id: string | null
+          order_total: number
+          payment_gateway_fee: number | null
+          platform_commission: number | null
+          settlement_id: string
+          special_order_id: string | null
+          tax_amount: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          net_amount: number
+          order_id?: string | null
+          order_total: number
+          payment_gateway_fee?: number | null
+          platform_commission?: number | null
+          settlement_id: string
+          special_order_id?: string | null
+          tax_amount?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          net_amount?: number
+          order_id?: string | null
+          order_total?: number
+          payment_gateway_fee?: number | null
+          platform_commission?: number | null
+          settlement_id?: string
+          special_order_id?: string | null
+          tax_amount?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "settlement_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "settlement_items_settlement_id_fkey"
+            columns: ["settlement_id"]
+            isOneToOne: false
+            referencedRelation: "settlements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "settlement_items_special_order_id_fkey"
+            columns: ["special_order_id"]
+            isOneToOne: false
+            referencedRelation: "special_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      settlements: {
+        Row: {
+          created_at: string | null
+          id: string
+          notes: string | null
+          payment_method: string | null
+          payment_reference: string | null
+          recipient_id: string
+          recipient_type: string
+          settled_at: string | null
+          settled_by: string | null
+          settlement_number: string
+          status: string | null
+          total_amount: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          recipient_id: string
+          recipient_type: string
+          settled_at?: string | null
+          settled_by?: string | null
+          settlement_number: string
+          status?: string | null
+          total_amount: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          recipient_id?: string
+          recipient_type?: string
+          settled_at?: string | null
+          settled_by?: string | null
+          settlement_number?: string
+          status?: string | null
+          total_amount?: number
+        }
+        Relationships: []
+      }
       site_settings: {
         Row: {
           id: string
@@ -613,6 +885,8 @@ export type Database = {
       }
       special_orders: {
         Row: {
+          amount_received: number | null
+          card_transaction_number: string | null
           courier_id: string | null
           created_at: string | null
           customer_id: string
@@ -627,6 +901,9 @@ export type Database = {
           package_type: string
           package_weight: number | null
           paid: boolean | null
+          payment_confirmed: boolean | null
+          payment_confirmed_at: string | null
+          payment_confirmed_by: string | null
           payment_method: string | null
           recipient_address: string | null
           recipient_location_lat: number | null
@@ -642,12 +919,15 @@ export type Database = {
           sender_phone: string
           service_id: string
           status: string | null
+          tax_amount: number | null
           total: number
           updated_at: string | null
           verification_code: string | null
           verified_at: string | null
         }
         Insert: {
+          amount_received?: number | null
+          card_transaction_number?: string | null
           courier_id?: string | null
           created_at?: string | null
           customer_id: string
@@ -662,6 +942,9 @@ export type Database = {
           package_type: string
           package_weight?: number | null
           paid?: boolean | null
+          payment_confirmed?: boolean | null
+          payment_confirmed_at?: string | null
+          payment_confirmed_by?: string | null
           payment_method?: string | null
           recipient_address?: string | null
           recipient_location_lat?: number | null
@@ -677,12 +960,15 @@ export type Database = {
           sender_phone: string
           service_id: string
           status?: string | null
+          tax_amount?: number | null
           total: number
           updated_at?: string | null
           verification_code?: string | null
           verified_at?: string | null
         }
         Update: {
+          amount_received?: number | null
+          card_transaction_number?: string | null
           courier_id?: string | null
           created_at?: string | null
           customer_id?: string
@@ -697,6 +983,9 @@ export type Database = {
           package_type?: string
           package_weight?: number | null
           paid?: boolean | null
+          payment_confirmed?: boolean | null
+          payment_confirmed_at?: string | null
+          payment_confirmed_by?: string | null
           payment_method?: string | null
           recipient_address?: string | null
           recipient_location_lat?: number | null
@@ -712,6 +1001,7 @@ export type Database = {
           sender_phone?: string
           service_id?: string
           status?: string | null
+          tax_amount?: number | null
           total?: number
           updated_at?: string | null
           verification_code?: string | null
@@ -1108,6 +1398,84 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tax_reports: {
+        Row: {
+          created_at: string | null
+          id: string
+          paid_at: string | null
+          period_end: string
+          period_start: string
+          report_number: string
+          status: string | null
+          submitted_at: string | null
+          total_orders: number | null
+          total_sales: number | null
+          total_tax_collected: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          paid_at?: string | null
+          period_end: string
+          period_start: string
+          report_number: string
+          status?: string | null
+          submitted_at?: string | null
+          total_orders?: number | null
+          total_sales?: number | null
+          total_tax_collected?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          paid_at?: string | null
+          period_end?: string
+          period_start?: string
+          report_number?: string
+          status?: string | null
+          submitted_at?: string | null
+          total_orders?: number | null
+          total_sales?: number | null
+          total_tax_collected?: number | null
+        }
+        Relationships: []
+      }
+      tax_settings: {
+        Row: {
+          applies_to_delivery: boolean | null
+          applies_to_products: boolean | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          name_ar: string
+          percentage: number
+          updated_at: string | null
+        }
+        Insert: {
+          applies_to_delivery?: boolean | null
+          applies_to_products?: boolean | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          name_ar: string
+          percentage?: number
+          updated_at?: string | null
+        }
+        Update: {
+          applies_to_delivery?: boolean | null
+          applies_to_products?: boolean | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          name_ar?: string
+          percentage?: number
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
