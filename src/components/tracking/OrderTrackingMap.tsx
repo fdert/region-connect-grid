@@ -256,15 +256,47 @@ export default function OrderTrackingMap({
       allPoints.push([courierLocation.lat, courierLocation.lng]);
     }
 
-    // Draw the actual road route if available
+    // Draw the actual road route if available with distinctive styling
     if (routeCoordinates.length > 1) {
-      routeLineRef.current = L.polyline(routeCoordinates, {
-        color: "#3b82f6",
-        weight: 5,
-        opacity: 0.9,
+      // Add a shadow/glow effect behind the main route
+      const routeShadow = L.polyline(routeCoordinates, {
+        color: "#1e3a5f",
+        weight: 10,
+        opacity: 0.4,
         lineJoin: "round",
         lineCap: "round"
       }).addTo(map);
+      markersRef.current.push(routeShadow);
+
+      // Main route line with gradient-like effect using multiple layers
+      const routeOuter = L.polyline(routeCoordinates, {
+        color: "#60a5fa",
+        weight: 8,
+        opacity: 0.8,
+        lineJoin: "round",
+        lineCap: "round"
+      }).addTo(map);
+      markersRef.current.push(routeOuter);
+
+      // Inner bright line for visual pop
+      routeLineRef.current = L.polyline(routeCoordinates, {
+        color: "#3b82f6",
+        weight: 5,
+        opacity: 1,
+        lineJoin: "round",
+        lineCap: "round"
+      }).addTo(map);
+
+      // Add animated dots along the route to show direction
+      const animatedRoute = L.polyline(routeCoordinates, {
+        color: "#ffffff",
+        weight: 3,
+        opacity: 0.9,
+        dashArray: "4, 16",
+        lineCap: "round",
+        className: "animated-route-line"
+      }).addTo(map);
+      markersRef.current.push(animatedRoute);
       
       // Add route coordinates to bounds
       routeCoordinates.forEach(coord => {
@@ -273,14 +305,25 @@ export default function OrderTrackingMap({
     } else if (courierLocation && customerLocation && 
                isValidCoord(courierLocation.lat, courierLocation.lng) &&
                isValidCoord(customerLocation.lat, customerLocation.lng)) {
-      // Fallback: draw straight dashed line if no route available
+      // Fallback: draw styled dashed line if no route available
+      const fallbackShadow = L.polyline([
+        [courierLocation.lat, courierLocation.lng],
+        [customerLocation.lat, customerLocation.lng]
+      ], {
+        color: "#1e3a5f",
+        weight: 8,
+        opacity: 0.3,
+        dashArray: "1, 0"
+      }).addTo(map);
+      markersRef.current.push(fallbackShadow);
+
       routeLineRef.current = L.polyline([
         [courierLocation.lat, courierLocation.lng],
         [customerLocation.lat, customerLocation.lng]
       ], {
         color: "#3b82f6",
         weight: 4,
-        opacity: 0.7,
+        opacity: 0.8,
         dashArray: "12, 8"
       }).addTo(map);
     }
