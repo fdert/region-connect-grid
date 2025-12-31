@@ -23,7 +23,8 @@ import {
   ChevronDown,
   Bell,
   FileText,
-  Truck
+  Truck,
+  Calculator
 } from "lucide-react";
 
 interface AdminLayoutProps {
@@ -48,6 +49,7 @@ const menuItems = [
   { icon: Star, label: "التقييمات", href: "/admin/reviews" },
   { icon: Headphones, label: "الدعم الفني", href: "/admin/support" },
   { icon: Wallet, label: "المحافظ", href: "/admin/wallets" },
+  { icon: Calculator, label: "المحاسبة والتقارير", href: "/admin/accounting" },
   { icon: Settings, label: "التصنيفات", href: "/admin/categories" },
 ];
 
