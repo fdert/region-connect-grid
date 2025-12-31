@@ -52,10 +52,11 @@ import {
   CreditCard,
   Banknote,
   Calculator,
-  Settings
+  Settings,
+  Trash2
 } from "lucide-react";
 import SettlementReceipt from "@/components/receipts/SettlementReceipt";
-import { exportReportToPDF } from "@/lib/exportPDF";
+import { exportReportToPDF, exportTaxReportToPDF, PlatformInfo } from "@/lib/exportPDF";
 
 const AccountingPage = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -63,8 +64,10 @@ const AccountingPage = () => {
   const [selectedRecipient, setSelectedRecipient] = useState<any>(null);
   const [showSettlementDialog, setShowSettlementDialog] = useState(false);
   const [showCommissionDialog, setShowCommissionDialog] = useState(false);
+  const [showAddCommissionDialog, setShowAddCommissionDialog] = useState(false);
   const [showReceipt, setShowReceipt] = useState<any>(null);
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
+  const [taxDateRange, setTaxDateRange] = useState({ start: "", end: "" });
   const queryClient = useQueryClient();
 
   // Fetch payment records
@@ -208,6 +211,93 @@ const AccountingPage = () => {
     }
   });
 
+  // Add commission mutation
+  const addCommissionMutation = useMutation({
+    mutationFn: async (data: { name: string; name_ar: string; applies_to: string; percentage: number }) => {
+      const { error } = await supabase
+        .from('commission_settings')
+        .insert([{
+          name: data.name,
+          name_ar: data.name_ar,
+          applies_to: data.applies_to,
+          percentage: data.percentage,
+          is_active: true
+        }]);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-commission-settings'] });
+      toast.success("تم إضافة العمولة بنجاح");
+      setShowAddCommissionDialog(false);
+    },
+    onError: () => {
+      toast.error("حدث خطأ");
+    }
+  });
+
+  // Delete commission mutation
+  const deleteCommissionMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('commission_settings')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-commission-settings'] });
+      toast.success("تم حذف العمولة");
+    }
+  });
+
+  // Fetch platform info for reports
+  const { data: platformBrand } = useQuery({
+    queryKey: ['platform-brand'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'footer_brand')
+        .single();
+      if (error) return null;
+      return data?.value as { name: string } | null;
+    }
+  });
+
+  const { data: platformTheme } = useQuery({
+    queryKey: ['platform-theme'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'theme')
+        .single();
+      if (error) return null;
+      return data?.value as { logoUrl?: string } | null;
+    }
+  });
+
+  const { data: platformContact } = useQuery({
+    queryKey: ['platform-contact'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'footer_contact')
+        .single();
+      if (error) return null;
+      return data?.value as { address?: string; phone?: string; email?: string } | null;
+    }
+  });
+
+  const getPlatformInfo = (): PlatformInfo => ({
+    name: platformBrand?.name || 'سوقنا',
+    logoUrl: platformTheme?.logoUrl,
+    address: platformContact?.address,
+    phone: platformContact?.phone,
+    email: platformContact?.email
+  });
+
   // Calculate statistics
   const totalRevenue = orders?.reduce((sum, o) => sum + Number(o.total), 0) || 0;
   const totalDeliveryFees = orders?.reduce((sum, o) => sum + Number(o.delivery_fee || 0), 0) || 0;
@@ -298,9 +388,28 @@ const AccountingPage = () => {
         { label: 'رسوم التوصيل', value: `${totalDeliveryFees.toFixed(2)} ر.س` },
         { label: 'الضريبة', value: `${totalTax.toFixed(2)} ر.س` },
       ],
-      orders: orders || []
+      orders: orders || [],
+      platformInfo: getPlatformInfo()
     });
     toast.success("جاري طباعة التقرير");
+  };
+
+  const exportTaxToPDF = () => {
+    const startDate = taxDateRange.start || format(new Date(new Date().getFullYear(), 0, 1), 'yyyy-MM-dd');
+    const endDate = taxDateRange.end || format(new Date(), 'yyyy-MM-dd');
+    
+    exportTaxReportToPDF({
+      title: 'تقرير ضريبة القيمة المضافة',
+      dateRange: { start: startDate, end: endDate },
+      summary: [
+        { label: 'إجمالي المبيعات', value: `${totalRevenue.toFixed(2)} ر.س` },
+        { label: 'نسبة الضريبة', value: `${taxRate}%` },
+        { label: 'إجمالي الضريبة المستحقة', value: `${totalTax.toFixed(2)} ر.س` },
+      ],
+      platformInfo: getPlatformInfo(),
+      orders: orders || []
+    });
+    toast.success("جاري طباعة تقرير الضريبة");
   };
 
   return (
@@ -677,11 +786,15 @@ const AccountingPage = () => {
         {/* Tax Tab */}
         <TabsContent value="tax">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Calculator className="w-5 h-5" />
                 تقارير الضريبة
               </CardTitle>
+              <Button onClick={exportTaxToPDF}>
+                <FileText className="w-4 h-4 ml-2" />
+                تصدير PDF
+              </Button>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Tax Summary */}
@@ -701,30 +814,30 @@ const AccountingPage = () => {
               </div>
 
               {/* Date Range Filter */}
-              <div className="flex gap-4 items-end">
+              <div className="flex flex-wrap gap-4 items-end">
                 <div className="space-y-2">
                   <Label>من تاريخ</Label>
                   <Input 
                     type="date" 
-                    value={dateRange.start}
-                    onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                    value={taxDateRange.start}
+                    onChange={(e) => setTaxDateRange(prev => ({ ...prev, start: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>إلى تاريخ</Label>
                   <Input 
                     type="date" 
-                    value={dateRange.end}
-                    onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                    value={taxDateRange.end}
+                    onChange={(e) => setTaxDateRange(prev => ({ ...prev, end: e.target.value }))}
                   />
                 </div>
                 <Button variant="outline">
                   <Search className="w-4 h-4 ml-2" />
                   بحث
                 </Button>
-                <Button onClick={exportToExcel}>
+                <Button onClick={exportToExcel} variant="outline">
                   <Download className="w-4 h-4 ml-2" />
-                  تصدير
+                  تصدير Excel
                 </Button>
               </div>
             </CardContent>
@@ -734,11 +847,15 @@ const AccountingPage = () => {
         {/* Settings Tab */}
         <TabsContent value="settings">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Settings className="w-5 h-5" />
                 إعدادات النسب والعمولات
               </CardTitle>
+              <Button onClick={() => setShowAddCommissionDialog(true)}>
+                <Plus className="w-4 h-4 ml-2" />
+                إضافة عمولة جديدة
+              </Button>
             </CardHeader>
             <CardContent>
               <div className="grid md:grid-cols-2 gap-6">
@@ -751,9 +868,22 @@ const AccountingPage = () => {
                           {setting.applies_to === 'platform' && 'عمولة المنصة من كل طلب'}
                           {setting.applies_to === 'payment_gateway' && 'رسوم بوابة الدفع'}
                           {setting.applies_to === 'tax' && 'ضريبة القيمة المضافة'}
+                          {!['platform', 'payment_gateway', 'tax'].includes(setting.applies_to) && setting.name}
                         </p>
                       </div>
-                      <Badge variant="outline">{setting.applies_to}</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{setting.applies_to}</Badge>
+                        {!['platform', 'payment_gateway', 'tax'].includes(setting.applies_to) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => deleteCommissionMutation.mutate(setting.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-4">
                       <Input
@@ -794,6 +924,19 @@ const AccountingPage = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Add Commission Dialog */}
+      <Dialog open={showAddCommissionDialog} onOpenChange={setShowAddCommissionDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>إضافة عمولة أو رسوم جديدة</DialogTitle>
+          </DialogHeader>
+          <AddCommissionForm
+            onSubmit={(data) => addCommissionMutation.mutate(data)}
+            isSubmitting={addCommissionMutation.isPending}
+          />
+        </DialogContent>
+      </Dialog>
+
       {/* Settlement Receipt */}
       {showReceipt && (
         <SettlementReceipt
@@ -802,6 +945,93 @@ const AccountingPage = () => {
         />
       )}
     </AdminLayout>
+  );
+};
+
+// Add Commission Form Component
+const AddCommissionForm = ({ 
+  onSubmit, 
+  isSubmitting 
+}: { 
+  onSubmit: (data: { name: string; name_ar: string; applies_to: string; percentage: number }) => void;
+  isSubmitting: boolean;
+}) => {
+  const [name, setName] = useState("");
+  const [nameAr, setNameAr] = useState("");
+  const [appliesTo, setAppliesTo] = useState("");
+  const [percentage, setPercentage] = useState("");
+
+  const handleSubmit = () => {
+    if (!nameAr || !appliesTo || !percentage) {
+      toast.error("يرجى إكمال جميع الحقول المطلوبة");
+      return;
+    }
+
+    onSubmit({
+      name: name || appliesTo,
+      name_ar: nameAr,
+      applies_to: appliesTo,
+      percentage: parseFloat(percentage)
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label>اسم العمولة (عربي) *</Label>
+        <Input
+          value={nameAr}
+          onChange={(e) => setNameAr(e.target.value)}
+          placeholder="مثال: رسوم التغليف"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>اسم العمولة (إنجليزي)</Label>
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="مثال: packaging_fee"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>المعرف (applies_to) *</Label>
+        <Input
+          value={appliesTo}
+          onChange={(e) => setAppliesTo(e.target.value)}
+          placeholder="مثال: packaging"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>النسبة المئوية *</Label>
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            value={percentage}
+            onChange={(e) => setPercentage(e.target.value)}
+            placeholder="0"
+            step="0.1"
+            className="w-24"
+          />
+          <span className="text-lg font-bold">%</span>
+        </div>
+      </div>
+
+      <DialogFooter>
+        <Button onClick={handleSubmit} disabled={isSubmitting} className="w-full">
+          {isSubmitting ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <>
+              <Plus className="w-4 h-4 ml-2" />
+              إضافة العمولة
+            </>
+          )}
+        </Button>
+      </DialogFooter>
+    </div>
   );
 };
 
