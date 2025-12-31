@@ -3,12 +3,16 @@ import { Button } from "@/components/ui/button";
 import { Printer, X } from "lucide-react";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SettlementReceiptProps {
   settlement: {
     settlement_number: string;
     recipient_type: string;
+    recipient_id: string;
     recipient_name?: string;
+    store_name?: string;
     total_amount: number;
     payment_method: string;
     payment_reference?: string;
@@ -26,6 +30,87 @@ interface SettlementReceiptProps {
 
 const SettlementReceipt = ({ settlement, orders, onClose }: SettlementReceiptProps) => {
   const receiptRef = useRef<HTMLDivElement>(null);
+
+  // Fetch platform info
+  const { data: platformBrand } = useQuery({
+    queryKey: ['platform-brand'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'footer_brand')
+        .single();
+      if (error) return null;
+      return data?.value as { name: string; description?: string } | null;
+    }
+  });
+
+  const { data: platformTheme } = useQuery({
+    queryKey: ['platform-theme'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'theme')
+        .single();
+      if (error) return null;
+      return data?.value as { logoUrl?: string } | null;
+    }
+  });
+
+  const { data: platformContact } = useQuery({
+    queryKey: ['platform-contact'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'footer_contact')
+        .single();
+      if (error) return null;
+      return data?.value as { address?: string; phone?: string; email?: string } | null;
+    }
+  });
+
+  // Fetch recipient details
+  const { data: recipientDetails } = useQuery({
+    queryKey: ['recipient-details', settlement.recipient_id, settlement.recipient_type],
+    queryFn: async () => {
+      if (settlement.recipient_type === 'merchant') {
+        // Get store name for merchant
+        const { data: store } = await supabase
+          .from('stores')
+          .select('name')
+          .eq('merchant_id', settlement.recipient_id)
+          .single();
+        
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('user_id', settlement.recipient_id)
+          .single();
+        
+        return {
+          name: profile?.full_name || 'تاجر',
+          storeName: store?.name
+        };
+      } else {
+        // Get courier name
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('user_id', settlement.recipient_id)
+          .single();
+        
+        return {
+          name: profile?.full_name || 'مندوب',
+          storeName: null
+        };
+      }
+    }
+  });
+
+  const platformName = platformBrand?.name || 'سوقنا';
+  const logoUrl = platformTheme?.logoUrl;
 
   const handlePrint = () => {
     const printContent = receiptRef.current;
@@ -50,8 +135,30 @@ const SettlementReceipt = ({ settlement, orders, onClose }: SettlementReceiptPro
           .receipt {
             max-width: 300px;
             margin: 0 auto;
-            border: 2px solid #000;
+            border: 2px solid #063c2a;
             padding: 15px;
+          }
+          .platform-header {
+            text-align: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #063c2a;
+          }
+          .platform-logo {
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+            margin-bottom: 5px;
+          }
+          .platform-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #063c2a;
+          }
+          .platform-contact {
+            font-size: 9px;
+            color: #666;
+            margin-top: 5px;
           }
           .header {
             text-align: center;
@@ -95,7 +202,8 @@ const SettlementReceipt = ({ settlement, orders, onClose }: SettlementReceiptPro
             text-align: right;
           }
           .orders-table th {
-            background: #f0f0f0;
+            background: #063c2a;
+            color: white;
           }
           .total-row {
             font-size: 16px;
@@ -104,6 +212,7 @@ const SettlementReceipt = ({ settlement, orders, onClose }: SettlementReceiptPro
             padding: 10px;
             margin: 15px 0;
             text-align: center;
+            border: 2px solid #063c2a;
           }
           .footer {
             text-align: center;
@@ -149,7 +258,11 @@ const SettlementReceipt = ({ settlement, orders, onClose }: SettlementReceiptPro
   const paymentMethodLabel = settlement.payment_method === 'cash' ? 'نقدي' : 
     settlement.payment_method === 'bank_transfer' ? 'تحويل بنكي' : 'محفظة';
 
-  const recipientTypeLabel = settlement.recipient_type === 'merchant' ? 'تاجر' : 'مندوب';
+  const recipientTypeLabel = settlement.recipient_type === 'merchant' 
+    ? `تاجر${recipientDetails?.storeName ? ` (${recipientDetails.storeName})` : ''}`
+    : 'مندوب توصيل';
+
+  const recipientName = settlement.recipient_name || recipientDetails?.name || '-';
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -168,6 +281,18 @@ const SettlementReceipt = ({ settlement, orders, onClose }: SettlementReceiptPro
         </div>
 
         <div ref={receiptRef} className="p-6 receipt">
+          {/* Platform Header */}
+          <div className="platform-header">
+            {logoUrl && <img src={logoUrl} alt={platformName} className="platform-logo" />}
+            <div className="platform-name">{platformName}</div>
+            {platformContact && (
+              <div className="platform-contact">
+                {platformContact.address && <span>{platformContact.address}</span>}
+                {platformContact.phone && <span> | هاتف: {platformContact.phone}</span>}
+              </div>
+            )}
+          </div>
+
           {/* Header */}
           <div className="header">
             <h1>سند قبض</h1>
@@ -190,12 +315,10 @@ const SettlementReceipt = ({ settlement, orders, onClose }: SettlementReceiptPro
             <span className="value">{recipientTypeLabel}</span>
           </div>
 
-          {settlement.recipient_name && (
-            <div className="info-row bordered">
-              <span className="label">اسم المستفيد:</span>
-              <span className="value">{settlement.recipient_name}</span>
-            </div>
-          )}
+          <div className="info-row bordered">
+            <span className="label">اسم المستفيد:</span>
+            <span className="value">{recipientName}</span>
+          </div>
 
           <div className="info-row bordered">
             <span className="label">طريقة الدفع:</span>
@@ -260,6 +383,7 @@ const SettlementReceipt = ({ settlement, orders, onClose }: SettlementReceiptPro
           <div className="footer">
             <p>هذا السند صالح كإثبات للتسوية المالية</p>
             <p>تمت الطباعة: {format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ar })}</p>
+            <p style={{ marginTop: '5px' }}>{platformName} - جميع الحقوق محفوظة</p>
           </div>
         </div>
       </div>
