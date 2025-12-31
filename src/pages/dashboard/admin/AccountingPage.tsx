@@ -54,6 +54,8 @@ import {
   Calculator,
   Settings
 } from "lucide-react";
+import SettlementReceipt from "@/components/receipts/SettlementReceipt";
+import { exportReportToPDF } from "@/lib/exportPDF";
 
 const AccountingPage = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -61,6 +63,7 @@ const AccountingPage = () => {
   const [selectedRecipient, setSelectedRecipient] = useState<any>(null);
   const [showSettlementDialog, setShowSettlementDialog] = useState(false);
   const [showCommissionDialog, setShowCommissionDialog] = useState(false);
+  const [showReceipt, setShowReceipt] = useState<any>(null);
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
   const queryClient = useQueryClient();
 
@@ -285,6 +288,21 @@ const AccountingPage = () => {
     toast.success("تم تصدير التقرير");
   };
 
+  const exportToPDF = () => {
+    exportReportToPDF({
+      title: 'تقرير المحاسبة',
+      subtitle: 'جميع الطلبات المكتملة',
+      summary: [
+        { label: 'إجمالي الإيرادات', value: `${totalRevenue.toFixed(2)} ر.س` },
+        { label: 'عمولة المنصة', value: `${totalPlatformCommission.toFixed(2)} ر.س` },
+        { label: 'رسوم التوصيل', value: `${totalDeliveryFees.toFixed(2)} ر.س` },
+        { label: 'الضريبة', value: `${totalTax.toFixed(2)} ر.س` },
+      ],
+      orders: orders || []
+    });
+    toast.success("جاري طباعة التقرير");
+  };
+
   return (
     <AdminLayout title="المحاسبة والتقارير المالية">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -409,6 +427,10 @@ const AccountingPage = () => {
             <Button onClick={exportToExcel} variant="outline">
               <Download className="w-4 h-4 ml-2" />
               تصدير إلى Excel
+            </Button>
+            <Button onClick={exportToPDF} variant="outline">
+              <FileText className="w-4 h-4 ml-2" />
+              طباعة PDF
             </Button>
           </div>
         </TabsContent>
@@ -635,7 +657,11 @@ const AccountingPage = () => {
                         </TableCell>
                         <TableCell>{formatDate(settlement.created_at)}</TableCell>
                         <TableCell>
-                          <Button size="sm" variant="outline">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => setShowReceipt(settlement)}
+                          >
                             <Printer className="w-4 h-4" />
                           </Button>
                         </TableCell>
@@ -767,6 +793,14 @@ const AccountingPage = () => {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Settlement Receipt */}
+      {showReceipt && (
+        <SettlementReceipt
+          settlement={showReceipt}
+          onClose={() => setShowReceipt(null)}
+        />
+      )}
     </AdminLayout>
   );
 };
