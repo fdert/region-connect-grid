@@ -60,7 +60,8 @@ const MobileOrders = () => {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-  const [showMap, setShowMap] = useState(false);
+  const [showStoreMap, setShowStoreMap] = useState(false);
+  const [showCustomerMap, setShowCustomerMap] = useState(false);
   const [courierLocation, setCourierLocation] = useState<{lat: number; lng: number} | null>(null);
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -295,10 +296,17 @@ const MobileOrders = () => {
                             size="sm" 
                             variant="outline" 
                             className="flex-1"
-                            onClick={() => openGoogleMaps(order.store?.location_lat, order.store?.location_lng, order.store?.address)}
+                            onClick={() => setShowStoreMap(!showStoreMap)}
                           >
                             <Navigation className="w-4 h-4 ml-1" />
                             الملاحة
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="ghost"
+                            onClick={() => openGoogleMaps(order.store?.location_lat, order.store?.location_lng, order.store?.address)}
+                          >
+                            <Map className="w-4 h-4" />
                           </Button>
                           {order.store?.phone && (
                             <Button 
@@ -310,6 +318,20 @@ const MobileOrders = () => {
                             </Button>
                           )}
                         </div>
+                        
+                        {/* Store Navigation Map */}
+                        {showStoreMap && order.store?.location_lat && order.store?.location_lng && (
+                          <div className="mt-3">
+                            <CourierDeliveryMap
+                              orderId={order.id}
+                              storeLocation={null}
+                              customerLocation={{ lat: order.store.location_lat, lng: order.store.location_lng }}
+                              courierLocation={courierLocation}
+                              storeName={order.store?.name}
+                              destinationType="store"
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -334,10 +356,24 @@ const MobileOrders = () => {
                             size="sm" 
                             variant="outline" 
                             className="flex-1"
-                            onClick={() => openGoogleMaps(null, null, order.delivery_address)}
+                            onClick={() => setShowCustomerMap(!showCustomerMap)}
                           >
                             <Navigation className="w-4 h-4 ml-1" />
                             الملاحة
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="ghost"
+                            onClick={() => {
+                              const customerCoords = order.delivery_address ? parseCoordinatesFromUrl(order.delivery_address) : null;
+                              if (customerCoords) {
+                                openGoogleMaps(customerCoords.lat, customerCoords.lng, null);
+                              } else {
+                                openGoogleMaps(null, null, order.delivery_address);
+                              }
+                            }}
+                          >
+                            <Map className="w-4 h-4" />
                           </Button>
                           {order.customer_phone && (
                             <Button 
@@ -349,51 +385,34 @@ const MobileOrders = () => {
                             </Button>
                           )}
                         </div>
-                      </div>
-                    </div>
-
-                    {/* Delivery Map with Route */}
-                    {(order.status === 'picked_up' || order.status === 'on_the_way' || order.status === 'assigned_to_courier' || order.status === 'ready') && (
-                      <div className="space-y-2">
-                        <button
-                          onClick={() => setShowMap(!showMap)}
-                          className="w-full flex items-center justify-between bg-muted/50 rounded-xl p-3 hover:bg-muted transition-colors"
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center">
-                              <Map className="w-4 h-4 text-blue-500" />
-                            </div>
-                            <span className="font-bold">خريطة مسار التوصيل</span>
-                          </div>
-                          <span className="text-xs text-muted-foreground">
-                            {showMap ? 'إخفاء' : 'عرض'}
-                          </span>
-                        </button>
                         
-                        {showMap && (
-                          <CourierDeliveryMap
-                            orderId={order.id}
-                            storeLocation={
-                              order.store?.location_lat && order.store?.location_lng
-                                ? { lat: order.store.location_lat, lng: order.store.location_lng }
-                                : null
-                            }
-                            customerLocation={
-                              (() => {
-                                // Try to parse customer location from delivery address if it's a URL
-                                if (order.delivery_address) {
-                                  const parsed = parseCoordinatesFromUrl(order.delivery_address);
-                                  if (parsed) return parsed;
-                                }
-                                return null;
-                              })()
-                            }
-                            courierLocation={courierLocation}
-                            storeName={order.store?.name}
-                          />
+                        {/* Customer Navigation Map */}
+                        {showCustomerMap && (
+                          <div className="mt-3">
+                            <CourierDeliveryMap
+                              orderId={order.id}
+                              storeLocation={
+                                order.store?.location_lat && order.store?.location_lng
+                                  ? { lat: order.store.location_lat, lng: order.store.location_lng }
+                                  : null
+                              }
+                              customerLocation={
+                                (() => {
+                                  if (order.delivery_address) {
+                                    const parsed = parseCoordinatesFromUrl(order.delivery_address);
+                                    if (parsed) return parsed;
+                                  }
+                                  return null;
+                                })()
+                              }
+                              courierLocation={courierLocation}
+                              storeName={order.store?.name}
+                              destinationType="customer"
+                            />
+                          </div>
                         )}
                       </div>
-                    )}
+                    </div>
 
                     {/* Order Details */}
                     <div className="bg-muted/50 rounded-xl p-4">
