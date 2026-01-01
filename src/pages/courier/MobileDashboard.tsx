@@ -139,8 +139,29 @@ const MobileDashboard = () => {
     );
   };
 
+  // Update courier location in database (for link mode)
+  const updateLocationInDB = async (coords: { lat: number; lng: number }, orderId: string | null) => {
+    if (!orderId) return;
+    
+    try {
+      const { error } = await supabase
+        .from("orders")
+        .update({
+          courier_location_lat: coords.lat,
+          courier_location_lng: coords.lng,
+          courier_location_updated_at: new Date().toISOString()
+        })
+        .eq("id", orderId);
+
+      if (error) throw error;
+      console.log("📍 Location updated from link:", coords.lat, coords.lng);
+    } catch (err) {
+      console.error("Error updating location:", err);
+    }
+  };
+
   // Handle location link submission
-  const handleLocationLinkSubmit = () => {
+  const handleLocationLinkSubmit = async () => {
     if (!locationLink.trim()) {
       toast.error("يرجى إدخال رابط الموقع");
       return;
@@ -150,11 +171,33 @@ const MobileDashboard = () => {
     if (coords) {
       setCurrentLocation(coords);
       setIsLocationDialogOpen(false);
-      toast.success("✅ تم استخراج الموقع من الرابط بنجاح");
+      
+      // Update location in database for active order
+      if (activeOrderId) {
+        await updateLocationInDB(coords, activeOrderId);
+        toast.success("✅ تم تحديث موقعك على الخريطة");
+      } else {
+        toast.success("✅ تم استخراج الموقع من الرابط");
+      }
     } else {
       toast.error("لم نتمكن من استخراج الإحداثيات من الرابط");
     }
   };
+
+  // Periodically update location when in link mode
+  useEffect(() => {
+    if (locationMode === 'link' && currentLocation && activeOrderId) {
+      // Update immediately
+      updateLocationInDB(currentLocation, activeOrderId);
+      
+      // Then update every 10 seconds
+      const interval = setInterval(() => {
+        updateLocationInDB(currentLocation, activeOrderId);
+      }, 10000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [locationMode, currentLocation, activeOrderId]);
 
   // Open current location in Google Maps
   const openCurrentLocationInMaps = () => {
@@ -162,6 +205,19 @@ const MobileDashboard = () => {
       window.open(`https://www.google.com/maps?q=${currentLocation.lat},${currentLocation.lng}`, '_blank');
     } else if (gpsState.position) {
       window.open(`https://www.google.com/maps?q=${gpsState.position.lat},${gpsState.position.lng}`, '_blank');
+    }
+  };
+
+  // Manual location update button for link mode
+  const handleManualLocationUpdate = async () => {
+    if (currentLocation && activeOrderId) {
+      await updateLocationInDB(currentLocation, activeOrderId);
+      toast.success("✅ تم تحديث موقعك");
+    } else if (!currentLocation) {
+      toast.error("يرجى تحديد موقعك أولاً عبر الرابط");
+      setIsLocationDialogOpen(true);
+    } else {
+      toast.error("لا يوجد طلب نشط للتحديث");
     }
   };
 
@@ -441,40 +497,65 @@ const MobileDashboard = () => {
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {currentLocation ? (
-                    <>
-                      <div className="w-2 h-2 rounded-full bg-green-500" />
-                      <span className="text-sm text-green-600 dark:text-green-400">
-                        تم تحديد الموقع من الرابط
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <div className="w-2 h-2 rounded-full bg-amber-500" />
-                      <span className="text-sm text-muted-foreground">لم يتم تحديد الموقع بعد</span>
-                    </>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  {currentLocation && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {currentLocation ? (
+                      <>
+                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                        <span className="text-sm text-green-600 dark:text-green-400">
+                          الموقع: {currentLocation.lat.toFixed(4)}, {currentLocation.lng.toFixed(4)}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-2 h-2 rounded-full bg-amber-500" />
+                        <span className="text-sm text-muted-foreground">لم يتم تحديد الموقع بعد</span>
+                      </>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    {currentLocation && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={openCurrentLocationInMaps}
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </Button>
+                    )}
                     <Button 
-                      variant="ghost" 
+                      variant="outline" 
                       size="sm"
-                      onClick={openCurrentLocationInMaps}
+                      onClick={() => setIsLocationDialogOpen(true)}
                     >
-                      <ExternalLink className="w-4 h-4" />
+                      <Link2 className="w-4 h-4" />
                     </Button>
-                  )}
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setIsLocationDialogOpen(true)}
-                  >
-                    <Link2 className="w-4 h-4" />
-                  </Button>
+                  </div>
                 </div>
+                
+                {/* Manual update button for active orders */}
+                {activeOrderId && currentLocation && (
+                  <Button 
+                    onClick={handleManualLocationUpdate}
+                    className="w-full"
+                    variant="default"
+                  >
+                    <MapPin className="w-4 h-4 ml-2" />
+                    تحديث موقعي على الخريطة
+                  </Button>
+                )}
+                
+                {activeOrderId && !currentLocation && (
+                  <Button 
+                    onClick={() => setIsLocationDialogOpen(true)}
+                    className="w-full"
+                    variant="outline"
+                  >
+                    <Link2 className="w-4 h-4 ml-2" />
+                    أدخل رابط موقعك للتتبع
+                  </Button>
+                )}
               </div>
             )}
             
