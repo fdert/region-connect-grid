@@ -63,7 +63,7 @@ const UrlImportDialog = ({
   categories,
 }: UrlImportDialogProps) => {
   const [url, setUrl] = useState("");
-  const [categoryId, setCategoryId] = useState("");
+  const [categoryId, setCategoryId] = useState("none");
   const [isLoading, setIsLoading] = useState(false);
   const [scrapedProducts, setScrapedProducts] = useState<ScrapedProduct[]>([]);
   const [step, setStep] = useState<"input" | "preview">("input");
@@ -77,8 +77,9 @@ const UrlImportDialog = ({
 
     setIsLoading(true);
     try {
+      const effectiveCategoryId = categoryId === "none" ? null : categoryId || null;
       const { data, error } = await supabase.functions.invoke("scrape-products", {
-        body: { url, categoryId: categoryId || null },
+        body: { url, categoryId: effectiveCategoryId },
       });
 
       if (error) {
@@ -160,7 +161,7 @@ const UrlImportDialog = ({
 
   const handleClose = () => {
     setUrl("");
-    setCategoryId("");
+    setCategoryId("none");
     setScrapedProducts([]);
     setStep("input");
     onClose();
@@ -218,7 +219,7 @@ const UrlImportDialog = ({
                   <SelectValue placeholder="اختر التصنيف" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">بدون تصنيف</SelectItem>
+                  <SelectItem value="none">بدون تصنيف</SelectItem>
                   {categories.map((cat) => (
                     <SelectItem key={cat.id} value={cat.id}>
                       {cat.name_ar}
