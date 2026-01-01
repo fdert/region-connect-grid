@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -64,6 +65,7 @@ const UrlImportDialog = ({
 }: UrlImportDialogProps) => {
   const [url, setUrl] = useState("");
   const [categoryId, setCategoryId] = useState("none");
+  const [scrapeAllPages, setScrapeAllPages] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [scrapedProducts, setScrapedProducts] = useState<ScrapedProduct[]>([]);
   const [step, setStep] = useState<"input" | "preview">("input");
@@ -79,7 +81,7 @@ const UrlImportDialog = ({
     try {
       const effectiveCategoryId = categoryId === "none" ? null : categoryId || null;
       const { data, error } = await supabase.functions.invoke("scrape-products", {
-        body: { url, categoryId: effectiveCategoryId },
+        body: { url, categoryId: effectiveCategoryId, scrapeAllPages },
       });
 
       if (error) {
@@ -162,6 +164,7 @@ const UrlImportDialog = ({
   const handleClose = () => {
     setUrl("");
     setCategoryId("none");
+    setScrapeAllPages(false);
     setScrapedProducts([]);
     setStep("input");
     onClose();
@@ -227,6 +230,20 @@ const UrlImportDialog = ({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+              <div className="space-y-0.5">
+                <Label htmlFor="scrape-all-pages" className="text-sm font-medium">جلب من صفحات متعددة</Label>
+                <p className="text-xs text-muted-foreground">
+                  تفعيل هذا الخيار سيجلب المنتجات من جميع صفحات التصنيف (أبطأ)
+                </p>
+              </div>
+              <Switch
+                id="scrape-all-pages"
+                checked={scrapeAllPages}
+                onCheckedChange={setScrapeAllPages}
+              />
             </div>
 
             <DialogFooter>
