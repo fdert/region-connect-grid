@@ -13,10 +13,15 @@ import {
   Box,
   ChevronLeft,
   Phone,
-  AlertCircle
+  AlertCircle,
+  Link2,
+  Crosshair,
+  Settings,
+  ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -29,6 +34,13 @@ import { useCourierNotifications } from "@/hooks/useCourierNotifications";
 import { useCourierGPS } from "@/hooks/useCourierGPS";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 type OrderStatus = Database['public']['Enums']['order_status'];
 
@@ -51,6 +63,11 @@ const statusColors: Record<string, string> = {
 const MobileDashboard = () => {
   const [isAvailable, setIsAvailable] = useState(true);
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+  const [locationMode, setLocationMode] = useState<'gps' | 'link'>('gps');
+  const [locationLink, setLocationLink] = useState('');
+  const [isLocationDialogOpen, setIsLocationDialogOpen] = useState(false);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -58,7 +75,95 @@ const MobileDashboard = () => {
   useCourierNotifications(user?.id);
 
   // GPS tracking for active order
-  const gpsState = useCourierGPS(activeOrderId, true);
+  const gpsState = useCourierGPS(activeOrderId, locationMode === 'gps');
+
+  // Extract coordinates from Google Maps link
+  const extractCoordsFromLink = (link: string): { lat: number; lng: number } | null => {
+    try {
+      // Pattern: @lat,lng or ?q=lat,lng or /place/lat,lng
+      const patterns = [
+        /@(-?\d+\.?\d*),(-?\d+\.?\d*)/,
+        /[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/,
+        /place\/(-?\d+\.?\d*),(-?\d+\.?\d*)/,
+        /ll=(-?\d+\.?\d*),(-?\d+\.?\d*)/,
+        /destination=(-?\d+\.?\d*),(-?\d+\.?\d*)/,
+      ];
+      
+      for (const pattern of patterns) {
+        const match = link.match(pattern);
+        if (match) {
+          return { lat: parseFloat(match[1]), lng: parseFloat(match[2]) };
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  // Get current location via GPS
+  const getCurrentLocationViaGPS = () => {
+    if (!navigator.geolocation) {
+      toast.error("الجهاز لا يدعم تحديد الموقع");
+      return;
+    }
+
+    setIsGettingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const coords = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        };
+        setCurrentLocation(coords);
+        setIsGettingLocation(false);
+        toast.success("✅ تم تحديد موقعك بنجاح");
+      },
+      (error) => {
+        setIsGettingLocation(false);
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            toast.error("يرجى السماح بالوصول للموقع من إعدادات الجهاز");
+            break;
+          case error.POSITION_UNAVAILABLE:
+            toast.error("الموقع غير متاح حالياً");
+            break;
+          case error.TIMEOUT:
+            toast.error("انتهت مهلة الحصول على الموقع");
+            break;
+          default:
+            toast.error("فشل في الحصول على الموقع");
+        }
+      },
+      { enableHighAccuracy: true, timeout: 15000 }
+    );
+  };
+
+  // Handle location link submission
+  const handleLocationLinkSubmit = () => {
+    if (!locationLink.trim()) {
+      toast.error("يرجى إدخال رابط الموقع");
+      return;
+    }
+
+    const coords = extractCoordsFromLink(locationLink);
+    if (coords) {
+      setCurrentLocation(coords);
+      setIsLocationDialogOpen(false);
+      toast.success("✅ تم استخراج الموقع من الرابط بنجاح");
+    } else {
+      toast.error("لم نتمكن من استخراج الإحداثيات من الرابط");
+    }
+  };
+
+  // Open current location in Google Maps
+  const openCurrentLocationInMaps = () => {
+    if (currentLocation) {
+      window.open(`https://www.google.com/maps?q=${currentLocation.lat},${currentLocation.lng}`, '_blank');
+    } else if (gpsState.position) {
+      window.open(`https://www.google.com/maps?q=${gpsState.position.lat},${gpsState.position.lng}`, '_blank');
+    }
+  };
 
   // Fetch all orders assigned to courier
   const { data: allOrders, isLoading } = useQuery({
@@ -208,30 +313,179 @@ const MobileDashboard = () => {
           <Switch checked={isAvailable} onCheckedChange={setIsAvailable} />
         </div>
 
-        {/* GPS Status */}
-        {activeOrderId && (
-          <div className={`rounded-2xl p-4 border ${gpsState.isTracking ? 'bg-primary/10 border-primary/30' : 'bg-muted border-border/50'}`}>
+        {/* Location Mode Selection */}
+        <div className="bg-card rounded-2xl border border-border/50 overflow-hidden">
+          <div className="p-4 border-b border-border/50">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <MapPin className={`w-5 h-5 ${gpsState.isTracking ? 'text-primary animate-pulse' : 'text-muted-foreground'}`} />
-                <span className="font-medium text-sm">
-                  {gpsState.isTracking ? 'التتبع مفعّل' : 'التتبع متوقف'}
-                </span>
+                <MapPin className="w-5 h-5 text-primary" />
+                <span className="font-bold">تحديد موقعك</span>
               </div>
-              {gpsState.accuracy && (
-                <span className="text-xs text-muted-foreground">
-                  دقة: {Math.round(gpsState.accuracy)}م
-                </span>
-              )}
+              <Dialog open={isLocationDialogOpen} onOpenChange={setIsLocationDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-1">
+                    <Settings className="w-4 h-4" />
+                    إعدادات
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-[90vw] rounded-2xl">
+                  <DialogHeader>
+                    <DialogTitle className="text-right">تحديد الموقع عبر الرابط</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground text-right">
+                      يمكنك لصق رابط موقعك من Google Maps هنا
+                    </p>
+                    <Input
+                      dir="ltr"
+                      placeholder="https://maps.google.com/..."
+                      value={locationLink}
+                      onChange={(e) => setLocationLink(e.target.value)}
+                      className="text-left"
+                    />
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={handleLocationLinkSubmit} 
+                        className="flex-1"
+                        disabled={!locationLink.trim()}
+                      >
+                        <Link2 className="w-4 h-4 ml-2" />
+                        استخراج الموقع
+                      </Button>
+                    </div>
+                    <div className="text-xs text-muted-foreground text-right space-y-1">
+                      <p>💡 كيفية الحصول على الرابط:</p>
+                      <ol className="list-decimal list-inside space-y-1 mr-2">
+                        <li>افتح Google Maps</li>
+                        <li>اضغط مطولاً على موقعك</li>
+                        <li>اضغط على "مشاركة" وانسخ الرابط</li>
+                      </ol>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
-            {gpsState.error && (
+          </div>
+
+          {/* Location Mode Tabs */}
+          <div className="grid grid-cols-2 gap-0">
+            <button
+              onClick={() => setLocationMode('gps')}
+              className={`p-4 text-center transition-all ${
+                locationMode === 'gps' 
+                  ? 'bg-primary/10 text-primary border-b-2 border-primary' 
+                  : 'text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              <Crosshair className="w-5 h-5 mx-auto mb-1" />
+              <span className="text-sm font-medium">GPS تلقائي</span>
+            </button>
+            <button
+              onClick={() => {
+                setLocationMode('link');
+                setIsLocationDialogOpen(true);
+              }}
+              className={`p-4 text-center transition-all ${
+                locationMode === 'link' 
+                  ? 'bg-primary/10 text-primary border-b-2 border-primary' 
+                  : 'text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              <Link2 className="w-5 h-5 mx-auto mb-1" />
+              <span className="text-sm font-medium">عبر الرابط</span>
+            </button>
+          </div>
+
+          {/* Current Location Status */}
+          <div className="p-4 bg-muted/50">
+            {locationMode === 'gps' ? (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {gpsState.isTracking || gpsState.position ? (
+                    <>
+                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                      <span className="text-sm text-green-600 dark:text-green-400">
+                        الموقع محدد
+                        {gpsState.accuracy && ` (دقة: ${Math.round(gpsState.accuracy)}م)`}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-2 h-2 rounded-full bg-amber-500" />
+                      <span className="text-sm text-muted-foreground">في انتظار تحديد الموقع...</span>
+                    </>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  {(gpsState.position || currentLocation) && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={openCurrentLocationInMaps}
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </Button>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={getCurrentLocationViaGPS}
+                    disabled={isGettingLocation}
+                  >
+                    {isGettingLocation ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Crosshair className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {currentLocation ? (
+                    <>
+                      <div className="w-2 h-2 rounded-full bg-green-500" />
+                      <span className="text-sm text-green-600 dark:text-green-400">
+                        تم تحديد الموقع من الرابط
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-2 h-2 rounded-full bg-amber-500" />
+                      <span className="text-sm text-muted-foreground">لم يتم تحديد الموقع بعد</span>
+                    </>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  {currentLocation && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={openCurrentLocationInMaps}
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </Button>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setIsLocationDialogOpen(true)}
+                  >
+                    <Link2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            {gpsState.error && locationMode === 'gps' && (
               <div className="flex items-center gap-2 mt-2 text-destructive text-sm">
                 <AlertCircle className="w-4 h-4" />
                 {gpsState.error}
               </div>
             )}
           </div>
-        )}
+        </div>
 
         {/* Quick Stats */}
         <div className="grid grid-cols-3 gap-3">
