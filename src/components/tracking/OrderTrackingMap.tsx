@@ -215,18 +215,88 @@ export default function OrderTrackingMap({
       routeLineRef.current = null;
     }
 
-    const createIcon = (color: string, iconSvg: string) => {
+    // Professional animated marker creator with pulse effect
+    const createProfessionalIcon = (type: 'store' | 'courier' | 'customer') => {
+      const configs = {
+        store: {
+          color: '#10b981',
+          pulseColor: 'rgba(16, 185, 129, 0.4)',
+          icon: '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></svg>',
+          label: 'المتجر'
+        },
+        courier: {
+          color: '#3b82f6',
+          pulseColor: 'rgba(59, 130, 246, 0.4)',
+          icon: '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>',
+          label: 'المندوب'
+        },
+        customer: {
+          color: '#ef4444',
+          pulseColor: 'rgba(239, 68, 68, 0.4)',
+          icon: '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
+          label: 'التوصيل'
+        }
+      };
+      
+      const config = configs[type];
+      
       return L.divIcon({
-        className: "custom-marker",
-        html: `<div style="background-color: ${color}; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.4); border: 3px solid white;">${iconSvg}</div>`,
-        iconSize: [40, 40],
-        iconAnchor: [20, 20],
+        className: "custom-professional-marker",
+        html: `
+          <div class="marker-container" style="position: relative; width: 56px; height: 56px;">
+            <div class="marker-pulse" style="
+              position: absolute;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+              width: 56px;
+              height: 56px;
+              border-radius: 50%;
+              background: ${config.pulseColor};
+              animation: markerPulse 2s ease-out infinite;
+            "></div>
+            <div class="marker-outer" style="
+              position: absolute;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+              width: 48px;
+              height: 48px;
+              border-radius: 50%;
+              background: linear-gradient(145deg, ${config.color}, ${config.color}dd);
+              box-shadow: 0 4px 20px ${config.color}80, 0 2px 8px rgba(0,0,0,0.3);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              border: 3px solid white;
+            ">
+              ${config.icon}
+            </div>
+            <div class="marker-label" style="
+              position: absolute;
+              bottom: -20px;
+              left: 50%;
+              transform: translateX(-50%);
+              background: ${config.color};
+              color: white;
+              padding: 2px 8px;
+              border-radius: 10px;
+              font-size: 10px;
+              font-weight: 600;
+              white-space: nowrap;
+              box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            ">${config.label}</div>
+          </div>
+        `,
+        iconSize: [56, 76],
+        iconAnchor: [28, 38],
+        popupAnchor: [0, -40]
       });
     };
 
-    const storeIcon = createIcon("#10b981", '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></svg>');
-    const courierIcon = createIcon("#3b82f6", '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>');
-    const customerIcon = createIcon("#ef4444", '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>');
+    const storeIcon = createProfessionalIcon('store');
+    const courierIcon = createProfessionalIcon('courier');
+    const customerIcon = createProfessionalIcon('customer');
 
     const allPoints: [number, number][] = [];
 

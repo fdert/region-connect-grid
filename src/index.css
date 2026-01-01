@@ -27,16 +27,51 @@
     stroke-dashoffset: 0;
   }
   100% {
-    stroke-dashoffset: -20;
+    stroke-dashoffset: -40;
   }
 }
 
 .animated-route-line {
-  animation: routeFlow 1s linear infinite;
+  animation: routeFlow 0.8s linear infinite;
 }
 
 .leaflet-overlay-pane .animated-route-line {
-  animation: routeFlow 1s linear infinite;
+  animation: routeFlow 0.8s linear infinite;
+}
+
+/* Professional marker pulse animation */
+@keyframes markerPulse {
+  0% {
+    transform: translate(-50%, -50%) scale(0.8);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.2);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.5);
+    opacity: 0;
+  }
+}
+
+.custom-professional-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Route glow effect */
+@keyframes routeGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.6));
+  }
+  50% {
+    filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.9));
+  }
+}
+
+.route-glow-effect {
+  animation: routeGlow 2s ease-in-out infinite;
 }
 
 @layer base {
