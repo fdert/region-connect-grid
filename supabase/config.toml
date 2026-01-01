@@ -62,3 +62,6 @@ verify_jwt = false
 
 [functions.scrape-products]
 verify_jwt = false
+
+[functions.remove-watermark]
+verify_jwt = false

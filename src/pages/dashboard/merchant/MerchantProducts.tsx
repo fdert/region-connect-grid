@@ -66,6 +66,8 @@ const MerchantProducts = () => {
   const [importMode, setImportMode] = useState<"file" | "paste">("file");
   const [imageInputMode, setImageInputMode] = useState<"upload" | "url">("upload");
   const [importCategoryId, setImportCategoryId] = useState<string>("");
+  const [removeWatermarks, setRemoveWatermarks] = useState(false);
+  const [processingWatermarks, setProcessingWatermarks] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const excelInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<ProductForm>({
@@ -247,10 +249,37 @@ const MerchantProducts = () => {
 
   // Import products mutation
   const importMutation = useMutation({
-    mutationFn: async ({ productsData, categoryId }: { productsData: any[]; categoryId?: string }) => {
+    mutationFn: async ({ productsData, categoryId, shouldRemoveWatermarks }: { productsData: any[]; categoryId?: string; shouldRemoveWatermarks?: boolean }) => {
       if (!store?.id) throw new Error("No store found");
 
-      for (const product of productsData) {
+      // Process watermarks if enabled
+      let processedProducts = productsData;
+      if (shouldRemoveWatermarks) {
+        setProcessingWatermarks(true);
+        try {
+          processedProducts = await Promise.all(
+            productsData.map(async (product) => {
+              if (product.image_url) {
+                try {
+                  const { data, error } = await supabase.functions.invoke("remove-watermark", {
+                    body: { imageUrl: product.image_url },
+                  });
+                  if (!error && data?.cleanedImageUrl) {
+                    return { ...product, image_url: data.cleanedImageUrl };
+                  }
+                } catch (e) {
+                  console.error("Watermark removal failed for:", product.name, e);
+                }
+              }
+              return product;
+            })
+          );
+        } finally {
+          setProcessingWatermarks(false);
+        }
+      }
+
+      for (const product of processedProducts) {
         // Check if product exists by name
         const { data: existing } = await supabase
           .from("products")
@@ -297,6 +326,7 @@ const MerchantProducts = () => {
       setIsImportDialogOpen(false);
       setPasteData("");
       setImportCategoryId("");
+      setRemoveWatermarks(false);
     },
     onError: (error: any) => {
       console.error("Import error:", error);
@@ -441,7 +471,7 @@ const MerchantProducts = () => {
           return;
         }
 
-        importMutation.mutate({ productsData, categoryId: importCategoryId || undefined });
+        importMutation.mutate({ productsData, categoryId: importCategoryId || undefined, shouldRemoveWatermarks: removeWatermarks });
       } catch (error) {
         console.error("Excel parse error:", error);
         toast.error("حدث خطأ أثناء قراءة الملف");
@@ -491,7 +521,7 @@ const MerchantProducts = () => {
         return;
       }
 
-      importMutation.mutate({ productsData, categoryId: importCategoryId || undefined });
+      importMutation.mutate({ productsData, categoryId: importCategoryId || undefined, shouldRemoveWatermarks: removeWatermarks });
     } catch (error) {
       console.error("Paste parse error:", error);
       toast.error("حدث خطأ أثناء معالجة البيانات");
@@ -939,6 +969,7 @@ const MerchantProducts = () => {
           if (!open) {
             setImportCategoryId("");
             setPasteData("");
+            setRemoveWatermarks(false);
           }
         }}>
           <DialogContent className="max-w-lg">
@@ -964,6 +995,20 @@ const MerchantProducts = () => {
                 </Select>
                 <p className="text-xs text-muted-foreground mt-1">سيتم تطبيق هذا التصنيف على جميع المنتجات المستوردة</p>
               </div>
+
+              {/* Watermark Removal Option */}
+              <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-medium">إزالة العلامات المائية</Label>
+                  <p className="text-xs text-muted-foreground">إزالة الشعارات والعلامات من صور المنتجات بالذكاء الاصطناعي</p>
+                </div>
+                <Switch
+                  checked={removeWatermarks}
+                  onCheckedChange={setRemoveWatermarks}
+                  disabled={importMutation.isPending || processingWatermarks}
+                />
+              </div>
+
 
               {/* Import Mode Tabs */}
               <div className="flex gap-2">
@@ -1027,11 +1072,11 @@ const MerchantProducts = () => {
                   />
                   <Button
                     onClick={handlePasteImport}
-                    disabled={importMutation.isPending || !pasteData.trim()}
+                    disabled={importMutation.isPending || processingWatermarks || !pasteData.trim()}
                     className="w-full mt-4"
                   >
-                    {importMutation.isPending && <Loader2 className="w-4 h-4 animate-spin ml-2" />}
-                    استيراد المنتجات
+                    {(importMutation.isPending || processingWatermarks) && <Loader2 className="w-4 h-4 animate-spin ml-2" />}
+                    {processingWatermarks ? "جارِ إزالة العلامات المائية..." : "استيراد المنتجات"}
                   </Button>
                 </div>
               )}
