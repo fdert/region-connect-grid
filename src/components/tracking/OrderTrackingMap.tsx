@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, AlertCircle, ExternalLink, Clock, Navigation } from "lucide-react";
+import { Loader2, AlertCircle, ExternalLink, Clock, Navigation, Car, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { calculateRoadDistance, getRouteGeometry } from "@/lib/distance";
+import { calculateRoadDistance, getRouteGeometry, TrafficSegment } from "@/lib/distance";
 import { useMapSettings } from "@/hooks/useMapSettings";
 import "leaflet/dist/leaflet.css";
 
@@ -12,6 +12,21 @@ interface OrderTrackingMapProps {
   customerLocation?: { lat: number; lng: number } | null;
   storeName?: string;
 }
+
+// Traffic level colors
+const trafficColors = {
+  low: '#22c55e',      // green
+  moderate: '#f59e0b', // amber
+  heavy: '#ef4444',    // red
+  severe: '#7c2d12'    // dark red
+};
+
+const trafficLabels = {
+  low: 'حركة سلسة',
+  moderate: 'حركة متوسطة',
+  heavy: 'ازدحام',
+  severe: 'ازدحام شديد'
+};
 
 export default function OrderTrackingMap({ 
   orderId, 
@@ -24,8 +39,12 @@ export default function OrderTrackingMap({
   const [isLoading, setIsLoading] = useState(true);
   const [mapError, setMapError] = useState(false);
   const [estimatedMinutes, setEstimatedMinutes] = useState<number | null>(null);
+  const [baseDurationMinutes, setBaseDurationMinutes] = useState<number | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState<number>(0);
   const [routeCoordinates, setRouteCoordinates] = useState<[number, number][]>([]);
+  const [trafficLevel, setTrafficLevel] = useState<'low' | 'moderate' | 'heavy' | 'severe' | null>(null);
+  const [trafficSegments, setTrafficSegments] = useState<TrafficSegment[]>([]);
+  const [distanceKm, setDistanceKm] = useState<number | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
@@ -79,6 +98,18 @@ export default function OrderTrackingMap({
         const minutes = Math.ceil(routeResult.duration_minutes);
         setEstimatedMinutes(minutes);
         setRemainingSeconds(minutes * 60);
+        setDistanceKm(routeResult.distance_km);
+        
+        // Set traffic data
+        if (routeResult.traffic_level) {
+          setTrafficLevel(routeResult.traffic_level);
+        }
+        if (routeResult.base_duration_minutes) {
+          setBaseDurationMinutes(routeResult.base_duration_minutes);
+        }
+        if (routeResult.traffic_segments) {
+          setTrafficSegments(routeResult.traffic_segments);
+        }
       } else {
         // Fallback to simple distance calculation
         const result = await calculateRoadDistance(
@@ -92,6 +123,7 @@ export default function OrderTrackingMap({
           const minutes = Math.ceil(result.duration_minutes);
           setEstimatedMinutes(minutes);
           setRemainingSeconds(minutes * 60);
+          setDistanceKm(result.distance_km);
         }
       }
     } catch (error) {
@@ -330,9 +362,69 @@ export default function OrderTrackingMap({
       allPoints.push([courierLocation.lat, courierLocation.lng]);
     }
 
-    // Draw the actual road route if available with distinctive styling
-    if (routeCoordinates.length > 1) {
-      // Add a shadow/glow effect behind the main route
+    // Draw traffic-colored route segments if available
+    if (trafficSegments.length > 0) {
+      // Draw shadow first
+      const routeShadow = L.polyline(routeCoordinates, {
+        color: "#1e3a5f",
+        weight: 12,
+        opacity: 0.3,
+        lineJoin: "round",
+        lineCap: "round"
+      }).addTo(map);
+      markersRef.current.push(routeShadow);
+
+      // Draw each traffic segment with its color
+      trafficSegments.forEach((segment, index) => {
+        const segmentColor = trafficColors[segment.congestionLevel];
+        
+        // Outer glow for segment
+        const segmentGlow = L.polyline(segment.coordinates, {
+          color: segmentColor,
+          weight: 10,
+          opacity: 0.4,
+          lineJoin: "round",
+          lineCap: "round"
+        }).addTo(map);
+        markersRef.current.push(segmentGlow);
+
+        // Main segment line
+        const segmentLine = L.polyline(segment.coordinates, {
+          color: segmentColor,
+          weight: 6,
+          opacity: 1,
+          lineJoin: "round",
+          lineCap: "round"
+        }).addTo(map);
+        markersRef.current.push(segmentLine);
+
+        // Add popup with traffic info
+        const trafficLabel = trafficLabels[segment.congestionLevel];
+        segmentLine.bindPopup(`
+          <div style="text-align:center;direction:rtl;">
+            <p style="font-weight:600;margin-bottom:4px;">${trafficLabel}</p>
+            <p style="font-size:12px;color:#666;">المسافة: ${(segment.distance / 1000).toFixed(1)} كم</p>
+          </div>
+        `);
+      });
+
+      // Add animated direction indicator on top
+      const animatedRoute = L.polyline(routeCoordinates, {
+        color: "#ffffff",
+        weight: 2,
+        opacity: 0.8,
+        dashArray: "4, 12",
+        lineCap: "round",
+        className: "animated-route-line"
+      }).addTo(map);
+      markersRef.current.push(animatedRoute);
+
+      // Add route coordinates to bounds
+      routeCoordinates.forEach(coord => {
+        allPoints.push(coord);
+      });
+    } else if (routeCoordinates.length > 1) {
+      // Fallback: Draw the actual road route with single color
       const routeShadow = L.polyline(routeCoordinates, {
         color: "#1e3a5f",
         weight: 10,
@@ -342,7 +434,7 @@ export default function OrderTrackingMap({
       }).addTo(map);
       markersRef.current.push(routeShadow);
 
-      // Main route line with gradient-like effect using multiple layers
+      // Main route line
       const routeOuter = L.polyline(routeCoordinates, {
         color: "#60a5fa",
         weight: 8,
@@ -352,7 +444,6 @@ export default function OrderTrackingMap({
       }).addTo(map);
       markersRef.current.push(routeOuter);
 
-      // Inner bright line for visual pop
       routeLineRef.current = L.polyline(routeCoordinates, {
         color: "#3b82f6",
         weight: 5,
@@ -361,7 +452,6 @@ export default function OrderTrackingMap({
         lineCap: "round"
       }).addTo(map);
 
-      // Add animated dots along the route to show direction
       const animatedRoute = L.polyline(routeCoordinates, {
         color: "#ffffff",
         weight: 3,
@@ -372,7 +462,6 @@ export default function OrderTrackingMap({
       }).addTo(map);
       markersRef.current.push(animatedRoute);
       
-      // Add route coordinates to bounds
       routeCoordinates.forEach(coord => {
         allPoints.push(coord);
       });
@@ -407,7 +496,7 @@ export default function OrderTrackingMap({
       const bounds = L.latLngBounds(allPoints);
       map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15 });
     }
-  }, [storeLocation, customerLocation, courierLocation, storeName, lastUpdated, isValidCoord, routeCoordinates]);
+  }, [storeLocation, customerLocation, courierLocation, storeName, lastUpdated, isValidCoord, routeCoordinates, trafficSegments]);
 
   // Initialize map
   useEffect(() => {
@@ -570,21 +659,49 @@ export default function OrderTrackingMap({
 
   return (
     <div className="space-y-3">
-      {/* ETA Display */}
+      {/* ETA & Traffic Display */}
       {courierLocation && remainingSeconds > 0 && (
-        <div className="bg-primary/10 rounded-xl p-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
-              <Clock className="w-6 h-6 text-primary" />
+        <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-xl p-4 border border-primary/20">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-14 h-14 rounded-full bg-primary/20 flex items-center justify-center">
+                <Clock className="w-7 h-7 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">الوقت المتبقي للوصول</p>
+                <p className="text-2xl font-bold text-primary">{formatRemainingTime(remainingSeconds)}</p>
+                {baseDurationMinutes && trafficLevel && baseDurationMinutes !== estimatedMinutes && (
+                  <p className="text-xs text-muted-foreground">
+                    الوقت الأساسي: {baseDurationMinutes} دقيقة
+                    {estimatedMinutes && estimatedMinutes > baseDurationMinutes && (
+                      <span className="text-amber-600 mr-1">(+{estimatedMinutes - baseDurationMinutes} دقيقة بسبب المرور)</span>
+                    )}
+                  </p>
+                )}
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">الوقت المتبقي للوصول</p>
-              <p className="text-xl font-bold text-primary">{formatRemainingTime(remainingSeconds)}</p>
+            
+            <div className="flex flex-col items-end gap-2">
+              {distanceKm && (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="font-semibold">{distanceKm} كم</span>
+                  <Navigation className="w-4 h-4 text-primary" />
+                </div>
+              )}
+              {trafficLevel && (
+                <div 
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium text-white"
+                  style={{ backgroundColor: trafficColors[trafficLevel] }}
+                >
+                  {trafficLevel === 'heavy' || trafficLevel === 'severe' ? (
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                  ) : (
+                    <Car className="w-3.5 h-3.5" />
+                  )}
+                  {trafficLabels[trafficLevel]}
+                </div>
+              )}
             </div>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Navigation className="w-4 h-4" />
-            <span>المندوب في الطريق</span>
           </div>
         </div>
       )}
@@ -592,11 +709,34 @@ export default function OrderTrackingMap({
       {/* Map Container */}
       <div 
         ref={mapContainerRef} 
-        className="h-[350px] w-full rounded-xl overflow-hidden border-2 border-border bg-muted"
-        style={{ minHeight: "350px", position: "relative", zIndex: 0 }}
+        className="h-[400px] w-full rounded-xl overflow-hidden border-2 border-border bg-muted shadow-lg"
+        style={{ minHeight: "400px", position: "relative", zIndex: 0 }}
       />
 
-      {/* Legend */}
+      {/* Traffic Legend */}
+      <div className="bg-card rounded-xl p-3 border border-border/50">
+        <p className="text-xs font-medium text-muted-foreground mb-2">دليل ألوان حركة المرور:</p>
+        <div className="flex flex-wrap gap-3 text-xs">
+          <div className="flex items-center gap-1.5">
+            <div className="w-4 h-2 rounded-full" style={{ backgroundColor: trafficColors.low }} />
+            <span>سلسة</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-4 h-2 rounded-full" style={{ backgroundColor: trafficColors.moderate }} />
+            <span>متوسطة</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-4 h-2 rounded-full" style={{ backgroundColor: trafficColors.heavy }} />
+            <span>مزدحمة</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-4 h-2 rounded-full" style={{ backgroundColor: trafficColors.severe }} />
+            <span>ازدحام شديد</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Markers Legend */}
       <div className="flex flex-wrap gap-4 text-sm">
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded-full bg-emerald-500 shadow-sm" />
