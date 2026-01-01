@@ -1,5 +1,6 @@
 import MobileLayout from "@/components/courier/MobileLayout";
 import PaymentConfirmationDialog from "@/components/courier/PaymentConfirmationDialog";
+import CourierDeliveryMap from "@/components/tracking/CourierDeliveryMap";
 import { 
   Package, 
   MapPin,
@@ -12,11 +13,12 @@ import {
   Truck,
   ArrowUpDown,
   Filter,
-  CreditCard
+  CreditCard,
+  Map
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +28,7 @@ import { toast } from "sonner";
 import { Database } from "@/integrations/supabase/types";
 import { Badge } from "@/components/ui/badge";
 import { useCourierGPS } from "@/hooks/useCourierGPS";
+import { parseCoordinatesFromUrl } from "@/lib/distance";
 import {
   Sheet,
   SheetContent,
@@ -57,6 +60,8 @@ const MobileOrders = () => {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+  const [courierLocation, setCourierLocation] = useState<{lat: number; lng: number} | null>(null);
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -64,6 +69,16 @@ const MobileOrders = () => {
     selectedOrder?.id || null, 
     selectedOrder?.status === 'picked_up' || selectedOrder?.status === 'on_the_way'
   );
+
+  // Update courier location from GPS
+  useEffect(() => {
+    if (gpsState.position) {
+      setCourierLocation({
+        lat: gpsState.position.lat,
+        lng: gpsState.position.lng
+      });
+    }
+  }, [gpsState.position]);
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ['courier-all-orders-mobile', user?.id],
@@ -336,6 +351,49 @@ const MobileOrders = () => {
                         </div>
                       </div>
                     </div>
+
+                    {/* Delivery Map with Route */}
+                    {(order.status === 'picked_up' || order.status === 'on_the_way' || order.status === 'assigned_to_courier' || order.status === 'ready') && (
+                      <div className="space-y-2">
+                        <button
+                          onClick={() => setShowMap(!showMap)}
+                          className="w-full flex items-center justify-between bg-muted/50 rounded-xl p-3 hover:bg-muted transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center">
+                              <Map className="w-4 h-4 text-blue-500" />
+                            </div>
+                            <span className="font-bold">خريطة مسار التوصيل</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {showMap ? 'إخفاء' : 'عرض'}
+                          </span>
+                        </button>
+                        
+                        {showMap && (
+                          <CourierDeliveryMap
+                            orderId={order.id}
+                            storeLocation={
+                              order.store?.location_lat && order.store?.location_lng
+                                ? { lat: order.store.location_lat, lng: order.store.location_lng }
+                                : null
+                            }
+                            customerLocation={
+                              (() => {
+                                // Try to parse customer location from delivery address if it's a URL
+                                if (order.delivery_address) {
+                                  const parsed = parseCoordinatesFromUrl(order.delivery_address);
+                                  if (parsed) return parsed;
+                                }
+                                return null;
+                              })()
+                            }
+                            courierLocation={courierLocation}
+                            storeName={order.store?.name}
+                          />
+                        )}
+                      </div>
+                    )}
 
                     {/* Order Details */}
                     <div className="bg-muted/50 rounded-xl p-4">
