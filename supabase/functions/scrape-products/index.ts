@@ -47,10 +47,9 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         url: formattedUrl,
-        formats: [
-          {
-            type: 'json',
-            prompt: `Extract all products from this page. For each product, extract:
+        formats: ['extract'],
+        extract: {
+          prompt: `Extract all products from this page. For each product, extract:
 - name: Product name/title (required)
 - description: Product description
 - price: Current price as a number (no currency symbols)
@@ -59,35 +58,36 @@ serve(async (req) => {
 - stock: Stock quantity if available, default to 100
 
 Return as an array of product objects. Extract as many products as possible from the page.`,
-            schema: {
-              type: 'object',
-              properties: {
-                products: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      name: { type: 'string' },
-                      description: { type: 'string' },
-                      price: { type: 'number' },
-                      compare_price: { type: 'number' },
-                      image_url: { type: 'string' },
-                      stock: { type: 'number' }
-                    },
-                    required: ['name']
-                  }
+          schema: {
+            type: 'object',
+            properties: {
+              products: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    name: { type: 'string' },
+                    description: { type: 'string' },
+                    price: { type: 'number' },
+                    compare_price: { type: 'number' },
+                    image_url: { type: 'string' },
+                    stock: { type: 'number' }
+                  },
+                  required: ['name']
                 }
-              },
-              required: ['products']
-            }
+              }
+            },
+            required: ['products']
           }
-        ],
+        },
         onlyMainContent: true,
         waitFor: 3000,
       }),
     });
 
     const data = await response.json();
+    console.log('Firecrawl response status:', response.status);
+    console.log('Firecrawl response data:', JSON.stringify(data, null, 2));
 
     if (!response.ok) {
       console.error('Firecrawl API error:', data);
@@ -97,18 +97,24 @@ Return as an array of product objects. Extract as many products as possible from
       );
     }
 
-    // Extract products from response
+    // Extract products from response - handle both data.extract and data.data.extract
     let products = [];
     
-    if (data.data?.json?.products) {
+    if (data.data?.extract?.products) {
+      products = data.data.extract.products;
+    } else if (data.extract?.products) {
+      products = data.extract.products;
+    } else if (data.data?.json?.products) {
       products = data.data.json.products;
     } else if (data.json?.products) {
       products = data.json.products;
-    } else if (Array.isArray(data.data?.json)) {
-      products = data.data.json;
-    } else if (Array.isArray(data.json)) {
-      products = data.json;
+    } else if (Array.isArray(data.data?.extract)) {
+      products = data.data.extract;
+    } else if (Array.isArray(data.extract)) {
+      products = data.extract;
     }
+
+    console.log('Extracted products count:', products.length);
 
     // Clean and validate products
     const cleanedProducts = products
