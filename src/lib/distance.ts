@@ -43,11 +43,22 @@ export const calculateRoadDistance = async (
 };
 
 // Get route geometry (actual road path) from OSRM
+export interface TrafficSegment {
+  coordinates: [number, number][];
+  congestionLevel: 'low' | 'moderate' | 'heavy' | 'severe';
+  duration: number;
+  distance: number;
+}
+
 export interface RouteGeometryResult {
   success: true;
   coordinates: [number, number][];
   distance_km: number;
   duration_minutes: number;
+  base_duration_minutes?: number;
+  traffic_level?: 'low' | 'moderate' | 'heavy' | 'severe';
+  traffic_segments?: TrafficSegment[];
+  summary?: string;
 }
 
 export interface RouteGeometryError {
