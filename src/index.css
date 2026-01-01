@@ -60,6 +60,16 @@
   border: none !important;
 }
 
+.direction-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.turn-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
 /* Route glow effect */
 @keyframes routeGlow {
   0%, 100% {
