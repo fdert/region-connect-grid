@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, AlertCircle, ExternalLink, Clock, Navigation, Car, AlertTriangle } from "lucide-react";
+import { Loader2, AlertCircle, ExternalLink, Clock, Navigation, Car, AlertTriangle, ChevronDown, ChevronUp, MapPin, CornerDownRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { calculateRoadDistance, getRouteGeometry, TrafficSegment } from "@/lib/distance";
+import { calculateRoadDistance, getRouteGeometry, TrafficSegment, DirectionInstruction } from "@/lib/distance";
 import { useMapSettings } from "@/hooks/useMapSettings";
 import "leaflet/dist/leaflet.css";
 
@@ -28,6 +28,23 @@ const trafficLabels = {
   severe: 'ازدحام شديد'
 };
 
+// Format distance for display
+const formatDistance = (meters: number): string => {
+  if (meters < 1000) {
+    return `${Math.round(meters)} م`;
+  }
+  return `${(meters / 1000).toFixed(1)} كم`;
+};
+
+// Format duration for display
+const formatDuration = (seconds: number): string => {
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 1) {
+    return `${Math.round(seconds)} ث`;
+  }
+  return `${minutes} د`;
+};
+
 export default function OrderTrackingMap({ 
   orderId, 
   storeLocation, 
@@ -44,6 +61,8 @@ export default function OrderTrackingMap({
   const [routeCoordinates, setRouteCoordinates] = useState<[number, number][]>([]);
   const [trafficLevel, setTrafficLevel] = useState<'low' | 'moderate' | 'heavy' | 'severe' | null>(null);
   const [trafficSegments, setTrafficSegments] = useState<TrafficSegment[]>([]);
+  const [directions, setDirections] = useState<DirectionInstruction[]>([]);
+  const [showDirections, setShowDirections] = useState(false);
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -109,6 +128,10 @@ export default function OrderTrackingMap({
         }
         if (routeResult.traffic_segments) {
           setTrafficSegments(routeResult.traffic_segments);
+        }
+        // Set directions
+        if (routeResult.directions) {
+          setDirections(routeResult.directions);
         }
       } else {
         // Fallback to simple distance calculation
@@ -491,12 +514,60 @@ export default function OrderTrackingMap({
       }).addTo(map);
     }
 
+    // Add direction markers (turn points) on the map
+    if (directions.length > 1) {
+      // Skip first (depart) and last (arrive) for cleaner display
+      const turnDirections = directions.slice(1, -1);
+      
+      turnDirections.forEach((direction, index) => {
+        if (direction.location && direction.location.length === 2) {
+          const turnIcon = L.divIcon({
+            className: "direction-marker",
+            html: `
+              <div style="
+                width: 24px;
+                height: 24px;
+                border-radius: 50%;
+                background: linear-gradient(135deg, #8b5cf6, #6366f1);
+                border: 2px solid white;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 10px;
+                font-weight: bold;
+                color: white;
+                box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4);
+                cursor: pointer;
+              ">${index + 1}</div>
+            `,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
+            popupAnchor: [0, -15]
+          });
+
+          const marker = L.marker([direction.location[0], direction.location[1]], { icon: turnIcon })
+            .addTo(map)
+            .bindPopup(`
+              <div style="text-align:center;direction:rtl;min-width:150px;">
+                <p style="font-weight:600;margin-bottom:4px;font-size:13px;">${direction.instruction}</p>
+                ${direction.streetName ? `<p style="font-size:11px;color:#888;margin-bottom:2px;">${direction.streetName}</p>` : ''}
+                <div style="display:flex;justify-content:center;gap:12px;margin-top:6px;font-size:11px;">
+                  <span style="color:#3b82f6;font-weight:500;">${formatDistance(direction.distance)}</span>
+                  <span style="color:#888;">${formatDuration(direction.duration)}</span>
+                </div>
+              </div>
+            `);
+          markersRef.current.push(marker);
+        }
+      });
+    }
+
     // Fit bounds to show all markers and route
     if (allPoints.length > 1) {
       const bounds = L.latLngBounds(allPoints);
       map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15 });
     }
-  }, [storeLocation, customerLocation, courierLocation, storeName, lastUpdated, isValidCoord, routeCoordinates, trafficSegments]);
+  }, [storeLocation, customerLocation, courierLocation, storeName, lastUpdated, isValidCoord, routeCoordinates, trafficSegments, directions]);
 
   // Initialize map
   useEffect(() => {
@@ -712,6 +783,59 @@ export default function OrderTrackingMap({
         className="h-[400px] w-full rounded-xl overflow-hidden border-2 border-border bg-muted shadow-lg"
         style={{ minHeight: "400px", position: "relative", zIndex: 0 }}
       />
+
+      {/* Directions Panel */}
+      {directions.length > 0 && (
+        <div className="bg-card rounded-xl border border-border/50 overflow-hidden">
+          <button
+            onClick={() => setShowDirections(!showDirections)}
+            className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <CornerDownRight className="w-5 h-5 text-primary" />
+              </div>
+              <div className="text-right">
+                <p className="font-semibold">اتجاهات المسار</p>
+                <p className="text-xs text-muted-foreground">{directions.length} خطوة</p>
+              </div>
+            </div>
+            {showDirections ? (
+              <ChevronUp className="w-5 h-5 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="w-5 h-5 text-muted-foreground" />
+            )}
+          </button>
+          
+          {showDirections && (
+            <div className="border-t border-border/50 max-h-[300px] overflow-y-auto">
+              {directions.map((direction, index) => (
+                <div 
+                  key={index}
+                  className={`flex items-start gap-3 p-3 ${index !== directions.length - 1 ? 'border-b border-border/30' : ''} hover:bg-muted/30 transition-colors`}
+                >
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
+                    {index + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm leading-relaxed">{direction.instruction}</p>
+                    {direction.streetName && (
+                      <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        {direction.streetName}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex-shrink-0 text-left">
+                    <p className="text-xs font-medium text-primary">{formatDistance(direction.distance)}</p>
+                    <p className="text-xs text-muted-foreground">{formatDuration(direction.duration)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Traffic Legend */}
       <div className="bg-card rounded-xl p-3 border border-border/50">
