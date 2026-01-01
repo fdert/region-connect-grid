@@ -65,6 +65,7 @@ const MerchantProducts = () => {
   const [pasteData, setPasteData] = useState("");
   const [importMode, setImportMode] = useState<"file" | "paste">("file");
   const [imageInputMode, setImageInputMode] = useState<"upload" | "url">("upload");
+  const [importCategoryId, setImportCategoryId] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const excelInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<ProductForm>({
@@ -246,7 +247,7 @@ const MerchantProducts = () => {
 
   // Import products mutation
   const importMutation = useMutation({
-    mutationFn: async (productsData: any[]) => {
+    mutationFn: async ({ productsData, categoryId }: { productsData: any[]; categoryId?: string }) => {
       if (!store?.id) throw new Error("No store found");
 
       for (const product of productsData) {
@@ -269,6 +270,7 @@ const MerchantProducts = () => {
               stock: product.stock || 0,
               is_active: product.is_active !== false,
               images: product.image_url ? [product.image_url] : undefined,
+              category_id: categoryId || null,
             })
             .eq("id", existing.id);
         } else {
@@ -284,6 +286,7 @@ const MerchantProducts = () => {
               stock: product.stock || 0,
               is_active: product.is_active !== false,
               images: product.image_url ? [product.image_url] : [],
+              category_id: categoryId || null,
             });
         }
       }
@@ -293,6 +296,7 @@ const MerchantProducts = () => {
       toast.success("تم استيراد المنتجات بنجاح");
       setIsImportDialogOpen(false);
       setPasteData("");
+      setImportCategoryId("");
     },
     onError: (error: any) => {
       console.error("Import error:", error);
@@ -437,7 +441,7 @@ const MerchantProducts = () => {
           return;
         }
 
-        importMutation.mutate(productsData);
+        importMutation.mutate({ productsData, categoryId: importCategoryId || undefined });
       } catch (error) {
         console.error("Excel parse error:", error);
         toast.error("حدث خطأ أثناء قراءة الملف");
@@ -487,7 +491,7 @@ const MerchantProducts = () => {
         return;
       }
 
-      importMutation.mutate(productsData);
+      importMutation.mutate({ productsData, categoryId: importCategoryId || undefined });
     } catch (error) {
       console.error("Paste parse error:", error);
       toast.error("حدث خطأ أثناء معالجة البيانات");
@@ -930,12 +934,37 @@ const MerchantProducts = () => {
         </Dialog>
 
         {/* Import Dialog */}
-        <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+        <Dialog open={isImportDialogOpen} onOpenChange={(open) => {
+          setIsImportDialogOpen(open);
+          if (!open) {
+            setImportCategoryId("");
+            setPasteData("");
+          }
+        }}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>استيراد المنتجات</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
+              {/* Category Selection */}
+              <div>
+                <Label className="mb-2 block">تصنيف المنتجات المستوردة</Label>
+                <Select
+                  value={importCategoryId}
+                  onValueChange={setImportCategoryId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="اختر التصنيف للمنتجات" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories?.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>{cat.name_ar}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">سيتم تطبيق هذا التصنيف على جميع المنتجات المستوردة</p>
+              </div>
+
               {/* Import Mode Tabs */}
               <div className="flex gap-2">
                 <Button
