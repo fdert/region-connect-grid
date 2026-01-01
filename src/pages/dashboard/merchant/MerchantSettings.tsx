@@ -8,10 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Store, Phone, MapPin, Clock, DollarSign, Loader2, Save, Image, Upload, Tag, Navigation, Truck, Link } from "lucide-react";
 import { parseCoordinatesFromUrl } from "@/lib/distance";
 import { toast } from "sonner";
+import MultiCategorySelect from "@/components/merchant/MultiCategorySelect";
 
 interface Category {
   id: string;
@@ -30,7 +30,7 @@ interface StoreForm {
   is_active: boolean;
   logo_url: string;
   cover_url: string;
-  category_id: string;
+  category_ids: string[];
   location_lat: number | null;
   location_lng: number | null;
   location_url: string;
@@ -52,7 +52,7 @@ const MerchantSettings = () => {
     is_active: false,
     logo_url: "",
     cover_url: "",
-    category_id: "",
+    category_ids: [],
     location_lat: null,
     location_lng: null,
     location_url: "",
@@ -84,21 +84,35 @@ const MerchantSettings = () => {
     },
   });
 
-  // Get current user's store
+  // Get current user's store with categories
   const { data: store, isLoading } = useQuery({
     queryKey: ["merchant-store-settings"],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
       
-      const { data, error } = await supabase
+      const { data: storeData, error } = await supabase
         .from("stores")
         .select("*")
         .eq("merchant_id", user.id)
         .maybeSingle();
       
       if (error) throw error;
-      return data;
+      
+      // Fetch store categories
+      if (storeData) {
+        const { data: storeCategories } = await supabase
+          .from("store_categories")
+          .select("category_id")
+          .eq("store_id", storeData.id);
+        
+        return {
+          ...storeData,
+          category_ids: storeCategories?.map(sc => sc.category_id) || []
+        };
+      }
+      
+      return storeData;
     },
   });
 
@@ -116,7 +130,7 @@ const MerchantSettings = () => {
         is_active: store.is_active || false,
         logo_url: store.logo_url || "",
         cover_url: store.cover_url || "",
-        category_id: (store as any).category_id || "",
+        category_ids: (store as any).category_ids || [],
         location_lat: (store as any).location_lat || null,
         location_lng: (store as any).location_lng || null,
         location_url: (store as any).location_url || "",
@@ -233,7 +247,7 @@ const MerchantSettings = () => {
           is_active: data.is_active,
           logo_url: logoUrl || null,
           cover_url: coverUrl || null,
-          category_id: data.category_id || null,
+          category_id: data.category_ids[0] || null,
           location_lat: data.location_lat,
           location_lng: data.location_lng,
           location_url: data.location_url || null,
@@ -244,6 +258,18 @@ const MerchantSettings = () => {
         .eq("id", store.id);
       
       if (error) throw error;
+
+      // Update store categories
+      await supabase.from("store_categories").delete().eq("store_id", store.id);
+      
+      if (data.category_ids.length > 0) {
+        const categoryInserts = data.category_ids.map(categoryId => ({
+          store_id: store.id,
+          category_id: categoryId,
+        }));
+        
+        await supabase.from("store_categories").insert(categoryInserts);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["merchant-store-settings"] });
@@ -320,22 +346,16 @@ const MerchantSettings = () => {
                 />
               </div>
               <div>
-                <Label>تصنيف المتجر</Label>
-                <Select
-                  value={form.category_id}
-                  onValueChange={(value) => setForm({ ...form, category_id: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="اختر تصنيف المتجر" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name_ar}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>تصنيفات المتجر</Label>
+                <MultiCategorySelect
+                  categories={categories}
+                  selectedIds={form.category_ids}
+                  onChange={(ids) => setForm({ ...form, category_ids: ids })}
+                  placeholder="اختر تصنيفات المتجر"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  يمكنك اختيار أكثر من تصنيف للمتجر
+                </p>
               </div>
               <div>
                 <Label>وصف المتجر</Label>

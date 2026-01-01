@@ -37,9 +37,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Plus, Package, Edit, Trash2, Loader2, Upload, Download, Image, MoreVertical, FileSpreadsheet, ClipboardPaste } from "lucide-react";
+import { Search, Plus, Package, Edit, Trash2, Loader2, Upload, Download, Image, MoreVertical, FileSpreadsheet, ClipboardPaste, Link } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import UrlImportDialog from "@/components/merchant/UrlImportDialog";
 
 interface ProductForm {
   name: string;
@@ -56,6 +57,7 @@ const MerchantProducts = () => {
   const [search, setSearch] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isUrlImportDialogOpen, setIsUrlImportDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
@@ -520,9 +522,13 @@ const MerchantProducts = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setIsUrlImportDialogOpen(true)}>
+                  <Link className="w-4 h-4 ml-2" />
+                  استيراد من رابط ويب
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setIsImportDialogOpen(true)}>
                   <Upload className="w-4 h-4 ml-2" />
-                  استيراد منتجات
+                  استيراد من ملف Excel
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleExport}>
                   <Download className="w-4 h-4 ml-2" />
@@ -1010,6 +1016,16 @@ const MerchantProducts = () => {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* URL Import Dialog */}
+        {store && (
+          <UrlImportDialog
+            isOpen={isUrlImportDialogOpen}
+            onClose={() => setIsUrlImportDialogOpen(false)}
+            storeId={store.id}
+            categories={categories || []}
+          />
+        )}
       </div>
     </DashboardLayout>
   );

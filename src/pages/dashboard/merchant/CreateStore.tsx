@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Store, Phone, MapPin, DollarSign, Loader2, ArrowLeft, Image, Upload, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
+import MultiCategorySelect from "@/components/merchant/MultiCategorySelect";
 
 interface Category {
   id: string;
@@ -28,7 +28,7 @@ interface StoreForm {
   min_order_amount: number;
   logo_url: string;
   cover_url: string;
-  category_id: string;
+  category_ids: string[];
 }
 
 const CreateStore = () => {
@@ -43,7 +43,7 @@ const CreateStore = () => {
     min_order_amount: 0,
     logo_url: "",
     cover_url: "",
-    category_id: "",
+    category_ids: [],
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>("");
@@ -153,7 +153,8 @@ const CreateStore = () => {
         setIsUploading(false);
       }
       
-      const { error } = await supabase
+      // Create store
+      const { data: newStore, error } = await supabase
         .from("stores")
         .insert({
           merchant_id: user.id,
@@ -166,12 +167,24 @@ const CreateStore = () => {
           min_order_amount: data.min_order_amount,
           logo_url: logoUrl || null,
           cover_url: coverUrl || null,
-          category_id: data.category_id || null,
+          category_id: data.category_ids[0] || null,
           is_active: false,
           is_approved: false,
-        });
+        })
+        .select()
+        .single();
       
       if (error) throw error;
+
+      // Insert store categories
+      if (data.category_ids.length > 0 && newStore) {
+        const categoryInserts = data.category_ids.map(categoryId => ({
+          store_id: newStore.id,
+          category_id: categoryId,
+        }));
+        
+        await supabase.from("store_categories").insert(categoryInserts);
+      }
     },
     onSuccess: () => {
       toast.success("تم إنشاء المتجر بنجاح! في انتظار موافقة الإدارة");
@@ -254,22 +267,16 @@ const CreateStore = () => {
                 />
               </div>
               <div>
-                <Label>تصنيف المتجر *</Label>
-                <Select
-                  value={form.category_id}
-                  onValueChange={(value) => setForm({ ...form, category_id: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="اختر تصنيف المتجر" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name_ar}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>تصنيفات المتجر *</Label>
+                <MultiCategorySelect
+                  categories={categories}
+                  selectedIds={form.category_ids}
+                  onChange={(ids) => setForm({ ...form, category_ids: ids })}
+                  placeholder="اختر تصنيفات المتجر"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  يمكنك اختيار أكثر من تصنيف للمتجر
+                </p>
               </div>
               <div>
                 <Label>وصف المتجر</Label>

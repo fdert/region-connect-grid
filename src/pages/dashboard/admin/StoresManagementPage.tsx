@@ -36,6 +36,7 @@ import {
   Edit, Navigation, Loader2, Truck, Phone, DollarSign, Link 
 } from "lucide-react";
 import { parseCoordinatesFromUrl } from "@/lib/distance";
+import MultiCategorySelect from "@/components/merchant/MultiCategorySelect";
 
 interface StoreFormData {
   name: string;
@@ -53,7 +54,7 @@ interface StoreFormData {
   base_delivery_fee: number;
   price_per_km: number;
   free_delivery_radius_km: number;
-  category_id: string;
+  category_ids: string[];
 }
 
 export default function StoresManagementPage() {
@@ -77,7 +78,7 @@ export default function StoresManagementPage() {
     base_delivery_fee: 5,
     price_per_km: 2,
     free_delivery_radius_km: 0,
-    category_id: "",
+    category_ids: [],
   });
   
   const queryClient = useQueryClient();
@@ -111,26 +112,35 @@ export default function StoresManagementPage() {
 
   // Update form when editing store changes
   useEffect(() => {
-    if (editingStore) {
-      setForm({
-        name: editingStore.name || "",
-        description: editingStore.description || "",
-        phone: editingStore.phone || "",
-        address: editingStore.address || "",
-        city: editingStore.city || "",
-        delivery_fee: editingStore.delivery_fee || 0,
-        min_order_amount: editingStore.min_order_amount || 0,
-        is_active: editingStore.is_active || false,
-        is_approved: editingStore.is_approved || false,
-        location_lat: editingStore.location_lat || null,
-        location_lng: editingStore.location_lng || null,
-        location_url: editingStore.location_url || "",
-        base_delivery_fee: editingStore.base_delivery_fee || 5,
-        price_per_km: editingStore.price_per_km || 2,
-        free_delivery_radius_km: editingStore.free_delivery_radius_km || 0,
-        category_id: editingStore.category_id || "",
-      });
-    }
+    const loadStoreCategories = async () => {
+      if (editingStore) {
+        // Fetch store categories
+        const { data: storeCategories } = await supabase
+          .from("store_categories")
+          .select("category_id")
+          .eq("store_id", editingStore.id);
+        
+        setForm({
+          name: editingStore.name || "",
+          description: editingStore.description || "",
+          phone: editingStore.phone || "",
+          address: editingStore.address || "",
+          city: editingStore.city || "",
+          delivery_fee: editingStore.delivery_fee || 0,
+          min_order_amount: editingStore.min_order_amount || 0,
+          is_active: editingStore.is_active || false,
+          is_approved: editingStore.is_approved || false,
+          location_lat: editingStore.location_lat || null,
+          location_lng: editingStore.location_lng || null,
+          location_url: editingStore.location_url || "",
+          base_delivery_fee: editingStore.base_delivery_fee || 5,
+          price_per_km: editingStore.price_per_km || 2,
+          free_delivery_radius_km: editingStore.free_delivery_radius_km || 0,
+          category_ids: storeCategories?.map(sc => sc.category_id) || [],
+        });
+      }
+    };
+    loadStoreCategories();
   }, [editingStore]);
 
   const toggleApprovalMutation = useMutation({
@@ -163,12 +173,26 @@ export default function StoresManagementPage() {
 
   const updateStoreMutation = useMutation({
     mutationFn: async (data: StoreFormData & { id: string }) => {
-      const { id, ...updateData } = data;
+      const { id, category_ids, ...updateData } = data;
       const { error } = await supabase
         .from("stores")
-        .update(updateData as any)
+        .update({
+          ...updateData,
+          category_id: category_ids[0] || null,
+        } as any)
         .eq("id", id);
       if (error) throw error;
+
+      // Update store categories
+      await supabase.from("store_categories").delete().eq("store_id", id);
+      
+      if (category_ids.length > 0) {
+        const categoryInserts = category_ids.map(categoryId => ({
+          store_id: id,
+          category_id: categoryId,
+        }));
+        await supabase.from("store_categories").insert(categoryInserts);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
@@ -448,22 +472,16 @@ export default function StoresManagementPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>التصنيف</Label>
-                  <Select
-                    value={form.category_id}
-                    onValueChange={(value) => setForm({ ...form, category_id: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="اختر التصنيف" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((cat: any) => (
-                        <SelectItem key={cat.id} value={cat.id}>
-                          {cat.name_ar}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label>تصنيفات المتجر</Label>
+                  <MultiCategorySelect
+                    categories={categories}
+                    selectedIds={form.category_ids}
+                    onChange={(ids) => setForm({ ...form, category_ids: ids })}
+                    placeholder="اختر تصنيفات المتجر"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    يمكنك اختيار أكثر من تصنيف
+                  </p>
                 </div>
               </div>
               <div className="space-y-2">
