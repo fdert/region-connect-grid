@@ -12,6 +12,7 @@ interface CourierDeliveryMapProps {
   customerLocation?: { lat: number; lng: number } | null;
   courierLocation?: { lat: number; lng: number } | null;
   storeName?: string;
+  destinationType?: 'store' | 'customer';
 }
 
 // Traffic level colors
@@ -47,7 +48,8 @@ export default function CourierDeliveryMap({
   storeLocation, 
   customerLocation,
   courierLocation: initialCourierLocation,
-  storeName 
+  storeName,
+  destinationType = 'customer'
 }: CourierDeliveryMapProps) {
   const [courierLocation, setCourierLocation] = useState<{ lat: number; lng: number } | null>(initialCourierLocation || null);
   const [estimatedMinutes, setEstimatedMinutes] = useState<number | null>(null);
