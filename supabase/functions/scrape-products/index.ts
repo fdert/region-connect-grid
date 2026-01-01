@@ -38,7 +38,7 @@ serve(async (req) => {
 
     console.log('Scraping products from URL:', formattedUrl);
 
-    // Use Firecrawl to scrape with JSON extraction - correct v2 format
+    // Use Firecrawl to scrape with extract format - formats must be string array
     const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
       headers: {
@@ -47,10 +47,9 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         url: formattedUrl,
-        formats: [
-          {
-            type: 'json',
-            prompt: `Extract all products from this page. For each product, extract:
+        formats: ['extract'],
+        extract: {
+          prompt: `Extract all products from this page. For each product, extract:
 - name: Product name/title (required)
 - description: Product description
 - price: Current price as a number (no currency symbols)
@@ -59,29 +58,28 @@ serve(async (req) => {
 - stock: Stock quantity if available, default to 100
 
 Return as an array of product objects. Extract as many products as possible from the page.`,
-            schema: {
-              type: 'object',
-              properties: {
-                products: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      name: { type: 'string' },
-                      description: { type: 'string' },
-                      price: { type: 'number' },
-                      compare_price: { type: 'number' },
-                      image_url: { type: 'string' },
-                      stock: { type: 'number' }
-                    },
-                    required: ['name']
-                  }
+          schema: {
+            type: 'object',
+            properties: {
+              products: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    name: { type: 'string' },
+                    description: { type: 'string' },
+                    price: { type: 'number' },
+                    compare_price: { type: 'number' },
+                    image_url: { type: 'string' },
+                    stock: { type: 'number' }
+                  },
+                  required: ['name']
                 }
-              },
-              required: ['products']
-            }
+              }
+            },
+            required: ['products']
           }
-        ],
+        },
         onlyMainContent: true,
         waitFor: 3000,
       }),
@@ -102,18 +100,8 @@ Return as an array of product objects. Extract as many products as possible from
     // Extract products from response - handle multiple response formats
     let products = [];
     
-    // Try json format first (v2 API)
-    if (data.data?.json?.products) {
-      products = data.data.json.products;
-    } else if (data.json?.products) {
-      products = data.json.products;
-    } else if (Array.isArray(data.data?.json)) {
-      products = data.data.json;
-    } else if (Array.isArray(data.json)) {
-      products = data.json;
-    }
-    // Fallback to extract format
-    else if (data.data?.extract?.products) {
+    // Try extract format first (primary expected format)
+    if (data.data?.extract?.products) {
       products = data.data.extract.products;
     } else if (data.extract?.products) {
       products = data.extract.products;
@@ -121,6 +109,16 @@ Return as an array of product objects. Extract as many products as possible from
       products = data.data.extract;
     } else if (Array.isArray(data.extract)) {
       products = data.extract;
+    }
+    // Fallback to json format
+    else if (data.data?.json?.products) {
+      products = data.data.json.products;
+    } else if (data.json?.products) {
+      products = data.json.products;
+    } else if (Array.isArray(data.data?.json)) {
+      products = data.data.json;
+    } else if (Array.isArray(data.json)) {
+      products = data.json;
     }
 
     console.log('Extracted products count:', products.length);
