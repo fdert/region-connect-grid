@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2, AlertCircle, ExternalLink, Clock, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { calculateRoadDistance, getRouteGeometry } from "@/lib/distance";
+import { useMapSettings } from "@/hooks/useMapSettings";
 import "leaflet/dist/leaflet.css";
 
 interface OrderTrackingMapProps {
@@ -31,6 +32,9 @@ export default function OrderTrackingMap({
   const routeLineRef = useRef<any>(null);
   const leafletRef = useRef<any>(null);
   const etaIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Get map settings
+  const { isMapbox, mapboxApiKey, isLoading: isMapSettingsLoading } = useMapSettings();
 
   // Validate coordinates
   const isValidCoord = useCallback((lat: number, lng: number) => {
@@ -337,7 +341,7 @@ export default function OrderTrackingMap({
 
   // Initialize map
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading || isMapSettingsLoading) return;
     
     const initMap = async () => {
       if (!mapContainerRef.current) return;
@@ -381,11 +385,25 @@ export default function OrderTrackingMap({
           zoomControl: true
         });
 
-        // Add tile layer
-        L.default.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          attribution: '&copy; OpenStreetMap',
-          maxZoom: 19
-        }).addTo(map);
+        // Add tile layer based on selected provider
+        if (isMapbox && mapboxApiKey) {
+          // Use Mapbox tiles
+          L.default.tileLayer(
+            `https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}?access_token=${mapboxApiKey}`,
+            {
+              attribution: '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a>',
+              maxZoom: 19,
+              tileSize: 512,
+              zoomOffset: -1
+            }
+          ).addTo(map);
+        } else {
+          // Use OpenStreetMap tiles (default - free)
+          L.default.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: '&copy; OpenStreetMap',
+            maxZoom: 19
+          }).addTo(map);
+        }
 
         mapInstanceRef.current = map;
 
@@ -425,7 +443,7 @@ export default function OrderTrackingMap({
         mapInstanceRef.current = null;
       }
     };
-  }, [isLoading, storeLocation, customerLocation, isValidCoord]);
+  }, [isLoading, isMapSettingsLoading, isMapbox, mapboxApiKey, storeLocation, customerLocation, isValidCoord]);
 
   // Update markers when courier location or route changes
   useEffect(() => {
