@@ -12,6 +12,35 @@ interface RouteRequest {
   destination_lng: number;
 }
 
+interface Maneuver {
+  type: string;
+  modifier?: string;
+  location: [number, number];
+  bearing_before?: number;
+  bearing_after?: number;
+}
+
+interface Step {
+  distance: number;
+  duration: number;
+  geometry: {
+    coordinates: [number, number][];
+    type: string;
+  };
+  maneuver: Maneuver;
+  name: string;
+  mode: string;
+  ref?: string;
+  destinations?: string;
+}
+
+interface Leg {
+  steps: Step[];
+  summary: string;
+  duration: number;
+  distance: number;
+}
+
 interface OSRMResponse {
   code: string;
   routes?: Array<{
@@ -21,25 +50,7 @@ interface OSRMResponse {
       coordinates: [number, number][];
       type: string;
     };
-    legs?: Array<{
-      steps?: Array<{
-        distance: number;
-        duration: number;
-        geometry: {
-          coordinates: [number, number][];
-        };
-        maneuver: {
-          type: string;
-          modifier?: string;
-          location: [number, number];
-        };
-        name: string;
-        mode: string;
-      }>;
-      summary: string;
-      duration: number;
-      distance: number;
-    }>;
+    legs?: Leg[];
   }>;
 }
 
@@ -68,6 +79,73 @@ interface TrafficSegment {
   duration: number; // seconds
   distance: number; // meters
 }
+
+// Direction instruction interface
+interface DirectionInstruction {
+  type: string;
+  modifier?: string;
+  instruction: string;
+  distance: number; // meters
+  duration: number; // seconds
+  streetName: string;
+  location: [number, number]; // [lat, lng]
+  bearing?: number;
+}
+
+// Convert maneuver type and modifier to Arabic instruction
+const getArabicInstruction = (type: string, modifier?: string, streetName?: string): string => {
+  const street = streetName && streetName !== '' ? ` إلى ${streetName}` : '';
+  
+  const maneuverTypes: { [key: string]: string } = {
+    'depart': `ابدأ الرحلة${street}`,
+    'arrive': 'لقد وصلت إلى وجهتك',
+    'turn': modifier === 'left' ? `انعطف يساراً${street}` :
+            modifier === 'right' ? `انعطف يميناً${street}` :
+            modifier === 'slight left' ? `انحرف قليلاً لليسار${street}` :
+            modifier === 'slight right' ? `انحرف قليلاً لليمين${street}` :
+            modifier === 'sharp left' ? `انعطف بشدة لليسار${street}` :
+            modifier === 'sharp right' ? `انعطف بشدة لليمين${street}` :
+            modifier === 'uturn' ? `استدر للخلف${street}` :
+            `تابع${street}`,
+    'merge': modifier === 'left' ? `اندمج يساراً${street}` :
+             modifier === 'right' ? `اندمج يميناً${street}` :
+             `اندمج${street}`,
+    'on ramp': `ادخل إلى المنحدر${street}`,
+    'off ramp': `اخرج من المنحدر${street}`,
+    'fork': modifier === 'left' ? `خذ المفترق الأيسر${street}` :
+            modifier === 'right' ? `خذ المفترق الأيمن${street}` :
+            `تابع في المفترق${street}`,
+    'end of road': modifier === 'left' ? `في نهاية الطريق، انعطف يساراً${street}` :
+                   modifier === 'right' ? `في نهاية الطريق، انعطف يميناً${street}` :
+                   `نهاية الطريق${street}`,
+    'continue': `تابع السير${street}`,
+    'roundabout': `ادخل الدوار${street}`,
+    'rotary': `ادخل الدوار${street}`,
+    'roundabout turn': modifier === 'left' ? `انعطف يساراً في الدوار${street}` :
+                       modifier === 'right' ? `انعطف يميناً في الدوار${street}` :
+                       `تابع في الدوار${street}`,
+    'exit roundabout': `اخرج من الدوار${street}`,
+    'exit rotary': `اخرج من الدوار${street}`,
+    'notification': `تنبيه${street}`,
+    'new name': `الطريق يتغير إلى${street}`,
+  };
+
+  return maneuverTypes[type] || `تابع${street}`;
+};
+
+// Get direction icon based on maneuver type
+const getManeuverIcon = (type: string, modifier?: string): string => {
+  if (type === 'arrive') return '🏁';
+  if (type === 'depart') return '🚀';
+  if (type === 'roundabout' || type === 'rotary') return '🔄';
+  
+  if (modifier?.includes('left')) return '⬅️';
+  if (modifier?.includes('right')) return '➡️';
+  if (modifier === 'uturn') return '↩️';
+  if (modifier === 'straight') return '⬆️';
+  
+  return '➡️';
+};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -133,23 +211,17 @@ serve(async (req) => {
     const adjustedDurationMinutes = Math.round(baseDurationMinutes * traffic.multiplier);
 
     // Generate traffic segments for visualization
-    // Simulate varying traffic conditions along the route
     const trafficSegments: TrafficSegment[] = [];
-    const segmentSize = Math.ceil(coordinates.length / 5); // Divide route into ~5 segments
-    
-    const congestionLevels: ('low' | 'moderate' | 'heavy' | 'severe')[] = ['low', 'moderate', 'heavy', 'severe'];
+    const segmentSize = Math.ceil(coordinates.length / 5);
     
     for (let i = 0; i < coordinates.length - 1; i += segmentSize) {
       const endIndex = Math.min(i + segmentSize, coordinates.length);
       const segmentCoords = coordinates.slice(i, endIndex + 1);
       
-      // Simulate traffic level based on position in route
-      // Middle segments tend to have more traffic
       let congestionLevel: 'low' | 'moderate' | 'heavy' | 'severe';
       const normalizedPosition = (i + segmentSize / 2) / coordinates.length;
       
       if (traffic.level === 'heavy') {
-        // During peak hours, more heavy/severe segments
         if (normalizedPosition > 0.3 && normalizedPosition < 0.7) {
           congestionLevel = Math.random() > 0.5 ? 'severe' : 'heavy';
         } else {
@@ -174,7 +246,36 @@ serve(async (req) => {
       });
     }
 
-    console.log('Route has', coordinates.length, 'points, distance:', distanceKm, 'km, traffic:', traffic.level);
+    // Extract turn-by-turn directions from steps
+    const directions: DirectionInstruction[] = [];
+    
+    if (route.legs && route.legs.length > 0) {
+      const leg = route.legs[0];
+      if (leg.steps && leg.steps.length > 0) {
+        for (const step of leg.steps) {
+          const instruction = getArabicInstruction(
+            step.maneuver.type,
+            step.maneuver.modifier,
+            step.name
+          );
+          
+          const icon = getManeuverIcon(step.maneuver.type, step.maneuver.modifier);
+          
+          directions.push({
+            type: step.maneuver.type,
+            modifier: step.maneuver.modifier,
+            instruction: `${icon} ${instruction}`,
+            distance: Math.round(step.distance),
+            duration: Math.round(step.duration),
+            streetName: step.name || '',
+            location: [step.maneuver.location[1], step.maneuver.location[0]], // Convert to [lat, lng]
+            bearing: step.maneuver.bearing_after
+          });
+        }
+      }
+    }
+
+    console.log('Route has', coordinates.length, 'points, distance:', distanceKm, 'km, traffic:', traffic.level, 'directions:', directions.length);
 
     return new Response(
       JSON.stringify({ 
@@ -185,6 +286,7 @@ serve(async (req) => {
         base_duration_minutes: Math.round(baseDurationMinutes),
         traffic_level: traffic.level,
         traffic_segments: trafficSegments,
+        directions,
         summary: route.legs?.[0]?.summary || ''
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

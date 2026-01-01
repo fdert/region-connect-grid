@@ -50,6 +50,18 @@ export interface TrafficSegment {
   distance: number;
 }
 
+// Direction instruction for turn-by-turn navigation
+export interface DirectionInstruction {
+  type: string;
+  modifier?: string;
+  instruction: string;
+  distance: number; // meters
+  duration: number; // seconds
+  streetName: string;
+  location: [number, number]; // [lat, lng]
+  bearing?: number;
+}
+
 export interface RouteGeometryResult {
   success: true;
   coordinates: [number, number][];
@@ -58,6 +70,7 @@ export interface RouteGeometryResult {
   base_duration_minutes?: number;
   traffic_level?: 'low' | 'moderate' | 'heavy' | 'severe';
   traffic_segments?: TrafficSegment[];
+  directions?: DirectionInstruction[];
   summary?: string;
 }
 
