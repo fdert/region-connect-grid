@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Star, Store, Truck, Loader2, CheckCircle, Home } from "lucide-react";
+import { Star, Store, Truck, Loader2, CheckCircle, Home, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -17,6 +17,7 @@ const ReviewOrder = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [invalidLink, setInvalidLink] = useState(false);
   
   // Store review
   const [storeRating, setStoreRating] = useState(0);
@@ -31,7 +32,7 @@ const ReviewOrder = () => {
       fetchOrder();
     } else {
       setIsLoading(false);
-      toast.error("رابط التقييم غير صحيح");
+      setInvalidLink(true);
     }
   }, [orderId]);
 
@@ -40,7 +41,7 @@ const ReviewOrder = () => {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!orderId || !uuidRegex.test(orderId)) {
       setIsLoading(false);
-      toast.error("رابط التقييم غير صحيح");
+      setInvalidLink(true);
       return;
     }
 
@@ -151,6 +152,28 @@ const ReviewOrder = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (invalidLink || !order) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="max-w-md w-full text-center">
+          <CardContent className="pt-8 pb-8">
+            <div className="w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-10 h-10 text-destructive" />
+            </div>
+            <h1 className="text-2xl font-bold mb-2">رابط التقييم غير صحيح</h1>
+            <p className="text-muted-foreground mb-6">
+              يرجى التأكد من استخدام الرابط الصحيح المرسل إليك عبر الواتساب
+            </p>
+            <Button onClick={() => navigate('/')} className="w-full">
+              <Home className="w-4 h-4 ml-2" />
+              العودة للرئيسية
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
