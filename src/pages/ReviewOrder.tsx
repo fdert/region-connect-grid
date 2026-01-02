@@ -67,19 +67,24 @@ const ReviewOrder = () => {
     setIsSubmitting(true);
 
     try {
-      // Submit store review
+      // Submit store review - use customer_id from order for guests
       if (storeRating > 0 && order.store?.id) {
+        const userId = user?.id || order.customer_id;
+        
         const { error: storeError } = await supabase
           .from('store_reviews')
           .insert({
             store_id: order.store.id,
             order_id: order.id,
-            user_id: user?.id || order.customer_id,
+            user_id: userId,
             rating: storeRating,
             comment: storeComment || null,
           });
 
-        if (storeError) throw storeError;
+        if (storeError) {
+          console.error('Store review error:', storeError);
+          throw storeError;
+        }
 
         // Update store rating
         const { data: reviews } = await supabase
@@ -99,19 +104,24 @@ const ReviewOrder = () => {
         }
       }
 
-      // Submit courier review
+      // Submit courier review - use customer_id from order for guests
       if (courierRating > 0 && order.courier_id) {
+        const customerId = user?.id || order.customer_id;
+        
         const { error: courierError } = await supabase
           .from('courier_reviews')
           .insert({
             courier_id: order.courier_id,
             order_id: order.id,
-            customer_id: user?.id || order.customer_id,
+            customer_id: customerId,
             rating: courierRating,
             comment: courierComment || null,
           });
 
-        if (courierError) throw courierError;
+        if (courierError) {
+          console.error('Courier review error:', courierError);
+          throw courierError;
+        }
       }
 
       setSubmitted(true);
