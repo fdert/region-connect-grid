@@ -42,6 +42,7 @@ import HomeContentPage from "./pages/dashboard/admin/HomeContentPage";
 import StaticPagesPage from "./pages/dashboard/admin/StaticPagesPage";
 import DeliverySettingsPage from "./pages/dashboard/admin/DeliverySettingsPage";
 import AccountingPage from "./pages/dashboard/admin/AccountingPage";
+import ReviewsPage from "./pages/dashboard/admin/ReviewsPage";
 import SpecialServiceOrder from "./pages/SpecialServiceOrder";
 
 // Merchant Dashboard Pages
@@ -126,6 +127,7 @@ const AppContent = () => {
         <Route path="/admin/static-pages" element={<StaticPagesPage />} />
         <Route path="/admin/delivery-settings" element={<DeliverySettingsPage />} />
         <Route path="/admin/accounting" element={<AccountingPage />} />
+        <Route path="/admin/reviews" element={<ReviewsPage />} />
         
         {/* Special Services */}
         <Route path="/special-services/:id" element={<SpecialServiceOrder />} />
