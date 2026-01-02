@@ -27,10 +27,23 @@ const ReviewOrder = () => {
   const [courierComment, setCourierComment] = useState("");
 
   useEffect(() => {
-    fetchOrder();
+    if (orderId && orderId !== ':orderId') {
+      fetchOrder();
+    } else {
+      setIsLoading(false);
+      toast.error("رابط التقييم غير صحيح");
+    }
   }, [orderId]);
 
   const fetchOrder = async () => {
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!orderId || !uuidRegex.test(orderId)) {
+      setIsLoading(false);
+      toast.error("رابط التقييم غير صحيح");
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('orders')
