@@ -168,6 +168,47 @@ export type Database = {
           },
         ]
       }
+      chart_of_accounts: {
+        Row: {
+          account_type: string
+          code: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          name_ar: string
+          parent_id: string | null
+        }
+        Insert: {
+          account_type: string
+          code: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          name_ar: string
+          parent_id?: string | null
+        }
+        Update: {
+          account_type?: string
+          code?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          name_ar?: string
+          parent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chart_of_accounts_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       commission_settings: {
         Row: {
           applies_to: string
@@ -303,6 +344,234 @@ export type Database = {
         }
         Relationships: []
       }
+      journal_entries: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          entry_date: string | null
+          entry_number: string
+          id: string
+          reference_id: string | null
+          reference_type: string | null
+          total_credit: number
+          total_debit: number
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          entry_date?: string | null
+          entry_number: string
+          id?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          total_credit?: number
+          total_debit?: number
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          entry_date?: string | null
+          entry_number?: string
+          id?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          total_credit?: number
+          total_debit?: number
+        }
+        Relationships: []
+      }
+      journal_entry_lines: {
+        Row: {
+          account_id: string
+          created_at: string | null
+          credit_amount: number | null
+          debit_amount: number | null
+          description: string | null
+          id: string
+          journal_entry_id: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string | null
+          credit_amount?: number | null
+          debit_amount?: number | null
+          description?: string | null
+          id?: string
+          journal_entry_id: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string | null
+          credit_amount?: number | null
+          debit_amount?: number | null
+          description?: string | null
+          id?: string
+          journal_entry_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_entry_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entry_lines_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_item_details: {
+        Row: {
+          commission_ex_vat: number
+          commission_rate: number
+          commission_total: number
+          commission_vat: number
+          created_at: string | null
+          id: string
+          is_refunded: boolean | null
+          line_subtotal_ex_vat: number
+          line_total: number
+          line_vat_amount: number
+          merchant_payout: number
+          order_id: string
+          product_id: string | null
+          product_name: string
+          quantity: number
+          refunded_at: string | null
+          unit_price_ex_vat: number
+          vat_rate: number
+        }
+        Insert: {
+          commission_ex_vat: number
+          commission_rate?: number
+          commission_total: number
+          commission_vat: number
+          created_at?: string | null
+          id?: string
+          is_refunded?: boolean | null
+          line_subtotal_ex_vat: number
+          line_total: number
+          line_vat_amount: number
+          merchant_payout: number
+          order_id: string
+          product_id?: string | null
+          product_name: string
+          quantity?: number
+          refunded_at?: string | null
+          unit_price_ex_vat: number
+          vat_rate?: number
+        }
+        Update: {
+          commission_ex_vat?: number
+          commission_rate?: number
+          commission_total?: number
+          commission_vat?: number
+          created_at?: string | null
+          id?: string
+          is_refunded?: boolean | null
+          line_subtotal_ex_vat?: number
+          line_total?: number
+          line_vat_amount?: number
+          merchant_payout?: number
+          order_id?: string
+          product_id?: string | null
+          product_name?: string
+          quantity?: number
+          refunded_at?: string | null
+          unit_price_ex_vat?: number
+          vat_rate?: number
+        }
+        Relationships: []
+      }
+      order_refunds: {
+        Row: {
+          created_at: string | null
+          id: string
+          journal_entry_id: string | null
+          order_id: string
+          order_item_detail_id: string | null
+          original_commission_ex_vat: number
+          original_commission_total: number
+          original_commission_vat: number
+          original_line_subtotal_ex_vat: number
+          original_line_total: number
+          original_line_vat_amount: number
+          original_merchant_payout: number
+          processed_at: string | null
+          processed_by: string | null
+          reason: string | null
+          refund_number: string
+          refund_type: string
+          settlement_adjustment_id: string | null
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          order_id: string
+          order_item_detail_id?: string | null
+          original_commission_ex_vat: number
+          original_commission_total: number
+          original_commission_vat: number
+          original_line_subtotal_ex_vat: number
+          original_line_total: number
+          original_line_vat_amount: number
+          original_merchant_payout: number
+          processed_at?: string | null
+          processed_by?: string | null
+          reason?: string | null
+          refund_number: string
+          refund_type: string
+          settlement_adjustment_id?: string | null
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          order_id?: string
+          order_item_detail_id?: string | null
+          original_commission_ex_vat?: number
+          original_commission_total?: number
+          original_commission_vat?: number
+          original_line_subtotal_ex_vat?: number
+          original_line_total?: number
+          original_line_vat_amount?: number
+          original_merchant_payout?: number
+          processed_at?: string | null
+          processed_by?: string | null
+          reason?: string | null
+          refund_number?: string
+          refund_type?: string
+          settlement_adjustment_id?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_refunds_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_refunds_order_item_detail_id_fkey"
+            columns: ["order_item_detail_id"]
+            isOneToOne: false
+            referencedRelation: "order_item_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_timeline: {
         Row: {
           created_at: string | null
@@ -351,9 +620,11 @@ export type Database = {
           customer_phone: string | null
           delivery_address: string | null
           delivery_fee: number | null
+          delivery_fee_ex_vat: number | null
           delivery_notes: string | null
           id: string
           items: Json
+          journal_entry_id: string | null
           order_number: string
           paid: boolean | null
           payment_confirmed: boolean | null
@@ -364,9 +635,15 @@ export type Database = {
           status: Database["public"]["Enums"]["order_status"] | null
           store_id: string
           subtotal: number
+          subtotal_ex_vat: number | null
           tax_amount: number | null
           total: number
+          total_commission_ex_vat: number | null
+          total_commission_vat: number | null
+          total_merchant_payout: number | null
           updated_at: string | null
+          vat_on_delivery: number | null
+          vat_on_products: number | null
         }
         Insert: {
           amount_received?: number | null
@@ -380,9 +657,11 @@ export type Database = {
           customer_phone?: string | null
           delivery_address?: string | null
           delivery_fee?: number | null
+          delivery_fee_ex_vat?: number | null
           delivery_notes?: string | null
           id?: string
           items: Json
+          journal_entry_id?: string | null
           order_number: string
           paid?: boolean | null
           payment_confirmed?: boolean | null
@@ -393,9 +672,15 @@ export type Database = {
           status?: Database["public"]["Enums"]["order_status"] | null
           store_id: string
           subtotal: number
+          subtotal_ex_vat?: number | null
           tax_amount?: number | null
           total: number
+          total_commission_ex_vat?: number | null
+          total_commission_vat?: number | null
+          total_merchant_payout?: number | null
           updated_at?: string | null
+          vat_on_delivery?: number | null
+          vat_on_products?: number | null
         }
         Update: {
           amount_received?: number | null
@@ -409,9 +694,11 @@ export type Database = {
           customer_phone?: string | null
           delivery_address?: string | null
           delivery_fee?: number | null
+          delivery_fee_ex_vat?: number | null
           delivery_notes?: string | null
           id?: string
           items?: Json
+          journal_entry_id?: string | null
           order_number?: string
           paid?: boolean | null
           payment_confirmed?: boolean | null
@@ -422,11 +709,24 @@ export type Database = {
           status?: Database["public"]["Enums"]["order_status"] | null
           store_id?: string
           subtotal?: number
+          subtotal_ex_vat?: number | null
           tax_amount?: number | null
           total?: number
+          total_commission_ex_vat?: number | null
+          total_commission_vat?: number | null
+          total_merchant_payout?: number | null
           updated_at?: string | null
+          vat_on_delivery?: number | null
+          vat_on_products?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_store_id_fkey"
             columns: ["store_id"]
@@ -759,6 +1059,7 @@ export type Database = {
           id: string
           net_amount: number
           order_id: string | null
+          order_item_detail_id: string | null
           order_total: number
           payment_gateway_fee: number | null
           platform_commission: number | null
@@ -771,6 +1072,7 @@ export type Database = {
           id?: string
           net_amount: number
           order_id?: string | null
+          order_item_detail_id?: string | null
           order_total: number
           payment_gateway_fee?: number | null
           platform_commission?: number | null
@@ -783,6 +1085,7 @@ export type Database = {
           id?: string
           net_amount?: number
           order_id?: string | null
+          order_item_detail_id?: string | null
           order_total?: number
           payment_gateway_fee?: number | null
           platform_commission?: number | null
@@ -796,6 +1099,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "settlement_items_order_item_detail_id_fkey"
+            columns: ["order_item_detail_id"]
+            isOneToOne: false
+            referencedRelation: "order_item_details"
             referencedColumns: ["id"]
           },
           {
@@ -818,6 +1128,7 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          journal_entry_id: string | null
           notes: string | null
           payment_method: string | null
           payment_reference: string | null
@@ -828,10 +1139,13 @@ export type Database = {
           settlement_number: string
           status: string | null
           total_amount: number
+          total_commission_collected: number | null
+          total_vat_on_commission: number | null
         }
         Insert: {
           created_at?: string | null
           id?: string
+          journal_entry_id?: string | null
           notes?: string | null
           payment_method?: string | null
           payment_reference?: string | null
@@ -842,10 +1156,13 @@ export type Database = {
           settlement_number: string
           status?: string | null
           total_amount: number
+          total_commission_collected?: number | null
+          total_vat_on_commission?: number | null
         }
         Update: {
           created_at?: string | null
           id?: string
+          journal_entry_id?: string | null
           notes?: string | null
           payment_method?: string | null
           payment_reference?: string | null
@@ -856,8 +1173,18 @@ export type Database = {
           settlement_number?: string
           status?: string | null
           total_amount?: number
+          total_commission_collected?: number | null
+          total_vat_on_commission?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "settlements_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       site_settings: {
         Row: {
