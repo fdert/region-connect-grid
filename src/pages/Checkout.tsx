@@ -13,7 +13,8 @@ import {
   Store,
   ArrowRight,
   MapPin,
-  Truck
+  Truck,
+  Receipt
 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,6 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import PhoneVerification, { LocationInfo } from "@/components/checkout/PhoneVerification";
 import { calculateRoadDistance, calculateDeliveryFee } from "@/lib/distance";
+import { calculateOrderVatSummary, OrderVatSummary } from "@/lib/vatCalculations";
 
 type CheckoutStep = "verification" | "payment";
 
@@ -50,6 +52,8 @@ const Checkout = () => {
   const [notes, setNotes] = useState("");
   const [storeDeliveryInfo, setStoreDeliveryInfo] = useState<StoreDeliveryInfo[]>([]);
   const [isCalculatingDelivery, setIsCalculatingDelivery] = useState(false);
+  const [commissionRate, setCommissionRate] = useState(10); // نسبة العمولة الافتراضية
+  const [vatRate, setVatRate] = useState(15); // نسبة الضريبة الافتراضية
 
   // Get unique store IDs from cart items
   const storeIds = [...new Set(items.map(item => item.store_id))];
@@ -60,6 +64,25 @@ const Checkout = () => {
   
   // Check if there are any delivery calculation errors
   const hasDeliveryErrors = storeDeliveryInfo.some(info => info.error);
+
+  // جلب إعدادات العمولة والضريبة
+  useEffect(() => {
+    const fetchSettings = async () => {
+      const { data: settings } = await supabase
+        .from('commission_settings')
+        .select('*')
+        .eq('is_active', true);
+      
+      if (settings) {
+        const platformComm = settings.find(s => s.applies_to === 'platform');
+        const taxSetting = settings.find(s => s.applies_to === 'tax');
+        
+        if (platformComm) setCommissionRate(Number(platformComm.percentage));
+        if (taxSetting) setVatRate(Number(taxSetting.percentage));
+      }
+    };
+    fetchSettings();
+  }, []);
 
   // Group items by store
   const itemsByStore = items.reduce((acc, item) => {
@@ -222,9 +245,20 @@ const Checkout = () => {
     try {
       // Create orders for each store
       for (const [storeId, { items: storeItems }] of Object.entries(itemsByStore)) {
-        const storeSubtotal = storeItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
         const storeDeliveryFee = getStoreDeliveryFee(storeId);
-        const storeCommission = storeSubtotal * 0.05;
+        
+        // حساب الملخص الضريبي الكامل للطلب
+        const vatSummary = calculateOrderVatSummary(
+          storeItems.map(item => ({
+            product_id: item.product_id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity
+          })),
+          storeDeliveryFee,
+          vatRate,
+          commissionRate
+        );
 
         const orderData = {
           order_number: `ORD-${Date.now()}`,
@@ -237,10 +271,18 @@ const Checkout = () => {
             quantity: item.quantity,
             image: item.image
           })),
-          subtotal: storeSubtotal,
+          subtotal: vatSummary.subtotal_inc_vat,
+          subtotal_ex_vat: vatSummary.subtotal_ex_vat,
+          vat_on_products: vatSummary.vat_on_products,
           delivery_fee: storeDeliveryFee,
-          platform_commission: storeCommission,
-          total: storeSubtotal + storeDeliveryFee,
+          delivery_fee_ex_vat: vatSummary.delivery_fee_ex_vat,
+          vat_on_delivery: vatSummary.vat_on_delivery,
+          platform_commission: vatSummary.total_commission_inc_vat,
+          total_commission_ex_vat: vatSummary.total_commission_ex_vat,
+          total_commission_vat: vatSummary.total_commission_vat,
+          total_merchant_payout: vatSummary.total_merchant_payout,
+          tax_amount: vatSummary.vat_on_products + vatSummary.vat_on_delivery,
+          total: vatSummary.order_total,
           delivery_address: deliveryAddress,
           delivery_notes: notes,
           customer_phone: verifiedPhone,
@@ -256,6 +298,26 @@ const Checkout = () => {
         if (error) throw error;
         
         setOrderNumber(order.order_number);
+
+        // حفظ تفاصيل بنود الطلب مع snapshot الضريبي
+        const orderItemDetails = vatSummary.items.map(item => ({
+          order_id: order.id,
+          product_id: item.product_id,
+          product_name: item.product_name,
+          quantity: item.quantity,
+          unit_price_ex_vat: item.unit_price_ex_vat,
+          vat_rate: item.vat_rate,
+          line_subtotal_ex_vat: item.line_subtotal_ex_vat,
+          line_vat_amount: item.line_vat_amount,
+          line_total: item.line_total,
+          commission_rate: item.commission_rate,
+          commission_ex_vat: item.commission_ex_vat,
+          commission_vat: item.commission_vat,
+          commission_total: item.commission_total,
+          merchant_payout: item.merchant_payout
+        }));
+
+        await supabase.from("order_item_details").insert(orderItemDetails as any);
 
         // Add timeline entry
         await supabase.from("order_timeline").insert({
@@ -548,33 +610,84 @@ const Checkout = () => {
               <h2 className="text-lg font-bold mb-4">ملخص الطلب</h2>
               
               <div className="space-y-3 mb-6">
-                <div className="flex justify-between text-muted-foreground">
-                  <span>مبلغ الطلبات</span>
-                  <span>{subtotal.toFixed(2)} ر.س</span>
-                </div>
-                
-                {storeDeliveryInfo.length > 0 && (
-                  <>
-                    <div className="border-t pt-3">
-                      <p className="text-sm font-medium text-muted-foreground mb-2">رسوم التوصيل:</p>
-                      {storeDeliveryInfo.map((info) => (
-                        <div key={info.store_id} className="flex justify-between text-sm text-muted-foreground py-1">
-                          <span className="truncate max-w-[150px]">{info.store_name}</span>
-                          <span>{info.delivery_fee.toFixed(2)} ر.س</span>
+                {/* حساب الملخص الضريبي للعرض */}
+                {(() => {
+                  const allItems = items.map(item => ({
+                    product_id: item.product_id,
+                    name: item.name,
+                    price: item.price,
+                    quantity: item.quantity
+                  }));
+                  const summary = calculateOrderVatSummary(allItems, totalDeliveryFee, vatRate, commissionRate);
+                  
+                  return (
+                    <>
+                      <div className="flex justify-between text-muted-foreground text-sm">
+                        <span>المبلغ قبل الضريبة</span>
+                        <span>{summary.subtotal_ex_vat.toFixed(2)} ر.س</span>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground text-sm">
+                        <span>ضريبة القيمة المضافة ({vatRate}%)</span>
+                        <span>{summary.vat_on_products.toFixed(2)} ر.س</span>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>إجمالي المنتجات</span>
+                        <span>{summary.subtotal_inc_vat.toFixed(2)} ر.س</span>
+                      </div>
+                      
+                      {storeDeliveryInfo.length > 0 && (
+                        <>
+                          <div className="border-t pt-3">
+                            <p className="text-sm font-medium text-muted-foreground mb-2">رسوم التوصيل:</p>
+                            {storeDeliveryInfo.map((info) => (
+                              <div key={info.store_id} className="flex justify-between text-sm text-muted-foreground py-1">
+                                <span className="truncate max-w-[150px]">{info.store_name}</span>
+                                <span>{info.delivery_fee.toFixed(2)} ر.س</span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex justify-between text-muted-foreground text-sm">
+                            <span>رسوم التوصيل قبل الضريبة</span>
+                            <span>{summary.delivery_fee_ex_vat.toFixed(2)} ر.س</span>
+                          </div>
+                          <div className="flex justify-between text-muted-foreground text-sm">
+                            <span>ضريبة التوصيل ({vatRate}%)</span>
+                            <span>{summary.vat_on_delivery.toFixed(2)} ر.س</span>
+                          </div>
+                        </>
+                      )}
+
+                      {/* تفاصيل رسوم المنصة */}
+                      <div className="border-t pt-3 bg-muted/30 -mx-6 px-6 py-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Receipt className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm font-medium text-muted-foreground">رسوم المنصة والعمولات</span>
                         </div>
-                      ))}
-                    </div>
-                    <div className="flex justify-between text-muted-foreground font-medium">
-                      <span>إجمالي التوصيل</span>
-                      <span>{totalDeliveryFee.toFixed(2)} ر.س</span>
-                    </div>
-                  </>
-                )}
-                
-                <div className="border-t pt-3 flex justify-between font-bold text-lg">
-                  <span>الإجمالي المطلوب</span>
-                  <span className="text-primary">{total.toFixed(2)} ر.س</span>
-                </div>
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>عمولة المنصة ({commissionRate}%) قبل الضريبة</span>
+                          <span>{summary.total_commission_ex_vat.toFixed(2)} ر.س</span>
+                        </div>
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>ضريبة العمولة ({vatRate}%)</span>
+                          <span>{summary.total_commission_vat.toFixed(2)} ر.س</span>
+                        </div>
+                        <div className="flex justify-between text-sm font-medium text-muted-foreground mt-1">
+                          <span>إجمالي العمولة</span>
+                          <span>{summary.total_commission_inc_vat.toFixed(2)} ر.س</span>
+                        </div>
+                        <div className="flex justify-between text-sm text-success mt-2 pt-2 border-t border-border/50">
+                          <span>صافي مستحقات التاجر</span>
+                          <span>{summary.total_merchant_payout.toFixed(2)} ر.س</span>
+                        </div>
+                      </div>
+                      
+                      <div className="border-t pt-3 flex justify-between font-bold text-lg">
+                        <span>الإجمالي المطلوب</span>
+                        <span className="text-primary">{summary.order_total.toFixed(2)} ر.س</span>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
 
               {step === "payment" && (

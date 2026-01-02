@@ -105,6 +105,52 @@ const AccountingPage = () => {
     }
   });
 
+  // Fetch order item details for detailed VAT breakdown
+  const { data: orderItemDetails } = useQuery({
+    queryKey: ['admin-order-item-details'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('order_item_details')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Fetch journal entries
+  const { data: journalEntries } = useQuery({
+    queryKey: ['admin-journal-entries'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('journal_entries')
+        .select(`
+          *,
+          lines:journal_entry_lines(
+            *,
+            account:chart_of_accounts(code, name, name_ar)
+          )
+        `)
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Fetch chart of accounts
+  const { data: accounts } = useQuery({
+    queryKey: ['admin-chart-of-accounts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('chart_of_accounts')
+        .select('*')
+        .order('code');
+      if (error) throw error;
+      return data;
+    }
+  });
+
   // Fetch settlements
   const { data: settlements, isLoading: loadingSettlements } = useQuery({
     queryKey: ['admin-settlements'],
@@ -298,25 +344,35 @@ const AccountingPage = () => {
     email: platformContact?.email
   });
 
-  // Calculate statistics
+  // Calculate statistics with new VAT fields
   const totalRevenue = orders?.reduce((sum, o) => sum + Number(o.total), 0) || 0;
+  const totalSubtotalExVat = orders?.reduce((sum, o) => sum + Number(o.subtotal_ex_vat || 0), 0) || 0;
+  const totalVatOnProducts = orders?.reduce((sum, o) => sum + Number(o.vat_on_products || 0), 0) || 0;
   const totalDeliveryFees = orders?.reduce((sum, o) => sum + Number(o.delivery_fee || 0), 0) || 0;
+  const totalDeliveryExVat = orders?.reduce((sum, o) => sum + Number(o.delivery_fee_ex_vat || 0), 0) || 0;
+  const totalVatOnDelivery = orders?.reduce((sum, o) => sum + Number(o.vat_on_delivery || 0), 0) || 0;
   const platformCommission = commissionSettings?.find(c => c.applies_to === 'platform')?.percentage || 10;
   const totalPlatformCommission = orders?.reduce((sum, o) => sum + Number(o.platform_commission || 0), 0) || 0;
+  const totalCommissionExVat = orders?.reduce((sum, o) => sum + Number(o.total_commission_ex_vat || 0), 0) || 0;
+  const totalCommissionVat = orders?.reduce((sum, o) => sum + Number(o.total_commission_vat || 0), 0) || 0;
+  const totalMerchantPayout = orders?.reduce((sum, o) => sum + Number(o.total_merchant_payout || 0), 0) || 0;
   const taxRate = commissionSettings?.find(c => c.applies_to === 'tax')?.percentage || 15;
-  const totalTax = totalRevenue * (taxRate / 100);
+  const totalTax = totalVatOnProducts + totalVatOnDelivery;
   
   const cashPayments = paymentRecords?.filter(p => p.payment_type === 'cash').length || 0;
   const cardPayments = paymentRecords?.filter(p => p.payment_type === 'card').length || 0;
   const totalCashAmount = paymentRecords?.filter(p => p.payment_type === 'cash').reduce((sum, p) => sum + Number(p.amount_received), 0) || 0;
   const totalCardAmount = paymentRecords?.filter(p => p.payment_type === 'card').reduce((sum, p) => sum + Number(p.amount_received), 0) || 0;
 
-  // Calculate merchant dues
+  // Calculate merchant dues with new VAT system
   const merchantDues = stores?.map(store => {
     const storeOrders = orders?.filter(o => o.store_id === store.id && o.status === 'delivered') || [];
-    const totalSales = storeOrders.reduce((sum, o) => sum + Number(o.subtotal), 0);
-    const commission = totalSales * (platformCommission / 100);
-    const netAmount = totalSales - commission;
+    const totalSales = storeOrders.reduce((sum, o) => sum + Number(o.subtotal || 0), 0);
+    const totalSalesExVat = storeOrders.reduce((sum, o) => sum + Number(o.subtotal_ex_vat || o.subtotal / 1.15), 0);
+    const commission = storeOrders.reduce((sum, o) => sum + Number(o.platform_commission || 0), 0);
+    const commissionExVat = storeOrders.reduce((sum, o) => sum + Number(o.total_commission_ex_vat || 0), 0);
+    const commissionVat = storeOrders.reduce((sum, o) => sum + Number(o.total_commission_vat || 0), 0);
+    const merchantPayout = storeOrders.reduce((sum, o) => sum + Number(o.total_merchant_payout || (o.subtotal - (o.platform_commission || 0))), 0);
     const paidSettlements = settlements?.filter(s => 
       s.recipient_id === store.merchant_id && 
       s.recipient_type === 'merchant' && 
@@ -326,10 +382,13 @@ const AccountingPage = () => {
     return {
       ...store,
       totalSales,
+      totalSalesExVat,
       commission,
-      netAmount,
+      commissionExVat,
+      commissionVat,
+      merchantPayout,
       paidAmount: paidSettlements,
-      dueAmount: netAmount - paidSettlements,
+      dueAmount: merchantPayout - paidSettlements,
       ordersCount: storeOrders.length
     };
   }) || [];
@@ -421,6 +480,7 @@ const AccountingPage = () => {
           <TabsTrigger value="merchants">مستحقات التجار</TabsTrigger>
           <TabsTrigger value="couriers">مستحقات المناديب</TabsTrigger>
           <TabsTrigger value="settlements">التسويات</TabsTrigger>
+          <TabsTrigger value="journal">القيود المحاسبية</TabsTrigger>
           <TabsTrigger value="tax">الضريبة</TabsTrigger>
           <TabsTrigger value="settings">الإعدادات</TabsTrigger>
         </TabsList>
@@ -625,9 +685,9 @@ const AccountingPage = () => {
                     <TableRow key={merchant.id}>
                       <TableCell className="font-medium">{merchant.name}</TableCell>
                       <TableCell>{merchant.ordersCount}</TableCell>
-                      <TableCell>{merchant.totalSales.toFixed(2)} ر.س</TableCell>
+                      <TableCell>{merchant.totalSalesExVat.toFixed(2)} ر.س</TableCell>
                       <TableCell className="text-destructive">{merchant.commission.toFixed(2)} ر.س</TableCell>
-                      <TableCell className="font-bold">{merchant.netAmount.toFixed(2)} ر.س</TableCell>
+                      <TableCell className="font-bold">{merchant.merchantPayout.toFixed(2)} ر.س</TableCell>
                       <TableCell className="text-green-600">{merchant.paidAmount.toFixed(2)} ر.س</TableCell>
                       <TableCell className="font-bold text-primary">{merchant.dueAmount.toFixed(2)} ر.س</TableCell>
                       <TableCell>
@@ -783,6 +843,99 @@ const AccountingPage = () => {
           </Card>
         </TabsContent>
 
+        {/* Journal Entries Tab */}
+        <TabsContent value="journal">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                القيود المحاسبية
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* Journal Entries Summary */}
+              <div className="grid md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-green-500/10 rounded-xl p-4">
+                  <p className="text-sm text-muted-foreground mb-1">إجمالي المدين</p>
+                  <p className="text-xl font-bold text-green-600">
+                    {journalEntries?.reduce((sum, je) => sum + Number(je.total_debit || 0), 0).toFixed(2)} ر.س
+                  </p>
+                </div>
+                <div className="bg-red-500/10 rounded-xl p-4">
+                  <p className="text-sm text-muted-foreground mb-1">إجمالي الدائن</p>
+                  <p className="text-xl font-bold text-red-600">
+                    {journalEntries?.reduce((sum, je) => sum + Number(je.total_credit || 0), 0).toFixed(2)} ر.س
+                  </p>
+                </div>
+                <div className="bg-primary/10 rounded-xl p-4">
+                  <p className="text-sm text-muted-foreground mb-1">عدد القيود</p>
+                  <p className="text-xl font-bold">{journalEntries?.length || 0}</p>
+                </div>
+                <div className="bg-muted rounded-xl p-4">
+                  <p className="text-sm text-muted-foreground mb-1">ضريبة العمولات المستحقة</p>
+                  <p className="text-xl font-bold text-purple-600">{totalCommissionVat.toFixed(2)} ر.س</p>
+                </div>
+              </div>
+
+              {/* Accounts Summary */}
+              <div className="mb-6">
+                <h3 className="font-bold mb-3 flex items-center gap-2">
+                  <Calculator className="w-4 h-4" />
+                  ملخص الحسابات
+                </h3>
+                <div className="grid md:grid-cols-5 gap-3">
+                  {accounts?.map(account => (
+                    <div key={account.id} className="border rounded-lg p-3">
+                      <p className="text-xs text-muted-foreground">{account.code}</p>
+                      <p className="font-medium text-sm">{account.name_ar}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{account.account_type}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Journal Entries Table */}
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>رقم القيد</TableHead>
+                    <TableHead>النوع</TableHead>
+                    <TableHead>الوصف</TableHead>
+                    <TableHead>المدين</TableHead>
+                    <TableHead>الدائن</TableHead>
+                    <TableHead>التاريخ</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {journalEntries?.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                        لا توجد قيود محاسبية بعد. سيتم إنشاء القيود تلقائياً عند استلام المدفوعات.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    journalEntries?.map((entry) => (
+                      <TableRow key={entry.id}>
+                        <TableCell className="font-medium">{entry.entry_number}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {entry.reference_type === 'order' ? 'طلب' : 
+                             entry.reference_type === 'settlement' ? 'تسوية' : 'مرتجع'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{entry.description}</TableCell>
+                        <TableCell className="text-green-600">{Number(entry.total_debit).toFixed(2)} ر.س</TableCell>
+                        <TableCell className="text-red-600">{Number(entry.total_credit).toFixed(2)} ر.س</TableCell>
+                        <TableCell>{formatDate(entry.created_at)}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Tax Tab */}
         <TabsContent value="tax">
           <Card>
@@ -797,19 +950,63 @@ const AccountingPage = () => {
               </Button>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Tax Summary */}
-              <div className="grid md:grid-cols-3 gap-4">
+              {/* Tax Summary - Enhanced with VAT breakdown */}
+              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-muted/50 rounded-xl p-4">
-                  <p className="text-sm text-muted-foreground mb-1">إجمالي المبيعات</p>
-                  <p className="text-2xl font-bold">{totalRevenue.toFixed(2)} ر.س</p>
+                  <p className="text-sm text-muted-foreground mb-1">إجمالي المبيعات قبل الضريبة</p>
+                  <p className="text-2xl font-bold">{totalSubtotalExVat.toFixed(2)} ر.س</p>
                 </div>
-                <div className="bg-muted/50 rounded-xl p-4">
-                  <p className="text-sm text-muted-foreground mb-1">نسبة الضريبة</p>
-                  <p className="text-2xl font-bold">{taxRate}%</p>
+                <div className="bg-green-500/10 rounded-xl p-4">
+                  <p className="text-sm text-muted-foreground mb-1">ضريبة المنتجات ({taxRate}%)</p>
+                  <p className="text-2xl font-bold text-green-600">{totalVatOnProducts.toFixed(2)} ر.س</p>
+                </div>
+                <div className="bg-blue-500/10 rounded-xl p-4">
+                  <p className="text-sm text-muted-foreground mb-1">ضريبة التوصيل ({taxRate}%)</p>
+                  <p className="text-2xl font-bold text-blue-600">{totalVatOnDelivery.toFixed(2)} ر.س</p>
                 </div>
                 <div className="bg-primary/10 rounded-xl p-4">
-                  <p className="text-sm text-muted-foreground mb-1">إجمالي الضريبة</p>
+                  <p className="text-sm text-muted-foreground mb-1">إجمالي الضريبة المحصلة</p>
                   <p className="text-2xl font-bold text-primary">{totalTax.toFixed(2)} ر.س</p>
+                </div>
+              </div>
+
+              {/* Commission VAT Summary */}
+              <div className="bg-purple-500/10 rounded-xl p-4">
+                <h3 className="font-bold mb-3 flex items-center gap-2">
+                  <Receipt className="w-4 h-4" />
+                  ضريبة العمولات (مستحقة للمنصة)
+                </h3>
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">عمولة المنصة قبل الضريبة</p>
+                    <p className="text-xl font-bold">{totalCommissionExVat.toFixed(2)} ر.س</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">ضريبة العمولة ({taxRate}%)</p>
+                    <p className="text-xl font-bold text-purple-600">{totalCommissionVat.toFixed(2)} ر.س</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">إجمالي العمولة شامل الضريبة</p>
+                    <p className="text-xl font-bold">{totalPlatformCommission.toFixed(2)} ر.س</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Merchant Payout Summary */}
+              <div className="bg-green-500/10 rounded-xl p-4">
+                <h3 className="font-bold mb-3 flex items-center gap-2">
+                  <Store className="w-4 h-4" />
+                  مستحقات التجار
+                </h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">إجمالي المبيعات (شامل الضريبة)</p>
+                    <p className="text-xl font-bold">{totalRevenue.toFixed(2)} ر.س</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">صافي مستحقات التجار</p>
+                    <p className="text-xl font-bold text-green-600">{totalMerchantPayout.toFixed(2)} ر.س</p>
+                  </div>
                 </div>
               </div>
 

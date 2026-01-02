@@ -113,11 +113,18 @@ const MerchantFinance = () => {
     }
   });
 
-  // Calculate statistics
+  // Calculate statistics with new VAT system
   const platformCommission = commissionSettings?.find(c => c.applies_to === 'platform')?.percentage || 10;
+  const taxRate = commissionSettings?.find(c => c.applies_to === 'tax')?.percentage || 15;
+  
+  // Use new VAT fields if available, fallback to old calculation
   const totalSales = orders?.reduce((sum, o) => sum + Number(o.subtotal), 0) || 0;
-  const totalCommission = totalSales * (platformCommission / 100);
-  const netAmount = totalSales - totalCommission;
+  const totalSalesExVat = orders?.reduce((sum, o) => sum + Number(o.subtotal_ex_vat || o.subtotal / 1.15), 0) || 0;
+  const totalVat = orders?.reduce((sum, o) => sum + Number(o.vat_on_products || 0), 0) || 0;
+  const totalCommission = orders?.reduce((sum, o) => sum + Number(o.platform_commission || 0), 0) || 0;
+  const totalCommissionExVat = orders?.reduce((sum, o) => sum + Number(o.total_commission_ex_vat || 0), 0) || 0;
+  const totalCommissionVat = orders?.reduce((sum, o) => sum + Number(o.total_commission_vat || 0), 0) || 0;
+  const netAmount = orders?.reduce((sum, o) => sum + Number(o.total_merchant_payout || (o.subtotal - (o.platform_commission || 0))), 0) || 0;
   const paidAmount = settlements?.filter(s => s.status === 'completed').reduce((sum, s) => sum + Number(s.total_amount), 0) || 0;
   const dueAmount = netAmount - paidAmount;
   
@@ -227,6 +234,36 @@ const MerchantFinance = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* VAT Breakdown Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Receipt className="w-5 h-5" />
+              تفاصيل الضريبة والعمولة
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid md:grid-cols-4 gap-4">
+              <div className="bg-muted/50 rounded-xl p-4">
+                <p className="text-sm text-muted-foreground mb-1">المبيعات قبل الضريبة</p>
+                <p className="text-xl font-bold">{totalSalesExVat.toFixed(2)} ر.س</p>
+              </div>
+              <div className="bg-green-500/10 rounded-xl p-4">
+                <p className="text-sm text-muted-foreground mb-1">ضريبة المبيعات ({taxRate}%)</p>
+                <p className="text-xl font-bold text-green-600">{totalVat.toFixed(2)} ر.س</p>
+              </div>
+              <div className="bg-red-500/10 rounded-xl p-4">
+                <p className="text-sm text-muted-foreground mb-1">عمولة المنصة قبل الضريبة</p>
+                <p className="text-xl font-bold text-red-600">{totalCommissionExVat.toFixed(2)} ر.س</p>
+              </div>
+              <div className="bg-purple-500/10 rounded-xl p-4">
+                <p className="text-sm text-muted-foreground mb-1">ضريبة العمولة</p>
+                <p className="text-xl font-bold text-purple-600">{totalCommissionVat.toFixed(2)} ر.س</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
