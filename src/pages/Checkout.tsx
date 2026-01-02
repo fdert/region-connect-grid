@@ -607,9 +607,12 @@ const Checkout = () => {
           {/* Order Summary */}
           <div className="lg:col-span-1">
             <div className="bg-card rounded-2xl border p-6 sticky top-24">
-              <h2 className="text-lg font-bold mb-4">ملخص الطلب</h2>
+              <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+                <Receipt className="w-5 h-5 text-primary" />
+                ملخص الطلب
+              </h2>
               
-              <div className="space-y-3 mb-6">
+              <div className="space-y-4 mb-6">
                 {/* حساب الملخص الضريبي للعرض */}
                 {(() => {
                   const allItems = items.map(item => ({
@@ -622,69 +625,44 @@ const Checkout = () => {
                   
                   return (
                     <>
-                      <div className="flex justify-between text-muted-foreground text-sm">
-                        <span>المبلغ قبل الضريبة</span>
-                        <span>{summary.subtotal_ex_vat.toFixed(2)} ر.س</span>
-                      </div>
-                      <div className="flex justify-between text-muted-foreground text-sm">
-                        <span>ضريبة القيمة المضافة ({vatRate}%)</span>
-                        <span>{summary.vat_on_products.toFixed(2)} ر.س</span>
-                      </div>
-                      <div className="flex justify-between text-muted-foreground">
-                        <span>إجمالي المنتجات</span>
-                        <span>{summary.subtotal_inc_vat.toFixed(2)} ر.س</span>
+                      {/* إجمالي المنتجات شامل الضريبة */}
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <span className="font-medium">إجمالي المنتجات</span>
+                          <p className="text-xs text-muted-foreground">شامل ضريبة القيمة المضافة {vatRate}%</p>
+                        </div>
+                        <span className="font-semibold">{summary.subtotal_inc_vat.toFixed(2)} ر.س</span>
                       </div>
                       
-                      {storeDeliveryInfo.length > 0 && (
-                        <>
-                          <div className="border-t pt-3">
-                            <p className="text-sm font-medium text-muted-foreground mb-2">رسوم التوصيل:</p>
-                            {storeDeliveryInfo.map((info) => (
-                              <div key={info.store_id} className="flex justify-between text-sm text-muted-foreground py-1">
-                                <span className="truncate max-w-[150px]">{info.store_name}</span>
-                                <span>{info.delivery_fee.toFixed(2)} ر.س</span>
-                              </div>
-                            ))}
+                      {/* رسوم التوصيل شامل الضريبة */}
+                      {totalDeliveryFee > 0 && (
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <span className="font-medium">رسوم التوصيل</span>
+                            <p className="text-xs text-muted-foreground">شامل ضريبة القيمة المضافة {vatRate}%</p>
                           </div>
-                          <div className="flex justify-between text-muted-foreground text-sm">
-                            <span>رسوم التوصيل قبل الضريبة</span>
-                            <span>{summary.delivery_fee_ex_vat.toFixed(2)} ر.س</span>
-                          </div>
-                          <div className="flex justify-between text-muted-foreground text-sm">
-                            <span>ضريبة التوصيل ({vatRate}%)</span>
-                            <span>{summary.vat_on_delivery.toFixed(2)} ر.س</span>
-                          </div>
-                        </>
+                          <span className="font-semibold">{totalDeliveryFee.toFixed(2)} ر.س</span>
+                        </div>
                       )}
 
-                      {/* تفاصيل رسوم المنصة */}
-                      <div className="border-t pt-3 bg-muted/30 -mx-6 px-6 py-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Receipt className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm font-medium text-muted-foreground">رسوم المنصة والعمولات</span>
-                        </div>
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>عمولة المنصة ({commissionRate}%) قبل الضريبة</span>
-                          <span>{summary.total_commission_ex_vat.toFixed(2)} ر.س</span>
-                        </div>
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>ضريبة العمولة ({vatRate}%)</span>
-                          <span>{summary.total_commission_vat.toFixed(2)} ر.س</span>
-                        </div>
-                        <div className="flex justify-between text-sm font-medium text-muted-foreground mt-1">
-                          <span>إجمالي العمولة</span>
-                          <span>{summary.total_commission_inc_vat.toFixed(2)} ر.س</span>
-                        </div>
-                        <div className="flex justify-between text-sm text-success mt-2 pt-2 border-t border-border/50">
-                          <span>صافي مستحقات التاجر</span>
-                          <span>{summary.total_merchant_payout.toFixed(2)} ر.س</span>
-                        </div>
-                      </div>
+                      {/* فاصل */}
+                      <div className="border-t border-dashed border-border my-2" />
                       
-                      <div className="border-t pt-3 flex justify-between font-bold text-lg">
-                        <span>الإجمالي المطلوب</span>
-                        <span className="text-primary">{summary.order_total.toFixed(2)} ر.س</span>
+                      {/* الإجمالي المطلوب - بشكل مميز */}
+                      <div className="bg-primary/10 rounded-xl p-4 -mx-2">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <span className="font-bold text-lg">الإجمالي المطلوب</span>
+                            <p className="text-xs text-muted-foreground">شامل جميع الضرائب والرسوم</p>
+                          </div>
+                          <span className="font-bold text-2xl text-primary">{summary.order_total.toFixed(2)} ر.س</span>
+                        </div>
                       </div>
+
+                      {/* ملاحظة توضيحية */}
+                      <p className="text-xs text-muted-foreground text-center mt-2">
+                        الأسعار شاملة ضريبة القيمة المضافة 15%
+                      </p>
                     </>
                   );
                 })()}
