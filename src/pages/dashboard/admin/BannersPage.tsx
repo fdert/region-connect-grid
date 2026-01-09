@@ -8,15 +8,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Trash2, Edit2, Image, ExternalLink, Type, Palette } from "lucide-react";
+import { Plus, Trash2, Edit2, Image, ExternalLink, Type, Palette, Video, Play } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface Banner {
   id: string;
   title: string;
   image_url: string;
+  video_url: string | null;
+  media_type: string;
   link_url: string;
   position: string;
   sort_order: number;
@@ -51,6 +54,8 @@ const BannersPage = () => {
   const [formData, setFormData] = useState({
     title: "",
     image_url: "",
+    video_url: "",
+    media_type: "image",
     link_url: "",
     position: "home_top",
     is_active: true
@@ -121,25 +126,35 @@ const BannersPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    const dataToSave = {
+      title: formData.title,
+      image_url: formData.media_type === 'image' ? formData.image_url : formData.image_url, // thumbnail for video
+      video_url: formData.media_type === 'video' ? formData.video_url : null,
+      media_type: formData.media_type,
+      link_url: formData.link_url,
+      position: formData.position,
+      is_active: formData.is_active
+    };
+
     try {
       if (editingBanner) {
         const { error } = await supabase
           .from("banners")
-          .update(formData)
+          .update(dataToSave)
           .eq("id", editingBanner.id);
         if (error) throw error;
         toast({ title: "تم تحديث البنر بنجاح" });
       } else {
         const { error } = await supabase
           .from("banners")
-          .insert([{ ...formData, sort_order: banners.length }]);
+          .insert([{ ...dataToSave, sort_order: banners.length }]);
         if (error) throw error;
         toast({ title: "تم إضافة البنر بنجاح" });
       }
       
       setIsDialogOpen(false);
       setEditingBanner(null);
-      setFormData({ title: "", image_url: "", link_url: "", position: "home_top", is_active: true });
+      setFormData({ title: "", image_url: "", video_url: "", media_type: "image", link_url: "", position: "home_top", is_active: true });
       fetchBanners();
     } catch (error) {
       console.error("Error saving banner:", error);
@@ -152,6 +167,8 @@ const BannersPage = () => {
     setFormData({
       title: banner.title || "",
       image_url: banner.image_url,
+      video_url: banner.video_url || "",
+      media_type: banner.media_type || "image",
       link_url: banner.link_url || "",
       position: banner.position,
       is_active: banner.is_active
@@ -231,18 +248,23 @@ const BannersPage = () => {
         {/* Banners Tab */}
         <TabsContent value="banners" className="space-y-6">
           <div className="flex justify-between items-center">
-            <p className="text-muted-foreground">إدارة البنرات الإعلانية في المنصة</p>
+            <div>
+              <p className="text-muted-foreground">إدارة البنرات الإعلانية (صور وفيديو)</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                مقاسات مقترحة: سطح المكتب 1920×400 | الجوال 800×400
+              </p>
+            </div>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="gap-2" onClick={() => {
                   setEditingBanner(null);
-                  setFormData({ title: "", image_url: "", link_url: "", position: "home_top", is_active: true });
+                  setFormData({ title: "", image_url: "", video_url: "", media_type: "image", link_url: "", position: "home_top", is_active: true });
                 }}>
                   <Plus className="w-4 h-4" />
                   إضافة بنر
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md">
+              <DialogContent className="max-w-lg">
                 <DialogHeader>
                   <DialogTitle>{editingBanner ? "تعديل البنر" : "إضافة بنر جديد"}</DialogTitle>
                 </DialogHeader>
@@ -255,16 +277,72 @@ const BannersPage = () => {
                       placeholder="عنوان البنر (اختياري)"
                     />
                   </div>
-                  
-                  <div className="space-y-2">
-                    <Label>رابط الصورة *</Label>
-                    <Input
-                      value={formData.image_url}
-                      onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                      placeholder="https://example.com/banner.jpg"
-                      required
-                    />
+
+                  {/* Media Type Selection */}
+                  <div className="space-y-3">
+                    <Label>نوع المحتوى</Label>
+                    <RadioGroup
+                      value={formData.media_type}
+                      onValueChange={(v) => setFormData({ ...formData, media_type: v })}
+                      className="flex gap-4"
+                    >
+                      <div className="flex items-center gap-2 border rounded-lg px-4 py-3 cursor-pointer hover:bg-accent/50 transition-colors flex-1">
+                        <RadioGroupItem value="image" id="image" />
+                        <Label htmlFor="image" className="flex items-center gap-2 cursor-pointer flex-1">
+                          <Image className="w-5 h-5 text-primary" />
+                          صورة
+                        </Label>
+                      </div>
+                      <div className="flex items-center gap-2 border rounded-lg px-4 py-3 cursor-pointer hover:bg-accent/50 transition-colors flex-1">
+                        <RadioGroupItem value="video" id="video" />
+                        <Label htmlFor="video" className="flex items-center gap-2 cursor-pointer flex-1">
+                          <Video className="w-5 h-5 text-primary" />
+                          فيديو
+                        </Label>
+                      </div>
+                    </RadioGroup>
                   </div>
+
+                  {formData.media_type === 'image' ? (
+                    <div className="space-y-2">
+                      <Label>رابط الصورة *</Label>
+                      <Input
+                        value={formData.image_url}
+                        onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                        placeholder="https://example.com/banner.jpg"
+                        required
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        مقاس مقترح: 1920×400 بكسل (نسبة 5:1)
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <Label>رابط الفيديو *</Label>
+                        <Input
+                          value={formData.video_url}
+                          onChange={(e) => setFormData({ ...formData, video_url: e.target.value })}
+                          placeholder="https://example.com/banner.mp4"
+                          required
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          يدعم: MP4, WebM - مقاس مقترح: 1920×400 بكسل
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>صورة مصغرة (اختياري)</Label>
+                        <Input
+                          value={formData.image_url}
+                          onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                          placeholder="https://example.com/thumbnail.jpg"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          تظهر قبل تحميل الفيديو
+                        </p>
+                      </div>
+                    </>
+                  )}
                   
                   <div className="space-y-2">
                     <Label>رابط البنر</Label>
@@ -315,8 +393,25 @@ const BannersPage = () => {
                   <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {groupedBanners[pos.value].map((banner) => (
                       <div key={banner.id} className="border rounded-xl overflow-hidden group">
-                        <div className="aspect-video bg-muted relative">
-                          {banner.image_url ? (
+                        <div className="aspect-[5/2] bg-muted relative">
+                          {banner.media_type === 'video' && banner.video_url ? (
+                            <div className="relative w-full h-full">
+                              <video
+                                src={banner.video_url}
+                                poster={banner.image_url}
+                                className="w-full h-full object-cover"
+                                muted
+                                loop
+                                playsInline
+                                onMouseEnter={(e) => e.currentTarget.play()}
+                                onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
+                              />
+                              <div className="absolute top-2 right-2 bg-black/60 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1">
+                                <Play className="w-3 h-3" />
+                                فيديو
+                              </div>
+                            </div>
+                          ) : banner.image_url ? (
                             <img src={banner.image_url} alt={banner.title} className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
@@ -334,7 +429,10 @@ const BannersPage = () => {
                         </div>
                         <div className="p-3 flex items-center justify-between">
                           <div>
-                            <p className="font-medium text-sm">{banner.title || "بدون عنوان"}</p>
+                            <p className="font-medium text-sm flex items-center gap-1">
+                              {banner.media_type === 'video' && <Video className="w-3 h-3" />}
+                              {banner.title || "بدون عنوان"}
+                            </p>
                             {banner.link_url && (
                               <a href={banner.link_url} target="_blank" className="text-xs text-primary flex items-center gap-1">
                                 <ExternalLink className="w-3 h-3" />
@@ -450,32 +548,33 @@ const BannersPage = () => {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>حجم الخط: {announcementForm.font_size}px</Label>
-                  <Slider
-                    value={[announcementForm.font_size]}
-                    onValueChange={(v) => setAnnouncementForm({ ...announcementForm, font_size: v[0] })}
-                    min={10}
-                    max={24}
-                    step={1}
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>حجم الخط: {announcementForm.font_size}px</Label>
+                    <Slider
+                      value={[announcementForm.font_size]}
+                      onValueChange={([v]) => setAnnouncementForm({ ...announcementForm, font_size: v })}
+                      min={10}
+                      max={24}
+                      step={1}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>سرعة التحريك: {announcementForm.speed}</Label>
+                    <Slider
+                      value={[announcementForm.speed]}
+                      onValueChange={([v]) => setAnnouncementForm({ ...announcementForm, speed: v })}
+                      min={10}
+                      max={100}
+                      step={5}
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>سرعة الحركة: {announcementForm.speed}%</Label>
-                  <Slider
-                    value={[announcementForm.speed]}
-                    onValueChange={(v) => setAnnouncementForm({ ...announcementForm, speed: v[0] })}
-                    min={10}
-                    max={100}
-                    step={5}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+                <div className="flex items-center justify-between p-4 border rounded-lg">
                   <div>
-                    <Label className="text-base font-medium">تفعيل الشريط الإعلاني</Label>
-                    <p className="text-sm text-muted-foreground">سيظهر في أعلى جميع الصفحات</p>
+                    <Label className="text-base">تفعيل الشريط الإعلاني</Label>
+                    <p className="text-sm text-muted-foreground">سيظهر أعلى الموقع</p>
                   </div>
                   <Switch
                     checked={announcementForm.is_active}

@@ -1,15 +1,23 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useState, useRef } from "react";
+import { Volume2, VolumeX } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface Banner {
   id: string;
   title: string;
   image_url: string;
+  video_url: string | null;
+  media_type: string | null;
   link_url: string | null;
   is_active: boolean;
 }
 
 const HeroBanner = () => {
+  const [isMuted, setIsMuted] = useState(true);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
   const { data: banner, isLoading } = useQuery({
     queryKey: ["hero-center-banner"],
     queryFn: async () => {
@@ -29,18 +37,52 @@ const HeroBanner = () => {
 
   if (isLoading || !banner) return null;
 
+  const toggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setIsMuted(!isMuted);
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted;
+    }
+  };
+
+  const isVideo = banner.media_type === 'video' && banner.video_url;
+
   const content = (
-    <div className="w-full max-w-3xl mx-auto mb-8 rounded-2xl overflow-hidden shadow-2xl animate-fade-in">
-      <img
-        src={banner.image_url}
-        alt={banner.title || "إعلان"}
-        className="w-full h-auto object-cover aspect-[3/1]"
-        loading="lazy"
-      />
+    <div className="w-full max-w-3xl mx-auto mb-8 rounded-2xl overflow-hidden shadow-2xl animate-fade-in relative group">
+      {isVideo ? (
+        <>
+          <video
+            ref={videoRef}
+            src={banner.video_url!}
+            poster={banner.image_url}
+            className="w-full h-auto object-cover aspect-[3/1]"
+            muted={isMuted}
+            loop
+            playsInline
+            autoPlay
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleMute}
+            className="absolute bottom-3 left-3 bg-black/40 hover:bg-black/60 backdrop-blur-sm text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+          </Button>
+        </>
+      ) : (
+        <img
+          src={banner.image_url}
+          alt={banner.title || "إعلان"}
+          className="w-full h-auto object-cover aspect-[3/1]"
+          loading="lazy"
+        />
+      )}
     </div>
   );
 
-  if (banner.link_url) {
+  if (banner.link_url && !isVideo) {
     return (
       <a
         href={banner.link_url}

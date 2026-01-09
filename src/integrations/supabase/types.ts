@@ -61,10 +61,12 @@ export type Database = {
           image_url: string
           is_active: boolean | null
           link_url: string | null
+          media_type: string | null
           position: string | null
           sort_order: number | null
           starts_at: string | null
           title: string | null
+          video_url: string | null
         }
         Insert: {
           created_at?: string | null
@@ -73,10 +75,12 @@ export type Database = {
           image_url: string
           is_active?: boolean | null
           link_url?: string | null
+          media_type?: string | null
           position?: string | null
           sort_order?: number | null
           starts_at?: string | null
           title?: string | null
+          video_url?: string | null
         }
         Update: {
           created_at?: string | null
@@ -85,10 +89,12 @@ export type Database = {
           image_url?: string
           is_active?: boolean | null
           link_url?: string | null
+          media_type?: string | null
           position?: string | null
           sort_order?: number | null
           starts_at?: string | null
           title?: string | null
+          video_url?: string | null
         }
         Relationships: []
       }
