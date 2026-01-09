@@ -22,7 +22,19 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { Plus, FolderOpen, Trash2, Edit } from "lucide-react";
+import { Plus, FolderOpen, Trash2, Edit, Image, Upload } from "lucide-react";
+
+// Default category images for preview
+const defaultCategoryImages: Record<string, string> = {
+  electronics: "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=200&h=200&fit=crop",
+  restaurants: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=200&fit=crop",
+  fashion: "https://images.unsplash.com/photo-1445205170230-053b83016050?w=200&h=200&fit=crop",
+  games: "https://images.unsplash.com/photo-1493711662062-fa541f7f3d24?w=200&h=200&fit=crop",
+  health: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=200&h=200&fit=crop",
+  furniture: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=200&h=200&fit=crop",
+  grocery: "https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=200&h=200&fit=crop",
+  default: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=200&h=200&fit=crop",
+};
 
 export default function CategoriesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -31,6 +43,7 @@ export default function CategoriesPage() {
   const [nameAr, setNameAr] = useState("");
   const [icon, setIcon] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [showImagePicker, setShowImagePicker] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: categories, isLoading } = useQuery({
@@ -122,6 +135,7 @@ export default function CategoriesPage() {
     setImageUrl("");
     setEditingCategory(null);
     setIsDialogOpen(false);
+    setShowImagePicker(false);
   };
 
   const handleEdit = (category: any) => {
@@ -130,8 +144,24 @@ export default function CategoriesPage() {
     setNameAr(category.name_ar);
     setIcon(category.icon || "");
     setImageUrl(category.image_url || "");
+    setShowImagePicker(false);
     setIsDialogOpen(true);
   };
+
+  const suggestedImages = [
+    { name: "إلكترونيات", url: "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=200&h=200&fit=crop", icon: "💻" },
+    { name: "مطاعم", url: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=200&fit=crop", icon: "🍽️" },
+    { name: "أزياء", url: "https://images.unsplash.com/photo-1445205170230-053b83016050?w=200&h=200&fit=crop", icon: "👗" },
+    { name: "ألعاب", url: "https://images.unsplash.com/photo-1493711662062-fa541f7f3d24?w=200&h=200&fit=crop", icon: "🎮" },
+    { name: "صحة وجمال", url: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=200&h=200&fit=crop", icon: "💄" },
+    { name: "أثاث", url: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=200&h=200&fit=crop", icon: "🛋️" },
+    { name: "بقالة", url: "https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=200&h=200&fit=crop", icon: "🥬" },
+    { name: "حلويات", url: "https://images.unsplash.com/photo-1549007994-cb92caebd54b?w=200&h=200&fit=crop", icon: "🍫" },
+    { name: "مشروبات", url: "https://images.unsplash.com/photo-1544145945-f90425340c7e?w=200&h=200&fit=crop", icon: "🧃" },
+    { name: "زهور", url: "https://images.unsplash.com/photo-1487530811176-3780de880c2d?w=200&h=200&fit=crop", icon: "💐" },
+    { name: "صيدلية", url: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=200&h=200&fit=crop", icon: "💊" },
+    { name: "رياضة", url: "https://images.unsplash.com/photo-1461896836934- voices-of-freedom?w=200&h=200&fit=crop", icon: "⚽" },
+  ];
 
   return (
     <AdminLayout title="إدارة التصنيفات">
@@ -151,27 +181,30 @@ export default function CategoriesPage() {
                 إضافة تصنيف
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editingCategory ? "تعديل التصنيف" : "إضافة تصنيف جديد"}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 mt-4">
-                <div className="space-y-2">
-                  <Label>الاسم (English)</Label>
-                  <Input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Category name"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>الاسم (English)</Label>
+                    <Input
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Category name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>الاسم (عربي)</Label>
+                    <Input
+                      value={nameAr}
+                      onChange={(e) => setNameAr(e.target.value)}
+                      placeholder="اسم التصنيف"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>الاسم (عربي)</Label>
-                  <Input
-                    value={nameAr}
-                    onChange={(e) => setNameAr(e.target.value)}
-                    placeholder="اسم التصنيف"
-                  />
-                </div>
+                
                 <div className="space-y-2">
                   <Label>الأيقونة (emoji أو رمز)</Label>
                   <Input
@@ -179,15 +212,87 @@ export default function CategoriesPage() {
                     onChange={(e) => setIcon(e.target.value)}
                     placeholder="🍔"
                   />
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {["🛒", "🍔", "👗", "💻", "🎮", "💄", "🛋️", "🥬", "💐", "💊", "⚽", "📚"].map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => setIcon(emoji)}
+                        className={`text-2xl p-2 rounded-lg hover:bg-muted transition-colors ${icon === emoji ? 'bg-primary/20 ring-2 ring-primary' : ''}`}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
                 <div className="space-y-2">
-                  <Label>رابط الصورة</Label>
+                  <Label className="flex items-center gap-2">
+                    <Image className="w-4 h-4" />
+                    الصورة التعبيرية
+                  </Label>
+                  
+                  {/* Current Image Preview */}
+                  {imageUrl && (
+                    <div className="relative w-32 h-32 rounded-xl overflow-hidden border-2 border-primary/20 mx-auto">
+                      <img 
+                        src={imageUrl} 
+                        alt="صورة التصنيف"
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setImageUrl("")}
+                        className="absolute top-1 right-1 bg-destructive text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-destructive/80"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+
                   <Input
                     value={imageUrl}
                     onChange={(e) => setImageUrl(e.target.value)}
-                    placeholder="https://..."
+                    placeholder="https://... أو اختر من الصور المقترحة"
                   />
+                  
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowImagePicker(!showImagePicker)}
+                    className="w-full"
+                  >
+                    <Upload className="w-4 h-4 ml-2" />
+                    {showImagePicker ? "إخفاء الصور المقترحة" : "اختر من الصور المقترحة"}
+                  </Button>
+
+                  {showImagePicker && (
+                    <div className="grid grid-cols-4 gap-2 p-3 bg-muted rounded-lg max-h-48 overflow-y-auto">
+                      {suggestedImages.map((img, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setImageUrl(img.url);
+                            if (!icon) setIcon(img.icon);
+                          }}
+                          className={`relative rounded-lg overflow-hidden aspect-square hover:ring-2 hover:ring-primary transition-all ${imageUrl === img.url ? 'ring-2 ring-primary' : ''}`}
+                        >
+                          <img 
+                            src={img.url} 
+                            alt={img.name}
+                            className="w-full h-full object-cover"
+                          />
+                          <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs py-1 text-center">
+                            {img.name}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
+
                 <Button
                   onClick={() => editingCategory ? updateMutation.mutate() : createMutation.mutate()}
                   disabled={!name || !nameAr || createMutation.isPending || updateMutation.isPending}

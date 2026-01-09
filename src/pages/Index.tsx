@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import MainLayout from "@/components/layout/MainLayout";
 import HeroSection from "@/components/home/HeroSection";
 import BannerSlider from "@/components/home/BannerSlider";
+import CategoryQuickNav from "@/components/home/CategoryQuickNav";
 import CategoriesSection from "@/components/home/CategoriesSection";
 import FeaturedStores from "@/components/home/FeaturedStores";
 import FeaturesSection from "@/components/home/FeaturesSection";
@@ -44,6 +45,7 @@ const Index = () => {
   const sectionComponents: Record<string, React.ReactNode> = {
     hero: <HeroSection />,
     banner_top: <BannerSlider position="home_top" />,
+    category_quick_nav: <CategoryQuickNav />,
     categories: <CategoriesSection />,
     featured_stores: <FeaturedStores />,
     special_services: <SpecialServicesSection />,
@@ -64,6 +66,7 @@ const Index = () => {
         <>
           <HeroSection />
           <BannerSlider position="home_top" />
+          <CategoryQuickNav />
           <CategoriesSection />
           <FeaturedStores />
           <SpecialServicesSection />
