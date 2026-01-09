@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, forwardRef } from "react";
+import { useState, useEffect, useCallback, forwardRef, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -8,6 +8,8 @@ interface Banner {
   id: string;
   title: string | null;
   image_url: string;
+  video_url: string | null;
+  media_type: string | null;
   link_url: string | null;
   is_active: boolean;
 }
@@ -20,21 +22,41 @@ const BannerSlider = forwardRef<HTMLElement, BannerSliderProps>(({ position = "h
   const [banners, setBanners] = useState<Banner[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMuted, setIsMuted] = useState(true);
+  const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
 
   useEffect(() => {
     fetchBanners();
   }, [position]);
 
-  // Auto-slide every 5 seconds
+  // Auto-slide every 5 seconds (only for images)
   useEffect(() => {
     if (banners.length <= 1) return;
+    
+    const currentBanner = banners[currentIndex];
+    if (currentBanner?.media_type === 'video') return; // Don't auto-slide for videos
     
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % banners.length);
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [banners.length]);
+  }, [banners.length, currentIndex, banners]);
+
+  // Handle video playback when slide changes
+  useEffect(() => {
+    banners.forEach((banner, index) => {
+      const videoEl = videoRefs.current[banner.id];
+      if (videoEl) {
+        if (index === currentIndex) {
+          videoEl.play().catch(() => {});
+        } else {
+          videoEl.pause();
+          videoEl.currentTime = 0;
+        }
+      }
+    });
+  }, [currentIndex, banners]);
 
   const fetchBanners = async () => {
     try {
@@ -79,6 +101,13 @@ const BannerSlider = forwardRef<HTMLElement, BannerSliderProps>(({ position = "h
     setCurrentIndex(index);
   };
 
+  const toggleMute = () => {
+    setIsMuted(!isMuted);
+    Object.values(videoRefs.current).forEach(video => {
+      if (video) video.muted = !isMuted;
+    });
+  };
+
   // Loading skeleton
   if (isLoading) {
     return (
@@ -101,32 +130,61 @@ const BannerSlider = forwardRef<HTMLElement, BannerSliderProps>(({ position = "h
     }
   };
 
+  const currentBanner = banners[currentIndex];
+  const hasVideo = currentBanner?.media_type === 'video';
+
   return (
     <section ref={ref} className="w-full bg-background">
       <div className="container mx-auto px-4 py-4">
         <div className="relative group">
-          {/* Main Banner Container */}
-          <div className="relative aspect-[3/1] md:aspect-[4/1] lg:aspect-[5/1] rounded-2xl overflow-hidden shadow-lg">
+          {/* Main Banner Container - Responsive aspect ratios */}
+          <div className="relative aspect-[2/1] sm:aspect-[3/1] md:aspect-[4/1] lg:aspect-[5/1] rounded-2xl overflow-hidden shadow-lg">
             {/* Slides */}
             {banners.map((banner, index) => (
               <div
                 key={banner.id}
                 className={cn(
-                  "absolute inset-0 transition-all duration-700 ease-in-out cursor-pointer",
+                  "absolute inset-0 transition-all duration-700 ease-in-out",
+                  banner.media_type !== 'video' && banner.link_url && "cursor-pointer",
                   index === currentIndex 
                     ? "opacity-100 scale-100 z-10" 
                     : "opacity-0 scale-105 z-0"
                 )}
-                onClick={() => handleBannerClick(banner.link_url)}
+                onClick={() => banner.media_type !== 'video' && handleBannerClick(banner.link_url)}
               >
-                <img
-                  src={banner.image_url}
-                  alt={banner.title || "بنر ترويجي"}
-                  className="w-full h-full object-cover"
-                  loading={index === 0 ? "eager" : "lazy"}
-                />
+                {banner.media_type === 'video' && banner.video_url ? (
+                  <video
+                    ref={el => { videoRefs.current[banner.id] = el; }}
+                    src={banner.video_url}
+                    poster={banner.image_url}
+                    className="w-full h-full object-cover"
+                    muted={isMuted}
+                    loop
+                    playsInline
+                    autoPlay={index === currentIndex}
+                  />
+                ) : (
+                  <img
+                    src={banner.image_url}
+                    alt={banner.title || "بنر ترويجي"}
+                    className="w-full h-full object-cover"
+                    loading={index === 0 ? "eager" : "lazy"}
+                  />
+                )}
               </div>
             ))}
+
+            {/* Video Controls */}
+            {hasVideo && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleMute}
+                className="absolute bottom-3 left-3 z-20 bg-black/40 hover:bg-black/60 backdrop-blur-sm text-white rounded-full"
+              >
+                {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              </Button>
+            )}
 
             {/* Navigation Arrows */}
             {banners.length > 1 && (
