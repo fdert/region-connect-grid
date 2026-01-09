@@ -13,100 +13,78 @@ interface Category {
   is_active: boolean;
 }
 
-// Light pastel color palette for category cards
+// Color palette for category cards - vibrant and distinct (same as CategoriesSection)
 const categoryColorPalette = [
-  { bg: "bg-orange-100", iconBg: "bg-orange-400", text: "text-orange-900" },
-  { bg: "bg-emerald-100", iconBg: "bg-emerald-400", text: "text-emerald-900" },
-  { bg: "bg-sky-100", iconBg: "bg-sky-400", text: "text-sky-900" },
-  { bg: "bg-rose-100", iconBg: "bg-rose-400", text: "text-rose-900" },
-  { bg: "bg-violet-100", iconBg: "bg-violet-400", text: "text-violet-900" },
-  { bg: "bg-amber-100", iconBg: "bg-amber-400", text: "text-amber-900" },
-  { bg: "bg-teal-100", iconBg: "bg-teal-400", text: "text-teal-900" },
-  { bg: "bg-indigo-100", iconBg: "bg-indigo-400", text: "text-indigo-900" },
-  { bg: "bg-pink-100", iconBg: "bg-pink-400", text: "text-pink-900" },
-  { bg: "bg-cyan-100", iconBg: "bg-cyan-400", text: "text-cyan-900" },
+  { bg: "bg-orange-500", text: "text-white" },
+  { bg: "bg-emerald-500", text: "text-white" },
+  { bg: "bg-sky-500", text: "text-white" },
+  { bg: "bg-rose-500", text: "text-white" },
+  { bg: "bg-violet-500", text: "text-white" },
+  { bg: "bg-amber-500", text: "text-white" },
+  { bg: "bg-teal-500", text: "text-white" },
+  { bg: "bg-indigo-500", text: "text-white" },
+  { bg: "bg-pink-500", text: "text-white" },
+  { bg: "bg-cyan-500", text: "text-white" },
 ];
 
-// Default category icons based on common category types
-const getDefaultCategoryIcon = (nameAr: string): string => {
-  const name = nameAr.toLowerCase();
-  
-  if (name.includes("إلكترونيات") || name.includes("أجهزة") || name.includes("كمبيوتر")) {
-    return "💻";
-  }
-  if (name.includes("مطاعم") || name.includes("طعام") || name.includes("مأكولات")) {
-    return "🍽️";
-  }
-  if (name.includes("ملابس") || name.includes("أزياء") || name.includes("موضة")) {
-    return "👗";
-  }
-  if (name.includes("ألعاب") || name.includes("ترفيه") || name.includes("لعب")) {
-    return "🎮";
-  }
-  if (name.includes("صحة") || name.includes("جمال") || name.includes("تجميل")) {
-    return "💄";
-  }
-  if (name.includes("أثاث") || name.includes("ديكور") || name.includes("منزل")) {
-    return "🛋️";
-  }
-  if (name.includes("خضار") || name.includes("فاكهة") || name.includes("بقالة")) {
-    return "🥬";
-  }
-  if (name.includes("حلويات") || name.includes("شوكولاتة")) {
-    return "🍫";
-  }
-  if (name.includes("مشروبات") || name.includes("عصير")) {
-    return "🧃";
-  }
-  if (name.includes("ورد") || name.includes("زهور") || name.includes("هدايا")) {
-    return "💐";
-  }
-  if (name.includes("صيدلية") || name.includes("أدوية")) {
-    return "💊";
-  }
-  if (name.includes("رياضة") || name.includes("لياقة")) {
-    return "⚽";
-  }
-  if (name.includes("كتب") || name.includes("مكتبة") || name.includes("قرطاسية")) {
-    return "📚";
-  }
-  if (name.includes("حيوانات") || name.includes("أليفة")) {
-    return "🐾";
-  }
-  if (name.includes("سيارات") || name.includes("قطع غيار")) {
-    return "🚗";
-  }
-  
-  return "🛍️";
-};
-
-// Default category images based on common category types
+// Default category images based on common category types (same as CategoriesSection)
 const getDefaultCategoryImage = (nameAr: string): string => {
   const name = nameAr.toLowerCase();
   
-  if (name.includes("إلكترونيات") || name.includes("أجهزة")) {
-    return "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=200&h=200&fit=crop";
+  if (name.includes("خضار") || name.includes("فاكهة") || name.includes("طازج")) {
+    return "https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=400&h=300&fit=crop";
   }
-  if (name.includes("مطاعم") || name.includes("طعام") || name.includes("مأكولات")) {
-    return "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=200&fit=crop";
+  if (name.includes("حلويات") || name.includes("شوكولاتة") || name.includes("حلوى")) {
+    return "https://images.unsplash.com/photo-1549007994-cb92caebd54b?w=400&h=300&fit=crop";
+  }
+  if (name.includes("عروض") || name.includes("تخفيضات") || name.includes("خصم")) {
+    return "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&h=300&fit=crop";
+  }
+  if (name.includes("جملة") || name.includes("بالجملة")) {
+    return "https://images.unsplash.com/photo-1553531384-cc64ac80f931?w=400&h=300&fit=crop";
+  }
+  if (name.includes("مشروبات") || name.includes("عصير") || name.includes("ماء")) {
+    return "https://images.unsplash.com/photo-1544145945-f90425340c7e?w=400&h=300&fit=crop";
+  }
+  if (name.includes("مخبوزات") || name.includes("خبز") || name.includes("معجنات")) {
+    return "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400&h=300&fit=crop";
+  }
+  if (name.includes("لحوم") || name.includes("دجاج") || name.includes("بروتين")) {
+    return "https://images.unsplash.com/photo-1603048297172-c92544798d5a?w=400&h=300&fit=crop";
+  }
+  if (name.includes("ألبان") || name.includes("حليب") || name.includes("أجبان")) {
+    return "https://images.unsplash.com/photo-1628088062854-d1870b4553da?w=400&h=300&fit=crop";
+  }
+  if (name.includes("مجمدات") || name.includes("مثلجات")) {
+    return "https://images.unsplash.com/photo-1488900128323-21503983a07e?w=400&h=300&fit=crop";
+  }
+  if (name.includes("تنظيف") || name.includes("منظفات")) {
+    return "https://images.unsplash.com/photo-1563453392212-326f5e854473?w=400&h=300&fit=crop";
+  }
+  if (name.includes("إلكترونيات") || name.includes("أجهزة")) {
+    return "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=400&h=300&fit=crop";
   }
   if (name.includes("ملابس") || name.includes("أزياء") || name.includes("موضة")) {
-    return "https://images.unsplash.com/photo-1445205170230-053b83016050?w=200&h=200&fit=crop";
+    return "https://images.unsplash.com/photo-1445205170230-053b83016050?w=400&h=300&fit=crop";
+  }
+  if (name.includes("مطاعم") || name.includes("طعام") || name.includes("وجبات") || name.includes("مأكولات")) {
+    return "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=300&fit=crop";
+  }
+  if (name.includes("صيدلية") || name.includes("أدوية") || name.includes("صحة") || name.includes("جمال")) {
+    return "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400&h=300&fit=crop";
+  }
+  if (name.includes("ورد") || name.includes("زهور") || name.includes("هدايا")) {
+    return "https://images.unsplash.com/photo-1487530811176-3780de880c2d?w=400&h=300&fit=crop";
   }
   if (name.includes("ألعاب") || name.includes("ترفيه")) {
-    return "https://images.unsplash.com/photo-1493711662062-fa541f7f3d24?w=200&h=200&fit=crop";
-  }
-  if (name.includes("صحة") || name.includes("جمال")) {
-    return "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=200&h=200&fit=crop";
+    return "https://images.unsplash.com/photo-1493711662062-fa541f7f3d24?w=400&h=300&fit=crop";
   }
   if (name.includes("أثاث") || name.includes("ديكور")) {
-    return "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=200&h=200&fit=crop";
-  }
-  if (name.includes("خضار") || name.includes("فاكهة") || name.includes("بقالة")) {
-    return "https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=200&h=200&fit=crop";
+    return "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&h=300&fit=crop";
   }
   
-  return "https://images.unsplash.com/photo-1542838132-92c53300491e?w=200&h=200&fit=crop";
+  // Default grocery/supermarket image
+  return "https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&h=300&fit=crop";
 };
 
 const CategoryQuickNav = () => {
@@ -159,7 +137,7 @@ const CategoryQuickNav = () => {
 
   if (isLoading) {
     return (
-      <section className="py-6 sm:py-10 bg-background">
+      <section className="py-6 sm:py-10">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between mb-6">
             <Skeleton className="h-8 w-40" />
@@ -180,7 +158,7 @@ const CategoryQuickNav = () => {
   }
 
   return (
-    <section className="py-6 sm:py-10 bg-background">
+    <section className="py-6 sm:py-10">
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -200,12 +178,11 @@ const CategoryQuickNav = () => {
           </Link>
         </div>
 
-        {/* Categories Grid - Reference Design Style */}
+        {/* Categories Grid - Same Design as CategoriesSection */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
           {categories.map((category, index) => {
             const colorScheme = categoryColorPalette[index % categoryColorPalette.length];
-            const categoryIcon = category.icon || getDefaultCategoryIcon(category.name_ar);
-            const categoryImage = category.image_url;
+            const categoryImage = category.image_url || getDefaultCategoryImage(category.name_ar);
             const storeCount = storeCounts[category.id] || 0;
 
             return (
@@ -214,39 +191,29 @@ const CategoryQuickNav = () => {
                 to={`/stores?category=${category.id}`}
                 className="block group"
               >
-                <div className={`${colorScheme.bg} rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border border-transparent hover:border-primary/20`}>
-                  {/* Icon/Image Container */}
-                  <div className="relative pt-6 pb-4 flex items-center justify-center">
-                    <div className={`w-16 h-16 sm:w-20 sm:h-20 ${colorScheme.iconBg} rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                      {categoryImage ? (
-                        <img 
-                          src={categoryImage} 
-                          alt={category.name_ar}
-                          className="w-10 h-10 sm:w-12 sm:h-12 object-contain"
-                          loading="lazy"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                            target.parentElement!.innerHTML = `<span class="text-3xl sm:text-4xl text-white">${categoryIcon}</span>`;
-                          }}
-                        />
-                      ) : (
-                        <span className="text-3xl sm:text-4xl text-white">{categoryIcon}</span>
-                      )}
+                <div className={`${colorScheme.bg} rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1`}>
+                  {/* Image Container */}
+                  <div className="relative aspect-square p-4 flex items-center justify-center">
+                    <div className="w-full h-full relative">
+                      <img 
+                        src={categoryImage} 
+                        alt={category.name_ar}
+                        className="w-full h-full object-contain drop-shadow-lg group-hover:scale-110 transition-transform duration-300"
+                        loading="lazy"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = getDefaultCategoryImage(category.name_ar);
+                        }}
+                      />
                     </div>
                   </div>
                   
-                  {/* Category Info */}
+                  {/* Category Name */}
                   <div className={`px-3 pb-4 text-center ${colorScheme.text}`}>
-                    <h3 className="font-bold text-sm sm:text-base leading-tight mb-2">
+                    <h3 className="font-bold text-base sm:text-lg leading-tight">
                       {category.name_ar}
                     </h3>
-                    {/* Description - Hidden on mobile */}
-                    <p className="text-xs opacity-70 hidden sm:block mb-2 line-clamp-2">
-                      {getCategoryDescription(category.name_ar)}
-                    </p>
-                    {/* Store Count */}
-                    <div className="flex items-center justify-center gap-1 text-xs opacity-80">
+                    <div className="flex items-center justify-center gap-1 text-xs opacity-80 mt-1">
                       <Store className="w-3 h-3" />
                       <span>{storeCount} متجر</span>
                     </div>
@@ -260,20 +227,5 @@ const CategoryQuickNav = () => {
     </section>
   );
 };
-
-// Helper function for category descriptions
-function getCategoryDescription(nameAr: string): string {
-  const name = nameAr.toLowerCase();
-  
-  if (name.includes("إلكترونيات")) return "هواتف، أجهزة كمبيوتر، إلكترونيات منزلية";
-  if (name.includes("مطاعم") || name.includes("مأكولات")) return "مطاعم، وجبات سريعة، حلويات، مشروبات";
-  if (name.includes("ملابس") || name.includes("أزياء") || name.includes("موضة")) return "ملابس رجالية ونسائية، أحذية، إكسسوارات";
-  if (name.includes("ألعاب") || name.includes("ترفيه")) return "ألعاب فيديو، ألعاب أطفال، ترفيه";
-  if (name.includes("صحة") || name.includes("جمال")) return "مستحضرات تجميل، عناية شخصية، صيدليات";
-  if (name.includes("أثاث") || name.includes("ديكور")) return "أثاث منزلي، ديكورات، مفروشات";
-  if (name.includes("خضار") || name.includes("بقالة")) return "خضروات، فواكه، مواد غذائية";
-  
-  return "تصفح المنتجات والعروض";
-}
 
 export default CategoryQuickNav;
