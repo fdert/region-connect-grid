@@ -49,14 +49,14 @@ const HeroBanner = () => {
   const isVideo = banner.media_type === 'video' && banner.video_url;
 
   const content = (
-    <div className="w-full max-w-4xl mx-auto mb-4 sm:mb-8 px-2 sm:px-4 rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl animate-fade-in relative group">
+    <div className="w-full max-w-6xl mx-auto mb-4 sm:mb-6 px-2 sm:px-4 rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl animate-fade-in relative group">
       {isVideo ? (
         <>
           <video
             ref={videoRef}
             src={banner.video_url!}
             poster={banner.image_url}
-            className="w-full h-auto object-cover aspect-[16/9] sm:aspect-[21/9] md:aspect-[3/1]"
+            className="w-full h-auto object-cover aspect-[2.5/1] sm:aspect-[3/1] md:aspect-[4/1] lg:aspect-[4.5/1]"
             muted={isMuted}
             loop
             playsInline
@@ -75,7 +75,7 @@ const HeroBanner = () => {
         <img
           src={banner.image_url}
           alt={banner.title || "إعلان"}
-          className="w-full h-auto object-cover aspect-[16/9] sm:aspect-[21/9] md:aspect-[3/1] rounded-xl sm:rounded-2xl"
+          className="w-full h-auto object-cover aspect-[2.5/1] sm:aspect-[3/1] md:aspect-[4/1] lg:aspect-[4.5/1] rounded-xl sm:rounded-2xl"
           loading="lazy"
         />
       )}
