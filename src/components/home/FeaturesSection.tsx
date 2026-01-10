@@ -117,7 +117,7 @@ const FeaturesSection = forwardRef<HTMLElement, object>((_, ref) => {
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto mb-12">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            {settings.title_main} <span className="text-gradient">{settings.title_highlight}؟</span>
+            {settings.title_main} <span className="text-primary">{settings.title_highlight}؟</span>
           </h2>
           <p className="text-muted-foreground">
             {settings.subtitle}

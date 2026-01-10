@@ -106,7 +106,7 @@ const MostOrderedSection = () => {
             </div>
             <div>
               <h2 className="text-2xl sm:text-3xl font-bold">
-                الأكثر <span className="text-gradient">طلباً</span>
+                الأكثر <span className="text-primary">طلباً</span>
               </h2>
               <p className="text-muted-foreground text-sm">المنتجات الأكثر شعبية</p>
             </div>

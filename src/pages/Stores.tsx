@@ -212,7 +212,7 @@ const Stores = () => {
         {/* Header */}
         <div className="mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2">
-            جميع <span className="text-gradient">المتاجر</span>
+            جميع <span className="text-primary">المتاجر</span>
           </h1>
           <p className="text-muted-foreground text-sm sm:text-base">
             اكتشف مجموعة متنوعة من المتاجر المميزة

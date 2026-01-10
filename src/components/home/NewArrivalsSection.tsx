@@ -116,7 +116,7 @@ const NewArrivalsSection = () => {
             </div>
             <div>
               <h2 className="text-2xl sm:text-3xl font-bold">
-                وصل <span className="text-gradient">حديثاً</span>
+                وصل <span className="text-primary">حديثاً</span>
               </h2>
               <p className="text-muted-foreground text-sm">أحدث المنتجات المضافة</p>
             </div>

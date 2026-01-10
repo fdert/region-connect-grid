@@ -14,6 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useThemeSettings } from "@/hooks/useThemeSettings";
+import { useCart } from "@/contexts/CartContext";
 import logo from "@/assets/logo.png";
 
 const Navbar = () => {
@@ -22,6 +23,7 @@ const Navbar = () => {
   const location = useLocation();
   const { user, role } = useAuth();
   const { logoUrl } = useThemeSettings();
+  const { itemCount } = useCart();
 
   const getDashboardLink = () => {
     switch (role) {
@@ -93,9 +95,11 @@ const Navbar = () => {
             <Link to="/cart">
               <Button variant="ghost" size="icon" className="relative">
                 <ShoppingCart className="w-5 h-5" />
-                <span className="absolute -top-1 -left-1 w-5 h-5 rounded-full gradient-accent text-[10px] font-bold flex items-center justify-center text-accent-foreground">
-                  3
-                </span>
+                {itemCount > 0 && (
+                  <span className="absolute -top-1 -left-1 w-5 h-5 rounded-full gradient-accent text-[10px] font-bold flex items-center justify-center text-accent-foreground">
+                    {itemCount > 99 ? '99+' : itemCount}
+                  </span>
+                )}
               </Button>
             </Link>
 
