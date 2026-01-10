@@ -112,8 +112,8 @@ const BannerSlider = forwardRef<HTMLElement, BannerSliderProps>(({ position = "h
   if (isLoading) {
     return (
       <section className="w-full">
-        <div className="container mx-auto px-4 py-4">
-          <div className="relative aspect-[3/1] md:aspect-[4/1] rounded-2xl bg-muted animate-pulse" />
+        <div className="container mx-auto px-2 sm:px-4 py-2 sm:py-4">
+          <div className="relative aspect-[16/9] sm:aspect-[21/9] md:aspect-[3/1] rounded-xl sm:rounded-2xl bg-muted animate-pulse" />
         </div>
       </section>
     );
@@ -135,10 +135,10 @@ const BannerSlider = forwardRef<HTMLElement, BannerSliderProps>(({ position = "h
 
   return (
     <section ref={ref} className="w-full bg-background">
-      <div className="container mx-auto px-4 py-4">
+      <div className="container mx-auto px-2 sm:px-4 py-2 sm:py-4">
         <div className="relative group">
-          {/* Main Banner Container - Responsive aspect ratios */}
-          <div className="relative aspect-[2/1] sm:aspect-[3/1] md:aspect-[4/1] lg:aspect-[5/1] rounded-2xl overflow-hidden shadow-lg">
+          {/* Main Banner Container - Responsive aspect ratios for mobile & desktop */}
+          <div className="relative aspect-[16/9] sm:aspect-[21/9] md:aspect-[3/1] rounded-xl sm:rounded-2xl overflow-hidden shadow-lg">
             {/* Slides */}
             {banners.map((banner, index) => (
               <div
