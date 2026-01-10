@@ -103,7 +103,7 @@ const Login = () => {
             <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center shadow-glow">
               <Store className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold text-gradient">سوقنا</span>
+            <span className="text-xl font-bold text-primary">سوقنا</span>
           </Link>
 
           {/* Header */}

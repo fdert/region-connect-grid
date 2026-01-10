@@ -97,7 +97,7 @@ const DashboardLayout = ({ children, role }: DashboardLayoutProps) => {
                 <Store className="w-5 h-5 text-primary-foreground" />
               </div>
               <div>
-                <span className="text-lg font-bold text-gradient block">سوقنا</span>
+                <span className="text-lg font-bold text-primary block">سوقنا</span>
                 <span className="text-xs text-muted-foreground">{roleLabels[role]}</span>
               </div>
             </Link>

@@ -83,7 +83,7 @@ const FeaturedStores = () => {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 sm:mb-12 gap-4">
           <div>
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-3">
-              المتاجر <span className="text-gradient">المميزة</span>
+              المتاجر <span className="text-primary">المميزة</span>
             </h2>
             <p className="text-muted-foreground text-sm sm:text-base">
               أفضل المتاجر المختارة بعناية لتجربة تسوق مميزة
