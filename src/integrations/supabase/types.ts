@@ -848,6 +848,51 @@ export type Database = {
           },
         ]
       }
+      payment_settings: {
+        Row: {
+          created_at: string | null
+          gateway_name: string
+          id: string
+          is_active: boolean | null
+          live_public_key: string | null
+          live_secret_key: string | null
+          mode: string | null
+          settings: Json | null
+          test_public_key: string | null
+          test_secret_key: string | null
+          updated_at: string | null
+          webhook_url: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          gateway_name: string
+          id?: string
+          is_active?: boolean | null
+          live_public_key?: string | null
+          live_secret_key?: string | null
+          mode?: string | null
+          settings?: Json | null
+          test_public_key?: string | null
+          test_secret_key?: string | null
+          updated_at?: string | null
+          webhook_url?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          gateway_name?: string
+          id?: string
+          is_active?: boolean | null
+          live_public_key?: string | null
+          live_secret_key?: string | null
+          mode?: string | null
+          settings?: Json | null
+          test_public_key?: string | null
+          test_secret_key?: string | null
+          updated_at?: string | null
+          webhook_url?: string | null
+        }
+        Relationships: []
+      }
       points_transactions: {
         Row: {
           created_at: string | null

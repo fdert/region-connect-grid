@@ -24,7 +24,8 @@ import {
   Bell,
   FileText,
   Truck,
-  Calculator
+  Calculator,
+  CreditCard
 } from "lucide-react";
 
 interface AdminLayoutProps {
@@ -40,6 +41,7 @@ const menuItems = [
   { icon: Gift, label: "الخدمات الخاصة", href: "/admin/special-services" },
   { icon: ShoppingCart, label: "طلبات خاصة", href: "/admin/special-orders" },
   { icon: Truck, label: "إعدادات التوصيل", href: "/admin/delivery-settings" },
+  { icon: CreditCard, label: "إعدادات الدفع", href: "/admin/payment-settings" },
   { icon: LayoutDashboard, label: "محتوى الرئيسية", href: "/admin/home-content" },
   { icon: FileText, label: "الصفحات الثابتة", href: "/admin/static-pages" },
   { icon: Image, label: "البنرات", href: "/admin/banners" },
