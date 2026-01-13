@@ -211,6 +211,132 @@ const Checkout = () => {
     return info?.distance_km || 0;
   };
 
+  // Create order and return order data
+  const createOrder = async (storeId: string, storeItems: typeof items) => {
+    const storeDeliveryFee = getStoreDeliveryFee(storeId);
+    
+    const vatSummary = calculateOrderVatSummary(
+      storeItems.map(item => ({
+        product_id: item.product_id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity
+      })),
+      storeDeliveryFee,
+      vatRate,
+      commissionRate
+    );
+
+    const orderData = {
+      order_number: `ORD-${Date.now()}`,
+      customer_id: user!.id,
+      store_id: storeId,
+      items: storeItems.map(item => ({
+        product_id: item.product_id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        image: item.image
+      })),
+      subtotal: vatSummary.subtotal_inc_vat,
+      subtotal_ex_vat: vatSummary.subtotal_ex_vat,
+      vat_on_products: vatSummary.vat_on_products,
+      delivery_fee: storeDeliveryFee,
+      delivery_fee_ex_vat: vatSummary.delivery_fee_ex_vat,
+      vat_on_delivery: vatSummary.vat_on_delivery,
+      platform_commission: vatSummary.total_commission_inc_vat,
+      total_commission_ex_vat: vatSummary.total_commission_ex_vat,
+      total_commission_vat: vatSummary.total_commission_vat,
+      total_merchant_payout: vatSummary.total_merchant_payout,
+      tax_amount: vatSummary.vat_on_products + vatSummary.vat_on_delivery,
+      total: vatSummary.order_total,
+      delivery_address: deliveryAddress,
+      delivery_notes: notes,
+      customer_phone: verifiedPhone,
+      payment_method: paymentMethod,
+      paid: paymentMethod === "cash" ? false : false
+    };
+
+    const { data: order, error } = await supabase
+      .from("orders")
+      .insert(orderData as any)
+      .select("id, order_number, total")
+      .single();
+
+    if (error) throw error;
+
+    // حفظ تفاصيل بنود الطلب
+    const orderItemDetails = vatSummary.items.map(item => ({
+      order_id: order.id,
+      product_id: item.product_id,
+      product_name: item.product_name,
+      quantity: item.quantity,
+      unit_price_ex_vat: item.unit_price_ex_vat,
+      vat_rate: item.vat_rate,
+      line_subtotal_ex_vat: item.line_subtotal_ex_vat,
+      line_vat_amount: item.line_vat_amount,
+      line_total: item.line_total,
+      commission_rate: item.commission_rate,
+      commission_ex_vat: item.commission_ex_vat,
+      commission_vat: item.commission_vat,
+      commission_total: item.commission_total,
+      merchant_payout: item.merchant_payout
+    }));
+
+    await supabase.from("order_item_details").insert(orderItemDetails as any);
+
+    // Add timeline entry
+    await supabase.from("order_timeline").insert({
+      order_id: order.id,
+      status: "new" as const,
+      note: "تم إنشاء الطلب",
+      created_by: user!.id
+    } as any);
+
+    return order;
+  };
+
+  // Handle electronic payment via Tap
+  const handleTapPayment = async (orderId: string, orderTotal: number, orderNumber: string) => {
+    try {
+      // Get user profile for customer info
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, email")
+        .eq("user_id", user!.id)
+        .single();
+
+      const customerName = profile?.full_name || "عميل";
+      const customerEmail = profile?.email || undefined;
+
+      // Create Tap charge
+      const { data, error } = await supabase.functions.invoke("tap-create-charge", {
+        body: {
+          orderId,
+          orderType: "regular",
+          amount: orderTotal,
+          customerName,
+          customerEmail,
+          customerPhone: verifiedPhone,
+          redirectUrl: `${window.location.origin}/payment-result?order_id=${orderId}&order_number=${orderNumber}`,
+          description: `طلب رقم ${orderNumber}`
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.success && data.paymentUrl) {
+        // Redirect to Tap payment page
+        window.location.href = data.paymentUrl;
+      } else {
+        throw new Error(data.error || "فشل في إنشاء رابط الدفع");
+      }
+    } catch (error) {
+      console.error("Error creating Tap charge:", error);
+      throw error;
+    }
+  };
+
   const handleSubmit = async () => {
     if (!user) {
       toast({
@@ -243,91 +369,30 @@ const Checkout = () => {
     setIsSubmitting(true);
 
     try {
+      const createdOrders: { id: string; order_number: string; total: number }[] = [];
+
       // Create orders for each store
       for (const [storeId, { items: storeItems }] of Object.entries(itemsByStore)) {
-        const storeDeliveryFee = getStoreDeliveryFee(storeId);
-        
-        // حساب الملخص الضريبي الكامل للطلب
-        const vatSummary = calculateOrderVatSummary(
-          storeItems.map(item => ({
-            product_id: item.product_id,
-            name: item.name,
-            price: item.price,
-            quantity: item.quantity
-          })),
-          storeDeliveryFee,
-          vatRate,
-          commissionRate
-        );
-
-        const orderData = {
-          order_number: `ORD-${Date.now()}`,
-          customer_id: user.id,
-          store_id: storeId,
-          items: storeItems.map(item => ({
-            product_id: item.product_id,
-            name: item.name,
-            price: item.price,
-            quantity: item.quantity,
-            image: item.image
-          })),
-          subtotal: vatSummary.subtotal_inc_vat,
-          subtotal_ex_vat: vatSummary.subtotal_ex_vat,
-          vat_on_products: vatSummary.vat_on_products,
-          delivery_fee: storeDeliveryFee,
-          delivery_fee_ex_vat: vatSummary.delivery_fee_ex_vat,
-          vat_on_delivery: vatSummary.vat_on_delivery,
-          platform_commission: vatSummary.total_commission_inc_vat,
-          total_commission_ex_vat: vatSummary.total_commission_ex_vat,
-          total_commission_vat: vatSummary.total_commission_vat,
-          total_merchant_payout: vatSummary.total_merchant_payout,
-          tax_amount: vatSummary.vat_on_products + vatSummary.vat_on_delivery,
-          total: vatSummary.order_total,
-          delivery_address: deliveryAddress,
-          delivery_notes: notes,
-          customer_phone: verifiedPhone,
-          payment_method: paymentMethod
-        };
-
-        const { data: order, error } = await supabase
-          .from("orders")
-          .insert(orderData as any)
-          .select("id, order_number")
-          .single();
-
-        if (error) throw error;
-        
+        const order = await createOrder(storeId, storeItems);
+        createdOrders.push(order);
         setOrderNumber(order.order_number);
+      }
 
-        // حفظ تفاصيل بنود الطلب مع snapshot الضريبي
-        const orderItemDetails = vatSummary.items.map(item => ({
-          order_id: order.id,
-          product_id: item.product_id,
-          product_name: item.product_name,
-          quantity: item.quantity,
-          unit_price_ex_vat: item.unit_price_ex_vat,
-          vat_rate: item.vat_rate,
-          line_subtotal_ex_vat: item.line_subtotal_ex_vat,
-          line_vat_amount: item.line_vat_amount,
-          line_total: item.line_total,
-          commission_rate: item.commission_rate,
-          commission_ex_vat: item.commission_ex_vat,
-          commission_vat: item.commission_vat,
-          commission_total: item.commission_total,
-          merchant_payout: item.merchant_payout
-        }));
+      if (paymentMethod === "card") {
+        // For card payment, redirect to Tap payment page
+        // Use the first order for payment (or sum all orders)
+        const totalAmount = createdOrders.reduce((sum, order) => sum + order.total, 0);
+        const mainOrderId = createdOrders[0].id;
+        const mainOrderNumber = createdOrders[0].order_number;
 
-        await supabase.from("order_item_details").insert(orderItemDetails as any);
+        await handleTapPayment(mainOrderId, totalAmount, mainOrderNumber);
+        // Don't clear cart or show success - user will be redirected to Tap
+        return;
+      }
 
-        // Add timeline entry
-        await supabase.from("order_timeline").insert({
-          order_id: order.id,
-          status: "new" as const,
-          note: "تم إنشاء الطلب",
-          created_by: user.id
-        } as any);
-
-        // Send WhatsApp notification for new order
+      // For cash payment, complete the order immediately
+      // Send WhatsApp notification for new orders
+      for (const order of createdOrders) {
         try {
           const { notifyNewOrder } = await import('@/lib/notifications');
           await notifyNewOrder(order.id);
@@ -344,7 +409,7 @@ const Checkout = () => {
       console.error("Error creating order:", error);
       toast({
         title: "خطأ",
-        description: "حدث خطأ أثناء إنشاء الطلب",
+        description: error instanceof Error ? error.message : "حدث خطأ أثناء إنشاء الطلب",
         variant: "destructive"
       });
     } finally {
