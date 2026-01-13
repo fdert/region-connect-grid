@@ -22,6 +22,7 @@ import Offers from "./pages/Offers";
 import About from "./pages/About";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsConditions from "./pages/TermsConditions";
+import PaymentResult from "./pages/PaymentResult";
 
 // Admin Dashboard Pages
 import AdminDashboard from "./pages/dashboard/admin/AdminDashboard";
@@ -104,6 +105,7 @@ const AppContent = () => {
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsConditions />} />
         <Route path="/review/:orderId" element={<ReviewOrder />} />
+        <Route path="/payment-result" element={<PaymentResult />} />
         
         {/* Auth Routes */}
         <Route path="/auth/login" element={<Login />} />
