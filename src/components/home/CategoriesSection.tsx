@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { LayoutGrid } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import SectionHeader from "./SectionHeader";
 
 interface Category {
   id: string;
@@ -155,17 +157,15 @@ const CategoriesSection = () => {
     <section className="py-6 sm:py-10">
       <div className="container mx-auto px-4">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl sm:text-2xl font-bold">
-            قسّمناها لك
-          </h2>
-          <Link 
-            to="/categories" 
-            className="text-primary text-sm font-medium hover:underline"
-          >
-            عرض الكل
-          </Link>
-        </div>
+        <SectionHeader
+          title="قسّمناها"
+          titleHighlight="لك"
+          subtitle="تصفح منتجاتنا حسب التصنيفات"
+          icon={LayoutGrid}
+          iconColor="amber"
+          linkTo="/categories"
+          linkText="عرض الكل"
+        />
 
         {/* Categories Grid - New Design like reference image */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">

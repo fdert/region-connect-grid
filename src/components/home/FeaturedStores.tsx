@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Star, MapPin, Clock, ArrowLeft, BadgeCheck } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Star, MapPin, Clock, BadgeCheck, Store, ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import SectionHeader from "./SectionHeader";
 
-interface Store {
+interface StoreType {
   id: string;
   name: string;
   description: string | null;
@@ -31,7 +32,7 @@ const colorPalette = [
 ];
 
 const FeaturedStores = () => {
-  const [stores, setStores] = useState<Store[]>([]);
+  const [stores, setStores] = useState<StoreType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -80,22 +81,15 @@ const FeaturedStores = () => {
     <section className="py-10 sm:py-16 md:py-24 bg-muted/30">
       <div className="container mx-auto px-4">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 sm:mb-12 gap-4">
-          <div>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-3">
-              المتاجر <span className="text-primary">المميزة</span>
-            </h2>
-            <p className="text-muted-foreground text-sm sm:text-base">
-              أفضل المتاجر المختارة بعناية لتجربة تسوق مميزة
-            </p>
-          </div>
-          <Link to="/stores" className="hidden sm:block">
-            <Button variant="outline" className="gap-2">
-              جميع المتاجر
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-          </Link>
-        </div>
+        <SectionHeader
+          title="المتاجر"
+          titleHighlight="المميزة"
+          subtitle="أفضل المتاجر المختارة بعناية لتجربة تسوق مميزة"
+          icon={Store}
+          iconColor="rose"
+          linkTo="/stores"
+          linkText="جميع المتاجر"
+        />
 
         {/* Stores Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">

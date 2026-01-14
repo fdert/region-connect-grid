@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCart } from "@/contexts/CartContext";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
+import SectionHeader from "./SectionHeader";
 
 interface Product {
   id: string;
@@ -109,25 +110,15 @@ const NewArrivalsSection = () => {
     <section className="py-10 sm:py-16 bg-gradient-to-br from-primary/5 to-secondary/30">
       <div className="container mx-auto px-4">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Sparkles className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <h2 className="text-2xl sm:text-3xl font-bold">
-                وصل <span className="text-primary">حديثاً</span>
-              </h2>
-              <p className="text-muted-foreground text-sm">أحدث المنتجات المضافة</p>
-            </div>
-          </div>
-          <Link to="/stores" className="hidden sm:block">
-            <Button variant="outline" className="gap-2 border-primary/30 hover:bg-primary/10">
-              عرض الكل
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-          </Link>
-        </div>
+        <SectionHeader
+          title="وصل"
+          titleHighlight="حديثاً"
+          subtitle="أحدث المنتجات المضافة"
+          icon={Sparkles}
+          iconColor="violet"
+          linkTo="/stores"
+          linkText="عرض الكل"
+        />
 
         {/* Products Grid - Compact */}
         <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3">
