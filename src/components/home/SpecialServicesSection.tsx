@@ -26,6 +26,16 @@ const iconMap: Record<string, React.ElementType> = {
   MapPin: MapPin,
 };
 
+// Color palette for service backgrounds
+const colorPalette = [
+  { bg: "bg-gradient-to-br from-emerald-400 to-teal-500", accent: "bg-emerald-500" },
+  { bg: "bg-gradient-to-br from-blue-400 to-indigo-500", accent: "bg-blue-500" },
+  { bg: "bg-gradient-to-br from-violet-400 to-purple-500", accent: "bg-violet-500" },
+  { bg: "bg-gradient-to-br from-amber-400 to-orange-500", accent: "bg-amber-500" },
+  { bg: "bg-gradient-to-br from-rose-400 to-pink-500", accent: "bg-rose-500" },
+  { bg: "bg-gradient-to-br from-cyan-400 to-sky-500", accent: "bg-cyan-500" },
+];
+
 const SpecialServicesSection = () => {
   const [services, setServices] = useState<SpecialService[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,12 +63,12 @@ const SpecialServicesSection = () => {
 
   if (isLoading) {
     return (
-      <section className="py-10 sm:py-16 md:py-24 bg-gradient-to-b from-primary/5 to-background">
+      <section className="py-10 sm:py-16 md:py-24 bg-muted/30">
         <div className="container mx-auto px-4">
           <Skeleton className="h-10 w-48 mb-8" />
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {[1, 2, 3].map(i => (
-              <Skeleton key={i} className="h-64 rounded-xl" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            {[1, 2, 3, 4].map(i => (
+              <Skeleton key={i} className="h-72 rounded-xl" />
             ))}
           </div>
         </div>
@@ -71,64 +81,91 @@ const SpecialServicesSection = () => {
   }
 
   return (
-    <section className="py-6 sm:py-8">
+    <section className="py-10 sm:py-16 md:py-24 bg-muted/30">
       <div className="container mx-auto px-4">
-        {/* Header - Matching other sections */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Package className="w-4 h-4 text-primary" />
-            </div>
-            <h2 className="text-lg sm:text-xl font-bold">
-              خدمات خاصة
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 sm:mb-12 gap-4">
+          <div>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-3">
+              خدمات <span className="text-primary">خاصة</span>
             </h2>
+            <p className="text-muted-foreground text-sm sm:text-base">
+              خدمات توصيل متميزة لتلبية جميع احتياجاتك
+            </p>
           </div>
+          <Link to="/special-services" className="hidden sm:block">
+            <Button variant="outline" className="gap-2">
+              جميع الخدمات
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+          </Link>
         </div>
 
-        {/* Services Grid - Compact design matching products */}
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
+        {/* Services Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
           {services.map((service, index) => {
             const IconComponent = iconMap[service.icon || "Package"] || Package;
+            const palette = colorPalette[index % colorPalette.length];
             
             return (
               <Link
                 key={service.id}
                 to={`/special-services/${service.id}`}
-                className="block group"
+                className="group opacity-0 animate-slide-up"
+                style={{ animationDelay: `${index * 0.1}s`, animationFillMode: "forwards" }}
               >
-                <div className="bg-card rounded-lg border border-border/50 overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
-                  {/* Service Icon */}
-                  <div className="relative aspect-[4/3] bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center">
-                    <div className="w-10 h-10 bg-white/20 backdrop-blur rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
-                      <IconComponent className="w-5 h-5 text-white" />
+                <div className="bg-card rounded-2xl overflow-hidden border-2 border-border shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-2 hover:border-primary/30">
+                  {/* Colored Background with Icon */}
+                  <div className={`relative h-28 sm:h-32 ${palette.bg} flex items-center justify-center p-3`}>
+                    {/* Decorative Pattern */}
+                    <div className="absolute inset-0 opacity-10">
+                      <div className="absolute top-2 left-2 w-8 h-8 border-2 border-white rounded-full" />
+                      <div className="absolute bottom-2 right-2 w-6 h-6 border-2 border-white rounded-full" />
+                      <div className="absolute top-4 right-6 w-4 h-4 bg-white rounded-full" />
                     </div>
                     
                     {/* Price Badge */}
-                    <div className="absolute top-1 right-1">
-                      <span className="bg-white/20 backdrop-blur text-white text-[8px] px-1.5 py-0.5 rounded-full">
+                    <div className="absolute top-2 right-2">
+                      <Badge variant="default" className="bg-white/30 backdrop-blur-sm text-white shadow-lg text-[10px] sm:text-xs px-2 py-0.5 font-medium border-0">
                         {service.min_price || 0} ر.س
-                      </span>
+                      </Badge>
+                    </div>
+
+                    {/* Icon Container */}
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-xl shadow-xl flex items-center justify-center overflow-hidden group-hover:scale-110 transition-transform duration-300 ring-4 ring-white/30">
+                      <IconComponent className="w-8 h-8 sm:w-10 sm:h-10 text-primary" />
                     </div>
                   </div>
 
                   {/* Content */}
-                  <div className="p-2">
-                    <h3 className="font-semibold text-[10px] sm:text-xs text-center line-clamp-1 group-hover:text-primary transition-colors">
+                  <div className="p-4 sm:p-5 bg-gradient-to-b from-card to-muted/20">
+                    {/* Name */}
+                    <h3 className="font-bold text-base sm:text-lg lg:text-xl mb-3 group-hover:text-primary transition-colors text-center line-clamp-1">
                       {service.name_ar}
                     </h3>
-                    <p className="text-[8px] text-muted-foreground text-center line-clamp-1 mt-0.5">
+
+                    {/* Description */}
+                    <p className="text-xs sm:text-sm text-muted-foreground text-center mb-4 line-clamp-2">
                       {service.description_ar || "توصيل سريع وآمن"}
                     </p>
-                    
-                    {/* Mini Features */}
-                    <div className="flex items-center justify-center gap-1 mt-1.5">
-                      <div className="flex items-center gap-0.5 text-[7px] text-muted-foreground bg-muted px-1 py-0.5 rounded">
-                        <Clock className="w-2 h-2" />
-                        سريع
+
+                    {/* Features */}
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2 bg-success/10 rounded-lg px-3 py-2">
+                        <div className="w-7 h-7 bg-success/20 rounded-full flex items-center justify-center flex-shrink-0">
+                          <Clock className="w-4 h-4 text-success" />
+                        </div>
+                        <span className="text-xs sm:text-sm font-medium text-success">
+                          توصيل سريع ✨
+                        </span>
                       </div>
-                      <div className="flex items-center gap-0.5 text-[7px] text-muted-foreground bg-muted px-1 py-0.5 rounded">
-                        <Shield className="w-2 h-2" />
-                        آمن
+                      <div className="flex items-center gap-2 bg-primary/10 rounded-lg px-3 py-2">
+                        <div className="w-7 h-7 bg-primary/20 rounded-full flex items-center justify-center flex-shrink-0">
+                          <Shield className="w-4 h-4 text-primary" />
+                        </div>
+                        <span className="text-xs sm:text-sm font-medium text-primary">
+                          آمن ومضمون
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -136,6 +173,16 @@ const SpecialServicesSection = () => {
               </Link>
             );
           })}
+        </div>
+
+        {/* Mobile View All */}
+        <div className="mt-6 sm:mt-8 text-center sm:hidden">
+          <Link to="/special-services">
+            <Button variant="outline" className="gap-2">
+              عرض جميع الخدمات
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+          </Link>
         </div>
       </div>
     </section>
