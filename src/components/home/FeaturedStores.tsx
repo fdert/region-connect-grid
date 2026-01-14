@@ -98,7 +98,7 @@ const FeaturedStores = () => {
         </div>
 
         {/* Stores Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
           {stores.map((store, index) => {
             const palette = colorPalette[index % colorPalette.length];
             
@@ -109,31 +109,39 @@ const FeaturedStores = () => {
                 className="group opacity-0 animate-slide-up"
                 style={{ animationDelay: `${index * 0.1}s`, animationFillMode: "forwards" }}
               >
-                <div className="bg-card rounded-lg sm:rounded-xl overflow-hidden border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-                  {/* Colored Background with Logo - Much Smaller */}
-                  <div className={`relative h-20 sm:h-24 ${palette.bg} flex items-center justify-center p-2`}>
+                <div className="bg-card rounded-2xl overflow-hidden border-2 border-border shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-2 hover:border-primary/30">
+                  {/* Colored Background with Logo */}
+                  <div className={`relative h-28 sm:h-32 ${palette.bg} flex items-center justify-center p-3`}>
+                    {/* Decorative Pattern */}
+                    <div className="absolute inset-0 opacity-10">
+                      <div className="absolute top-2 left-2 w-8 h-8 border-2 border-white rounded-full" />
+                      <div className="absolute bottom-2 right-2 w-6 h-6 border-2 border-white rounded-full" />
+                      <div className="absolute top-4 right-6 w-4 h-4 bg-white rounded-full" />
+                    </div>
+                    
                     {/* Status Badge */}
-                    <div className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5">
-                      <Badge variant="default" className="bg-success text-white shadow-lg text-[8px] sm:text-[10px] px-1 py-0.5">
+                    <div className="absolute top-2 right-2">
+                      <Badge variant="default" className="bg-success text-white shadow-lg text-[10px] sm:text-xs px-2 py-0.5 font-medium">
+                        <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse inline-block mr-1" />
                         مفتوح
                       </Badge>
                     </div>
                     
                     {/* Verified Badge */}
-                    <div className="absolute top-1 left-1 sm:top-1.5 sm:left-1.5 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
-                      <BadgeCheck className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" />
+                    <div className="absolute top-2 left-2 w-6 h-6 rounded-full bg-white/30 backdrop-blur-sm flex items-center justify-center shadow-sm">
+                      <BadgeCheck className="w-4 h-4 text-white" />
                     </div>
 
-                    {/* White Logo Container - Proportional to box */}
-                    <div className="w-10 h-10 sm:w-14 sm:h-14 bg-white rounded-lg shadow-lg flex items-center justify-center overflow-hidden group-hover:scale-105 transition-transform duration-300">
+                    {/* White Logo Container */}
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-xl shadow-xl flex items-center justify-center overflow-hidden group-hover:scale-110 transition-transform duration-300 ring-4 ring-white/30">
                       {store.logo_url ? (
                         <img
                           src={store.logo_url}
                           alt={store.name}
-                          className="w-full h-full object-contain p-1"
+                          className="w-full h-full object-contain p-2"
                         />
                       ) : (
-                        <span className="text-lg sm:text-xl font-bold text-gray-300">
+                        <span className="text-2xl sm:text-3xl font-bold text-primary">
                           {store.name.charAt(0)}
                         </span>
                       )}
@@ -141,39 +149,43 @@ const FeaturedStores = () => {
                   </div>
 
                   {/* Content */}
-                  <div className="p-3 sm:p-4 text-center">
+                  <div className="p-4 sm:p-5 bg-gradient-to-b from-card to-muted/20">
                     {/* Name */}
-                    <h3 className="font-bold text-sm sm:text-base lg:text-lg mb-1.5 sm:mb-2 group-hover:text-primary transition-colors line-clamp-1">
+                    <h3 className="font-bold text-base sm:text-lg lg:text-xl mb-3 group-hover:text-primary transition-colors text-center line-clamp-1">
                       {store.name}
                     </h3>
 
-                    {/* Rating */}
-                    <div className="flex items-center justify-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
-                      <div className="flex items-center gap-0.5 sm:gap-1">
-                        <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 fill-amber-500" />
-                        <span className="font-semibold text-xs sm:text-sm">
+                    {/* Rating - Enhanced */}
+                    <div className="flex items-center justify-center gap-2 mb-4">
+                      <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-900/20 px-3 py-1.5 rounded-full">
+                        <Star className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500 fill-amber-500" />
+                        <span className="font-bold text-sm sm:text-base text-amber-700 dark:text-amber-400">
                           {store.rating ? Number(store.rating).toFixed(1) : "0.0"}
                         </span>
                       </div>
-                      <span className="text-[10px] sm:text-xs text-muted-foreground">
+                      <span className="text-xs sm:text-sm text-muted-foreground bg-muted px-2 py-1 rounded-full">
                         ({store.total_reviews || 0} تقييم)
                       </span>
                     </div>
 
-                    {/* Info - Hidden on mobile for cleaner look */}
-                    <div className="hidden sm:flex flex-col gap-1.5 text-sm text-muted-foreground">
+                    {/* Info Cards */}
+                    <div className="flex flex-col gap-2">
                       {(store.city || store.address) && (
-                        <div className="flex items-center justify-center gap-1.5">
-                          <MapPin className="w-3.5 h-3.5" />
-                          <span className="truncate text-xs">
-                            {store.city}{store.address ? `، ${store.address}` : ""}
+                        <div className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-2">
+                          <div className="w-7 h-7 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                            <MapPin className="w-4 h-4 text-primary" />
+                          </div>
+                          <span className="text-xs sm:text-sm text-foreground/80 truncate">
+                            {store.city}{store.address ? ` - ${store.address}` : ""}
                           </span>
                         </div>
                       )}
-                      <div className="flex items-center justify-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5" />
-                        <span className="text-xs">
-                          التوصيل: {store.delivery_fee ? `${store.delivery_fee} ر.س` : "مجاني"}
+                      <div className="flex items-center gap-2 bg-success/10 rounded-lg px-3 py-2">
+                        <div className="w-7 h-7 bg-success/20 rounded-full flex items-center justify-center flex-shrink-0">
+                          <Clock className="w-4 h-4 text-success" />
+                        </div>
+                        <span className="text-xs sm:text-sm font-medium text-success">
+                          التوصيل: {store.delivery_fee ? `${store.delivery_fee} ر.س` : "مجاني ✨"}
                         </span>
                       </div>
                     </div>
