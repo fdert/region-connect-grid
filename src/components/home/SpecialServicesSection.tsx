@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import SectionHeader from "./SectionHeader";
 
 interface SpecialService {
   id: string;
@@ -84,22 +85,15 @@ const SpecialServicesSection = () => {
     <section className="py-10 sm:py-16 md:py-24 bg-muted/30">
       <div className="container mx-auto px-4">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 sm:mb-12 gap-4">
-          <div>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-3">
-              خدمات <span className="text-primary">خاصة</span>
-            </h2>
-            <p className="text-muted-foreground text-sm sm:text-base">
-              خدمات توصيل متميزة لتلبية جميع احتياجاتك
-            </p>
-          </div>
-          <Link to="/special-services" className="hidden sm:block">
-            <Button variant="outline" className="gap-2">
-              جميع الخدمات
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-          </Link>
-        </div>
+        <SectionHeader
+          title="خدمات"
+          titleHighlight="خاصة"
+          subtitle="خدمات توصيل متميزة لتلبية جميع احتياجاتك"
+          icon={Package}
+          iconColor="emerald"
+          linkTo="/special-services"
+          linkText="جميع الخدمات"
+        />
 
         {/* Services Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">

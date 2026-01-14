@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCart } from "@/contexts/CartContext";
+import SectionHeader from "./SectionHeader";
 
 interface Product {
   id: string;
@@ -99,25 +100,15 @@ const MostOrderedSection = () => {
     <section className="py-10 sm:py-16">
       <div className="container mx-auto px-4">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center">
-              <TrendingUp className="w-6 h-6 text-accent" />
-            </div>
-            <div>
-              <h2 className="text-2xl sm:text-3xl font-bold">
-                الأكثر <span className="text-primary">طلباً</span>
-              </h2>
-              <p className="text-muted-foreground text-sm">المنتجات الأكثر شعبية</p>
-            </div>
-          </div>
-          <Link to="/stores" className="hidden sm:block">
-            <Button variant="outline" className="gap-2">
-              عرض الكل
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-          </Link>
-        </div>
+        <SectionHeader
+          title="الأكثر"
+          titleHighlight="طلباً"
+          subtitle="المنتجات الأكثر شعبية"
+          icon={TrendingUp}
+          iconColor="accent"
+          linkTo="/stores"
+          linkText="عرض الكل"
+        />
 
         {/* Products Grid - Compact */}
         <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3">
