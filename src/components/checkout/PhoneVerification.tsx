@@ -387,6 +387,7 @@ const PhoneVerification = ({ onVerified, onBack }: PhoneVerificationProps) => {
               maxLength={6} 
               value={otpCode} 
               onChange={setOtpCode}
+              autoFocus
             >
               <InputOTPGroup>
                 <InputOTPSlot index={0} className="w-12 h-14 text-xl" />
