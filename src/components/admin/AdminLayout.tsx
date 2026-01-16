@@ -48,6 +48,7 @@ const menuItems = [
   { icon: Palette, label: "المظهر والألوان", href: "/admin/theme" },
   { icon: Webhook, label: "Webhooks", href: "/admin/webhooks" },
   { icon: MessageSquare, label: "قوالب الواتساب", href: "/admin/whatsapp" },
+  { icon: MessageSquare, label: "إعدادات API الواتساب", href: "/admin/whatsapp-settings" },
   { icon: Star, label: "التقييمات", href: "/admin/reviews" },
   { icon: Headphones, label: "الدعم الفني", href: "/admin/support" },
   { icon: Wallet, label: "المحافظ", href: "/admin/wallets" },
