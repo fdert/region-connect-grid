@@ -2017,6 +2017,79 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_messages: {
+        Row: {
+          created_at: string
+          direction: string
+          error_message: string | null
+          external_message_id: string | null
+          id: string
+          message: string
+          metadata: Json | null
+          order_id: string | null
+          phone: string
+          reply_to_message_id: string | null
+          special_order_id: string | null
+          status: string | null
+          template_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          direction: string
+          error_message?: string | null
+          external_message_id?: string | null
+          id?: string
+          message: string
+          metadata?: Json | null
+          order_id?: string | null
+          phone: string
+          reply_to_message_id?: string | null
+          special_order_id?: string | null
+          status?: string | null
+          template_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          direction?: string
+          error_message?: string | null
+          external_message_id?: string | null
+          id?: string
+          message?: string
+          metadata?: Json | null
+          order_id?: string | null
+          phone?: string
+          reply_to_message_id?: string | null
+          special_order_id?: string | null
+          status?: string | null
+          template_name?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_reply_to_message_id_fkey"
+            columns: ["reply_to_message_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_special_order_id_fkey"
+            columns: ["special_order_id"]
+            isOneToOne: false
+            referencedRelation: "special_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_templates: {
         Row: {
           created_at: string | null
