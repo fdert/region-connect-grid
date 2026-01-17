@@ -15,6 +15,7 @@ interface IncomingMessage {
   text?: string;
   body?: string;
   content?: string;
+  message_content?: string;
   messageId?: string;
   message_id?: string;
   id?: string;
@@ -25,6 +26,16 @@ interface IncomingMessage {
   type?: string;
   status?: string;
   event?: string;
+  device_id?: string;
+  // Raw message object from Darcoom
+  raw_message?: {
+    conversation?: string;
+    extendedTextMessage?: { text?: string };
+    locationMessage?: { degreesLatitude?: number; degreesLongitude?: number };
+    imageMessage?: { caption?: string };
+    videoMessage?: { caption?: string };
+    documentMessage?: { caption?: string };
+  };
 }
 
 serve(async (req) => {
@@ -58,8 +69,27 @@ serve(async (req) => {
     // Extract phone number (handle different field names)
     const phone = data.from || data.phone || data.sender || "";
     
-    // Extract message content (handle different field names)
-    const message = data.message || data.text || data.body || data.content || "";
+    // Extract message content (handle different field names including Darcoom raw_message)
+    let message = data.message || data.text || data.body || data.content || data.message_content || "";
+    
+    // Try to extract from raw_message if message is empty (Darcoom format)
+    if (!message && data.raw_message) {
+      const rawMsg = data.raw_message;
+      message = rawMsg.conversation || 
+                rawMsg.extendedTextMessage?.text ||
+                rawMsg.imageMessage?.caption ||
+                rawMsg.videoMessage?.caption ||
+                rawMsg.documentMessage?.caption || "";
+      
+      // Handle location messages
+      if (!message && rawMsg.locationMessage) {
+        const lat = rawMsg.locationMessage.degreesLatitude;
+        const lng = rawMsg.locationMessage.degreesLongitude;
+        if (lat && lng) {
+          message = `📍 موقع: ${lat}, ${lng}`;
+        }
+      }
+    }
     
     // Extract message ID (handle different field names)
     const externalMessageId = data.messageId || data.message_id || data.id || null;
