@@ -69,7 +69,7 @@ export default function OrderTrackingMap({
   const markersRef = useRef<any[]>([]);
   const routeLineRef = useRef<any>(null);
   const leafletRef = useRef<any>(null);
-  const etaIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const etaIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
   // Get map settings
   const { isMapbox, mapboxApiKey, isLoading: isMapSettingsLoading } = useMapSettings();

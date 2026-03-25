@@ -53,7 +53,7 @@ const PhoneVerification = ({ onVerified, onBack }: PhoneVerificationProps) => {
 
   // Poll for WhatsApp location after step changes to location
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
     let pollCount = 0;
     const maxPolls = 60; // Poll for max 3 minutes
     

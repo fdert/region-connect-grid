@@ -22,7 +22,7 @@ export function useCourierGPS(orderId: string | null, isActive: boolean = true) 
   });
 
   const watchIdRef = useRef<number | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastPositionRef = useRef<GeolocationPosition | null>(null);
 
   const updateLocation = useCallback(async (position: GeolocationPosition) => {
