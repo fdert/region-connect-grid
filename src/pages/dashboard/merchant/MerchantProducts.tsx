@@ -245,7 +245,26 @@ const MerchantProducts = () => {
     },
   });
 
-  // Toggle active status
+  // Bulk delete products
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase
+        .from("products")
+        .delete()
+        .in("id", ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["merchant-products"] });
+      setSelectedIds(new Set());
+      toast.success("تم حذف المنتجات المحددة");
+    },
+    onError: () => {
+      toast.error("حدث خطأ أثناء حذف المنتجات");
+    },
+  });
+
+
   const toggleActiveMutation = useMutation({
     mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
       const { error } = await supabase
