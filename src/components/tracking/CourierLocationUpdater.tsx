@@ -19,7 +19,7 @@ export default function CourierLocationUpdater({ orderId, isActive = true }: Cou
   const [accuracy, setAccuracy] = useState<number | null>(null);
   const [updateCount, setUpdateCount] = useState(0);
   const watchIdRef = useRef<number | null>(null);
-  const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const updateIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastPositionRef = useRef<GeolocationPosition | null>(null);
 
   const updateLocation = useCallback(async (position: GeolocationPosition) => {
