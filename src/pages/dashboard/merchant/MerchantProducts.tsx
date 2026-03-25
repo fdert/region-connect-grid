@@ -37,10 +37,21 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Plus, Package, Edit, Trash2, Loader2, Upload, Download, Image, MoreVertical, FileSpreadsheet, ClipboardPaste, Link } from "lucide-react";
+import { Search, Plus, Package, Edit, Trash2, Loader2, Upload, Download, Image, MoreVertical, FileSpreadsheet, ClipboardPaste, Link, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import UrlImportDialog from "@/components/merchant/UrlImportDialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ProductForm {
   name: string;
