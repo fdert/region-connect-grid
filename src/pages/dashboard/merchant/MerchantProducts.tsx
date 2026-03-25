@@ -565,6 +565,40 @@ const MerchantProducts = () => {
     product.name.toLowerCase().includes(search.toLowerCase())
   ) || [];
 
+  const allSelected = filteredProducts.length > 0 && filteredProducts.every(p => selectedIds.has(p.id));
+  const someSelected = filteredProducts.some(p => selectedIds.has(p.id));
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredProducts.map(p => p.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedIds.size === 0) return;
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteByCategory = () => {
+    if (!deleteCategoryFilter) return;
+    const ids = (products || []).filter(p => p.category_id === deleteCategoryFilter).map(p => p.id);
+    if (ids.length === 0) {
+      toast.error("لا توجد منتجات في هذا التصنيف");
+      return;
+    }
+    setSelectedIds(new Set(ids));
+    setDeleteConfirmOpen(true);
+  };
+
   const stats = {
     total: products?.length || 0,
     active: products?.filter(p => p.is_active).length || 0,
