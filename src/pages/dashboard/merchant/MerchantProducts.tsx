@@ -37,10 +37,21 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Plus, Package, Edit, Trash2, Loader2, Upload, Download, Image, MoreVertical, FileSpreadsheet, ClipboardPaste, Link } from "lucide-react";
+import { Search, Plus, Package, Edit, Trash2, Loader2, Upload, Download, Image, MoreVertical, FileSpreadsheet, ClipboardPaste, Link, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import UrlImportDialog from "@/components/merchant/UrlImportDialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ProductForm {
   name: string;
@@ -68,6 +79,9 @@ const MerchantProducts = () => {
   const [importCategoryId, setImportCategoryId] = useState<string>("");
   const [removeWatermarks, setRemoveWatermarks] = useState(false);
   const [processingWatermarks, setProcessingWatermarks] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteCategoryFilter, setDeleteCategoryFilter] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const excelInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<ProductForm>({
@@ -231,7 +245,26 @@ const MerchantProducts = () => {
     },
   });
 
-  // Toggle active status
+  // Bulk delete products
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase
+        .from("products")
+        .delete()
+        .in("id", ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["merchant-products"] });
+      setSelectedIds(new Set());
+      toast.success("تم حذف المنتجات المحددة");
+    },
+    onError: () => {
+      toast.error("حدث خطأ أثناء حذف المنتجات");
+    },
+  });
+
+
   const toggleActiveMutation = useMutation({
     mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
       const { error } = await supabase
@@ -532,6 +565,40 @@ const MerchantProducts = () => {
     product.name.toLowerCase().includes(search.toLowerCase())
   ) || [];
 
+  const allSelected = filteredProducts.length > 0 && filteredProducts.every(p => selectedIds.has(p.id));
+  const someSelected = filteredProducts.some(p => selectedIds.has(p.id));
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredProducts.map(p => p.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedIds.size === 0) return;
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteByCategory = () => {
+    if (!deleteCategoryFilter) return;
+    const ids = (products || []).filter(p => p.category_id === deleteCategoryFilter).map(p => p.id);
+    if (ids.length === 0) {
+      toast.error("لا توجد منتجات في هذا التصنيف");
+      return;
+    }
+    setSelectedIds(new Set(ids));
+    setDeleteConfirmOpen(true);
+  };
+
   const stats = {
     total: products?.length || 0,
     active: products?.filter(p => p.is_active).length || 0,
@@ -633,6 +700,39 @@ const MerchantProducts = () => {
           </CardContent>
         </Card>
 
+        {/* Bulk Actions */}
+        {selectedIds.size > 0 && (
+          <div className="flex items-center gap-3 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+            <CheckSquare className="w-5 h-5 text-destructive" />
+            <span className="font-medium">تم تحديد {selectedIds.size} منتج</span>
+            <Button variant="destructive" size="sm" onClick={handleBulkDelete} disabled={bulkDeleteMutation.isPending}>
+              {bulkDeleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin ml-1" /> : <Trash2 className="w-4 h-4 ml-1" />}
+              حذف المحدد
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setSelectedIds(new Set())}>إلغاء التحديد</Button>
+          </div>
+        )}
+
+        {/* Delete by Category */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <Select value={deleteCategoryFilter} onValueChange={setDeleteCategoryFilter}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="اختر تصنيف للحذف" />
+            </SelectTrigger>
+            <SelectContent>
+              {categories?.map((cat) => (
+                <SelectItem key={cat.id} value={cat.id}>{cat.name_ar}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {deleteCategoryFilter && (
+            <Button variant="destructive" size="sm" onClick={handleDeleteByCategory}>
+              <Trash2 className="w-4 h-4 ml-1" />
+              حذف كل منتجات التصنيف
+            </Button>
+          )}
+        </div>
+
         {/* Products Table */}
         <Card>
           <CardHeader>
@@ -652,6 +752,13 @@ const MerchantProducts = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={allSelected}
+                          onCheckedChange={toggleSelectAll}
+                          aria-label="تحديد الكل"
+                        />
+                      </TableHead>
                       <TableHead className="text-right">المنتج</TableHead>
                       <TableHead className="text-right">القسم</TableHead>
                       <TableHead className="text-right">السعر</TableHead>
@@ -664,7 +771,13 @@ const MerchantProducts = () => {
                     {filteredProducts.map((product) => {
                       const images = product.images as string[] || [];
                       return (
-                        <TableRow key={product.id}>
+                        <TableRow key={product.id} className={selectedIds.has(product.id) ? "bg-muted/50" : ""}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedIds.has(product.id)}
+                              onCheckedChange={() => toggleSelect(product.id)}
+                            />
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-3">
                               {images[0] ? (
@@ -743,7 +856,30 @@ const MerchantProducts = () => {
           </CardContent>
         </Card>
 
-        {/* Product Dialog */}
+        {/* Bulk Delete Confirmation */}
+        <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
+              <AlertDialogDescription>
+                هل أنت متأكد من حذف {selectedIds.size} منتج؟ لا يمكن التراجع عن هذا الإجراء.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => {
+                  bulkDeleteMutation.mutate(Array.from(selectedIds));
+                  setDeleteConfirmOpen(false);
+                  setDeleteCategoryFilter("");
+                }}
+              >
+                حذف
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
