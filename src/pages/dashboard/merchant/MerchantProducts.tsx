@@ -700,6 +700,39 @@ const MerchantProducts = () => {
           </CardContent>
         </Card>
 
+        {/* Bulk Actions */}
+        {selectedIds.size > 0 && (
+          <div className="flex items-center gap-3 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+            <CheckSquare className="w-5 h-5 text-destructive" />
+            <span className="font-medium">تم تحديد {selectedIds.size} منتج</span>
+            <Button variant="destructive" size="sm" onClick={handleBulkDelete} disabled={bulkDeleteMutation.isPending}>
+              {bulkDeleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin ml-1" /> : <Trash2 className="w-4 h-4 ml-1" />}
+              حذف المحدد
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setSelectedIds(new Set())}>إلغاء التحديد</Button>
+          </div>
+        )}
+
+        {/* Delete by Category */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <Select value={deleteCategoryFilter} onValueChange={setDeleteCategoryFilter}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="اختر تصنيف للحذف" />
+            </SelectTrigger>
+            <SelectContent>
+              {categories?.map((cat) => (
+                <SelectItem key={cat.id} value={cat.id}>{cat.name_ar}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {deleteCategoryFilter && (
+            <Button variant="destructive" size="sm" onClick={handleDeleteByCategory}>
+              <Trash2 className="w-4 h-4 ml-1" />
+              حذف كل منتجات التصنيف
+            </Button>
+          )}
+        </div>
+
         {/* Products Table */}
         <Card>
           <CardHeader>
@@ -719,6 +752,13 @@ const MerchantProducts = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={allSelected}
+                          onCheckedChange={toggleSelectAll}
+                          aria-label="تحديد الكل"
+                        />
+                      </TableHead>
                       <TableHead className="text-right">المنتج</TableHead>
                       <TableHead className="text-right">القسم</TableHead>
                       <TableHead className="text-right">السعر</TableHead>
@@ -731,7 +771,13 @@ const MerchantProducts = () => {
                     {filteredProducts.map((product) => {
                       const images = product.images as string[] || [];
                       return (
-                        <TableRow key={product.id}>
+                        <TableRow key={product.id} className={selectedIds.has(product.id) ? "bg-muted/50" : ""}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedIds.has(product.id)}
+                              onCheckedChange={() => toggleSelect(product.id)}
+                            />
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-3">
                               {images[0] ? (
@@ -810,7 +856,30 @@ const MerchantProducts = () => {
           </CardContent>
         </Card>
 
-        {/* Product Dialog */}
+        {/* Bulk Delete Confirmation */}
+        <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
+              <AlertDialogDescription>
+                هل أنت متأكد من حذف {selectedIds.size} منتج؟ لا يمكن التراجع عن هذا الإجراء.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => {
+                  bulkDeleteMutation.mutate(Array.from(selectedIds));
+                  setDeleteConfirmOpen(false);
+                  setDeleteCategoryFilter("");
+                }}
+              >
+                حذف
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
