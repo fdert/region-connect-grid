@@ -245,22 +245,33 @@ const MerchantProducts = () => {
     },
   });
 
-  // Bulk delete products
+  // Bulk delete products (in batches to avoid query size limits)
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const { error } = await supabase
-        .from("products")
-        .delete()
-        .in("id", ids);
-      if (error) throw error;
+      const batchSize = 50;
+      for (let i = 0; i < ids.length; i += batchSize) {
+        const batch = ids.slice(i, i + batchSize);
+        // First delete related cart_items
+        await supabase
+          .from("cart_items")
+          .delete()
+          .in("product_id", batch);
+        // Then delete products
+        const { error } = await supabase
+          .from("products")
+          .delete()
+          .in("id", batch);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["merchant-products"] });
       setSelectedIds(new Set());
       toast.success("تم حذف المنتجات المحددة");
     },
-    onError: () => {
-      toast.error("حدث خطأ أثناء حذف المنتجات");
+    onError: (error: any) => {
+      console.error("Bulk delete error:", error);
+      toast.error("حدث خطأ أثناء حذف المنتجات: " + (error?.message || ""));
     },
   });
 
