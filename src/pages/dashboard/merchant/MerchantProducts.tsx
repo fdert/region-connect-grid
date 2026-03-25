@@ -79,6 +79,9 @@ const MerchantProducts = () => {
   const [importCategoryId, setImportCategoryId] = useState<string>("");
   const [removeWatermarks, setRemoveWatermarks] = useState(false);
   const [processingWatermarks, setProcessingWatermarks] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteCategoryFilter, setDeleteCategoryFilter] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const excelInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<ProductForm>({
