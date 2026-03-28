@@ -38,39 +38,48 @@ function formatPhoneNumber(phone: string): string {
   return '+' + cleaned;
 }
 
-// Send WhatsApp message using the same API as OTP
-async function sendWhatsAppMessage(phone: string, message: string): Promise<{ success: boolean; error?: string }> {
+// Send WhatsApp message using the WhatsApp Connect Portal API
+async function sendWhatsAppMessage(phone: string, message: string): Promise<{ success: boolean; error?: string; response_data?: any }> {
   const appKey = Deno.env.get("WHATSAPP_APP_KEY");
-  const authKey = Deno.env.get("WHATSAPP_AUTH_KEY");
 
-  if (!appKey || !authKey) {
-    console.error("WhatsApp API credentials not configured");
-    return { success: false, error: "WhatsApp API credentials not configured" };
+  if (!appKey) {
+    console.error("WhatsApp API key not configured");
+    return { success: false, error: "WhatsApp API key (x-api-key) not configured. Please set WHATSAPP_APP_KEY." };
   }
 
   const formattedPhone = formatPhoneNumber(phone);
-  console.log(`Sending WhatsApp message to: ${formattedPhone}`);
+  // Remove the + prefix for the API
+  const phoneForApi = formattedPhone.replace('+', '');
+  console.log(`Sending WhatsApp message to: ${phoneForApi}`);
 
   try {
-    const formData = new FormData();
-    formData.append("appkey", appKey);
-    formData.append("authkey", authKey);
-    formData.append("to", formattedPhone);
-    formData.append("message", message);
-
-    const response = await fetch("https://darcoom.com/wsender/public/api/create-message", {
+    const response = await fetch("https://whats-app-connect-portal.replit.app/api/wa/send/text", {
       method: "POST",
-      body: formData,
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": appKey,
+      },
+      body: JSON.stringify({
+        to: phoneForApi,
+        message: message,
+      }),
     });
 
     const responseText = await response.text();
     console.log(`WhatsApp API response: ${response.status} - ${responseText}`);
 
-    if (!response.ok) {
-      return { success: false, error: `API returned ${response.status}: ${responseText}` };
+    let responseData;
+    try {
+      responseData = JSON.parse(responseText);
+    } catch {
+      responseData = { raw: responseText };
     }
 
-    return { success: true };
+    if (!response.ok) {
+      return { success: false, error: `API returned ${response.status}: ${responseText}`, response_data: responseData };
+    }
+
+    return { success: true, response_data: responseData };
   } catch (error: any) {
     console.error("Error sending WhatsApp message:", error);
     return { success: false, error: error.message };
