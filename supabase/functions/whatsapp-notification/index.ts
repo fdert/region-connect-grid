@@ -476,6 +476,44 @@ serve(async (req) => {
 
     console.log(`Processing WhatsApp notification: template=${template_name}, recipient_type=${recipient_type}`);
 
+    // Handle test_connection as a special case - send message directly without template
+    if (template_name === "test_connection") {
+      if (!phone) {
+        return new Response(
+          JSON.stringify({ success: false, error: "رقم الهاتف مطلوب لاختبار الاتصال" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const testMessage = customVariables?.message || "🔔 اختبار اتصال ناجح!\n\nتم إرسال هذه الرسالة للتأكد من صحة إعدادات API الواتساب.";
+      console.log(`Sending test message to: ${phone}`);
+      
+      const result = await sendWhatsAppMessage(phone, testMessage);
+      
+      // Log the test message
+      try {
+        await supabase.from("whatsapp_messages").insert({
+          direction: "outgoing",
+          phone: phone,
+          message: testMessage,
+          template_name: "test_connection",
+          status: result.success ? "sent" : "failed",
+        });
+      } catch (logErr) {
+        console.error("Failed to log test message:", logErr);
+      }
+
+      return new Response(
+        JSON.stringify({ 
+          success: result.success, 
+          error: result.error || null,
+          message: result.success ? "تم إرسال رسالة الاختبار بنجاح" : `فشل الإرسال: ${result.error}`,
+          phone: phone
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Determine target phones and build variables based on order type
     let targetPhones: string[] = phone ? [phone] : [];
     let variables: Record<string, string> = customVariables || {};
