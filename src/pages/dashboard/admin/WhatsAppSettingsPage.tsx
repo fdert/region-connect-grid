@@ -292,7 +292,23 @@ const WhatsAppSettingsPage = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        throw new Error(error.message || "خطأ في الاتصال بالخادم");
+      }
+
+      // Check the response data for success/failure
+      if (data?.success === false) {
+        const errorDetail = data?.error || "فشل إرسال الرسالة - تحقق من مفاتيح API ورقم الهاتف";
+        const updatedSettings = {
+          ...formData,
+          last_tested_at: new Date().toISOString(),
+          test_status: 'failed' as const,
+        };
+        setFormData(updatedSettings);
+        saveMutation.mutate(updatedSettings);
+        toast.error(`❌ فشل الإرسال: ${errorDetail}`, { duration: 8000 });
+        return;
+      }
 
       const updatedSettings = {
         ...formData,
@@ -302,8 +318,10 @@ const WhatsAppSettingsPage = () => {
       
       setFormData(updatedSettings);
       saveMutation.mutate(updatedSettings);
-      toast.success("تم الاتصال بنجاح! تحقق من رسالة الواتساب");
+      toast.success("✅ تم إرسال رسالة الاختبار بنجاح! تحقق من الواتساب", { duration: 5000 });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-messages"] });
     } catch (error: any) {
+      console.error("Test connection error:", error);
       const updatedSettings = {
         ...formData,
         last_tested_at: new Date().toISOString(),
@@ -311,7 +329,8 @@ const WhatsAppSettingsPage = () => {
       };
       
       setFormData(updatedSettings);
-      toast.error(`فشل الاتصال: ${error.message}`);
+      saveMutation.mutate(updatedSettings);
+      toast.error(`❌ فشل الاتصال: ${error.message}`, { duration: 8000 });
     } finally {
       setIsTesting(false);
     }
