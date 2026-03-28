@@ -80,9 +80,9 @@ interface WhatsAppMessage {
 const defaultSettings: WhatsAppSettings = {
   app_key: "",
   auth_key: "",
-  api_url: "https://darcoom.com/wsender/public/api/create-message",
+  api_url: "https://whats-app-connect-portal.replit.app/api/wa/send/text",
   is_active: true,
-  provider_name: "Darcoom WSender",
+  provider_name: "WhatsApp Connect Portal",
 };
 
 const defaultAutoReplySettings: AutoReplySettings = {
